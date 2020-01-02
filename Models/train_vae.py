@@ -61,26 +61,16 @@ def setup_vae_optimizer(model, hyper, model_type):
     if model_type == 'VAE':
         vae_opt = OptVAE(model=model, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS':
-        vae_opt = OptGS(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'GSDis':
-        vae_opt = OptGSDis(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'ExpGS':
         vae_opt = OptExpGS(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'ExpGSDis':
+    elif model_type == 'GS_Dis':
         vae_opt = OptExpGSDis(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'GSM':
+    elif model_type == 'IGR_I':
         vae_opt = OptGauSoftMax(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'GSMDis':
+    elif model_type == 'IGR_I_Dis':
         vae_opt = OptGauSoftMaxDis(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'IGSMDis':
-        vae_opt = OptIsoGauSoftMaxDis(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'GSP':
-        vae_opt = OptGauSoftPlus(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'GSPDis':
-        vae_opt = OptGauSoftPlusDis(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'SB':
+    elif model_type == 'IGR_SB_Dis':
         vae_opt = OptSBVAE(model=model, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'PlanarDis':
+    elif model_type == 'IGR_Planar_Dis':
         vae_opt = OptPlanarNFDis(model=model, optimizer=optimizer, hyper=hyper)
     else:
         raise RuntimeError
