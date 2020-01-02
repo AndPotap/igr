@@ -74,7 +74,7 @@ class Distributions:
         self.kappa = kappa[:, :self.n_required, :]
 
 
-class GaussianSoftmaxDist(Distributions):
+class IGR_I(Distributions):
     def __init__(self, mu: tf.Tensor, xi: tf.Tensor, noise_type: str = 'normal', sample_size: int = 1,
                  temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
         super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
@@ -96,46 +96,7 @@ class GaussianSoftmaxDist(Distributions):
 
     def project_to_vertices(self):
         psi = project_to_vertices_via_softmax_pp(self.lam)
-        # psi = tf.math.softmax(self.lam, axis=1)
         return psi
-
-
-class IsoGauSoftMax(Distributions):
-    def __init__(self, mu: tf.Tensor, noise_type: str = 'normal', temp: tf.Tensor = tf.constant(0.1),
-                 sample_size: int = 1):
-        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], noise_type=noise_type, temp=temp,
-                         sample_size=sample_size, num_of_vars=mu.shape[3])
-
-        self.mu = mu
-        self.lam = tf.constant(0., dtype=tf.float32)
-        self.psi = tf.constant(0., dtype=tf.float32)
-
-    def do_reparameterization_trick(self):
-        mu_broad = self.broadcast_params_to_sample_size(params=[self.mu])[0]
-        epsilon = self.sample_noise(shape=mu_broad.shape)
-        self.lam = (mu_broad + epsilon) / self.temp
-        self.psi = self.project_to_vertices()
-
-    def project_to_vertices(self):
-        psi = tf.math.softmax(self.lam, axis=1)
-        return psi
-
-
-class GaussianSoftPlus(GaussianSoftmaxDist):
-    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, temp: tf.Tensor, sample_size: int = 1,
-                 noise_type: str = 'normal'):
-        super().__init__(mu=mu, xi=xi, noise_type=noise_type, temp=temp, sample_size=sample_size)
-
-    def project_to_vertices(self):
-        psi = project_to_vertices_via_softplus(lam=self.lam)
-        return psi
-
-
-class CauchySoftmaxDist(GaussianSoftmaxDist):
-    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, noise_type: str = 'cauchy', sample_size: int = 1,
-                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
-        super().__init__(mu=mu, xi=xi, noise_type=noise_type, temp=temp, sample_size=sample_size)
-        self.noise_type = 'cauchy'
 
 
 class LogitDist(Distributions):
@@ -192,7 +153,7 @@ class LogitDist(Distributions):
         self.eta = kappa[:, :self.n_required, :]
 
 
-class SBDist(LogitDist):
+class IGR_SB(LogitDist):
 
     def __init__(self, mu: tf.Tensor, xi: tf.Tensor, sample_size: int = 1, noise_type: str = 'normal',
                  temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32), threshold: float = 0.99):
@@ -233,7 +194,7 @@ class SBDist(LogitDist):
         return η[:, :self.n_required, :], log_jac
 
 
-class ExpGSDist(Distributions):
+class GS(Distributions):
 
     def __init__(self, log_pi: tf.Tensor, sample_size: int = 1, noise_type: str = 'normal',
                  temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
@@ -526,13 +487,13 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
         chosen_dist = LogitDist(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
     elif dist_type == 'ExpGS':
         pi = params[0]
-        chosen_dist = ExpGSDist(log_pi=pi, temp=temp, sample_size=sample_size)
+        chosen_dist = GS(log_pi=pi, temp=temp, sample_size=sample_size)
     elif dist_type == 'IsoGauSoftMax':
         mu = params[0]
         chosen_dist = IsoGauSoftMax(mu=mu, temp=temp, sample_size=sample_size)
     elif dist_type == 'GauSoftMax':
         mu, xi, = params
-        chosen_dist = GaussianSoftmaxDist(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
+        chosen_dist = IGR_I(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
     elif dist_type == 'GauSoftPlus':
         mu, xi, = params
         chosen_dist = GaussianSoftPlus(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
@@ -542,7 +503,7 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
     elif dist_type == 'sb':
         # noinspection PyTypeChecker
         mu, xi = params
-        chosen_dist = SBDist(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
+        chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
         if run_iteratively:
             chosen_dist.run_iteratively = True
     else:
