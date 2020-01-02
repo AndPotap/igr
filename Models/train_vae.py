@@ -3,8 +3,8 @@ import pickle
 import tensorflow as tf
 from Utils.load_data import load_vae_dataset
 from Models.VAENet import setup_model, determine_path_to_save_results
-from Models.OptVAE import OptVAE, OptGauSoftMax, OptGS, OptSBVAE, OptExpGS, OptGauSoftPlus
-from Models.OptVAE import OptGauSoftMaxDis, OptGSDis, OptIsoGauSoftMaxDis, OptGauSoftPlusDis, OptExpGSDis
+from Models.OptVAE import OptVAE, OptGauSoftMax, OptGS, OptSBVAE, OptExpGS
+from Models.OptVAE import OptGauSoftMaxDis, OptGSDis, OptExpGSDis
 from Models.OptVAE import OptPlanarNFDis
 from Utils.viz_vae import plot_grid_of_generated_digits, plot_originals
 from Utils.viz_vae import plot_reconstructions_samples_and_traversals
