@@ -5,8 +5,8 @@
 import tensorflow as tf
 from Models.train_vae import run_vae
 run_with_sample = True
-# model_type = 'ExpGSDis'
-model_type = 'GSMDis'
+# model_type = 'GS_Dis'
+model_type = 'IGR_I_Dis'
 
 hyper = {'dataset_name': 'mnist', 'sample_size': 1, 'n_required': 9, 'num_of_discrete_var': 30,
          'latent_norm_n': 0, 'num_of_norm_var': 0, 'num_of_norm_param': 0,
@@ -19,7 +19,7 @@ if model_type in ['GS', 'ExpGS', 'GSDis', 'ExpGSDis']:
     hyper.update({'model_type': model_type, 'temp': 0.15, 'num_of_discrete_param': 1,
                   'use_analytical_in_test': False, 'run_analytical_kl': False})
 
-elif model_type in ['GSM', 'GSP', 'GSMDis', 'IGSMDis', 'GSPDis']:
+elif model_type in ['IGR_I_Dis', 'IGR_I']:
     hyper.update({'model_type': model_type, 'temp': 0.10,
                   'prior_file': './Results/mu_xi_unif_10_ng.pkl', 'num_of_discrete_param': 2,
                   'use_analytical_in_test': True, 'run_analytical_kl': True})
