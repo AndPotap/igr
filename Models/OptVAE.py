@@ -2,8 +2,7 @@ import pickle
 from typing import Tuple
 import tensorflow as tf
 from os import environ as os_env
-from Utils.Distributions import SBDist, compute_log_gs_dist, compute_log_sb_dist, IsoGauSoftMax
-from Utils.Distributions import GaussianSoftmaxDist, ExpGSDist, compute_log_exp_gs_dist, GaussianSoftPlus
+from Utils.Distributions import IGR_SB, compute_log_gs_dist, compute_log_sb_dist, IGR_I, GS, compute_log_exp_gs_dist
 from Utils.initializations import initialize_mu_and_xi_for_logistic
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -135,7 +134,7 @@ class OptGS(OptVAE):
     def reparameterize(self, params_broad):
         mean, log_var, logits = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        gs = ExpGSDist(log_pi=logits, sample_size=self.model.sample_size, temp=self.temp)
+        gs = GS(log_pi=logits, sample_size=self.model.sample_size, temp=self.temp)
         gs.do_reparameterization_trick()
         z_discrete = gs.psi
         self.n_required = z_discrete.shape[1]
@@ -170,7 +169,7 @@ class OptGSDis(OptGS):
 
     def reparameterize(self, params_broad):
         logits = params_broad[0]
-        gs = ExpGSDist(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
+        gs = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
         gs.do_reparameterization_trick()
         self.n_required = gs.psi.shape[1]
         z_discrete = [gs.psi]
@@ -211,7 +210,7 @@ class OptExpGS(OptVAE):
     def reparameterize(self, params_broad):
         mean, log_var, logits = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        gs = ExpGSDist(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
+        gs = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
         gs.do_reparameterization_trick()
         z_discrete = gs.psi
         self.log_psi = gs.log_psi
@@ -232,7 +231,7 @@ class OptExpGSDis(OptExpGS):
         super().__init__(model=model, optimizer=optimizer, hyper=hyper)
 
     def reparameterize(self, params_broad):
-        gs = ExpGSDist(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
+        gs = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
         gs.do_reparameterization_trick()
         self.log_psi = gs.log_psi
         self.n_required = gs.psi.shape[1]
@@ -268,13 +267,13 @@ class OptGauSoftMax(OptVAE):
         self.prior_file = hyper['prior_file']
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
-        self.ng = GaussianSoftmaxDist(mu=self.mu_0, xi=self.xi_0)
+        self.ng = IGR_I(mu=self.mu_0, xi=self.xi_0)
         self.load_prior_values()
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        self.ng = GaussianSoftmaxDist(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
+        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
         self.ng.do_reparameterization_trick()
         z_discrete = self.ng.psi
         self.n_required = z_discrete.shape[1]
@@ -319,22 +318,6 @@ class OptGauSoftMax(OptVAE):
         self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
 
 
-class OptGauSoftPlus(OptGauSoftMax):
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
-        self.ng = GaussianSoftPlus(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
-
-    def reparameterize(self, params_broad):
-        mean, log_var, mu, xi = params_broad
-        z_norm = sample_normal(mean=mean, log_var=log_var)
-        self.ng = GaussianSoftPlus(mu=mu, xi=xi, temp=self.temp)
-        self.ng.do_reparameterization_trick()
-        z_discrete = self.ng.psi
-        self.n_required = z_discrete.shape[1]
-        z = [z_norm, z_discrete]
-        return z
-
-
 class OptGauSoftMaxDis(OptGauSoftMax):
 
     def __init__(self, model, optimizer, hyper):
@@ -342,7 +325,7 @@ class OptGauSoftMaxDis(OptGauSoftMax):
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
-        self.ng = GaussianSoftmaxDist(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
+        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
         self.ng.do_reparameterization_trick()
         z_discrete = [self.ng.log_psi]
         return z_discrete
@@ -387,40 +370,12 @@ class OptPlanarNFDis(OptGauSoftMaxDis):
     def reparameterize(self, params_broad):
         mu, xi = params_broad
         epsilon = tf.random.normal(shape=mu.shape)
-        self.ng = GaussianSoftmaxDist(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
+        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
         sigma = tf.math.exp(xi)
         self.ng.lam = self.model.planar_flow(mu + sigma * epsilon)
         self.ng.log_psi = self.ng.lam - tf.math.reduce_logsumexp(self.ng.lam, axis=1, keepdims=True)
         # psi = tf.math.softmax(lam / self.temp, axis=1)
         z_discrete = [self.ng.log_psi]
-        return z_discrete
-
-
-class OptIsoGauSoftMaxDis(OptGauSoftMaxDis):
-
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
-
-    def reparameterize(self, params_broad):
-        mu = params_broad[0]
-        self.ng = IsoGauSoftMax(mu=mu, temp=self.temp, sample_size=self.sample_size)
-        self.ng.do_reparameterization_trick()
-        z_discrete = [self.ng.psi]
-        return z_discrete
-
-
-class OptGauSoftPlusDis(OptGauSoftMaxDis):
-
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
-
-    def reparameterize(self, params_broad):
-        mu, xi = params_broad
-        self.ng = GaussianSoftPlus(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size,
-                                   noise_type='trunc_normal')
-        self.ng.do_reparameterization_trick()
-        z_discrete = [self.ng.log_psi]
-        # z_discrete = [self.ng.psi]
         return z_discrete
 
 
@@ -437,13 +392,13 @@ class OptSBVAE(OptVAE):
         self.quantile = 70
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1))
-        self.sb = SBDist(mu=self.mu_0, xi=self.xi_0)
+        self.sb = IGR_SB(mu=self.mu_0, xi=self.xi_0)
         self.load_prior_values()
 
     def reparameterize(self, params_broad):
         mean, log_var, μ, ξ = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        self.sb = SBDist(mu=μ, xi=ξ, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
+        self.sb = IGR_SB(mu=μ, xi=ξ, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
         self.sb.truncation_option = self.truncation_option
         self.sb.quantile = self.quantile
         self.sb.do_reparameterization_trick()
