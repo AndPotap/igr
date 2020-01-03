@@ -1,7 +1,7 @@
 import pickle
 import numpy as np
-from Utils.Distributions import ExpGSDist
-from Utils.Distributions import GaussianSoftmaxDist
+from Utils.Distributions import GS
+from Utils.Distributions import IGR_I
 from Models.VAENet import setup_model
 from Models.train_vae import setup_vae_optimizer
 from GS_vs_SB_analysis.simplex_proximity_funcs import calculate_distance_to_simplex
@@ -40,9 +40,9 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
 
 def determine_distribution(model_type, params, temp, samples_n):
     if model_type == 'GSMDis':
-        dist = GaussianSoftmaxDist(mu=params[0], xi=params[1], sample_size=samples_n, temp=temp)
+        dist = IGR_I(mu=params[0], xi=params[1], sample_size=samples_n, temp=temp)
     elif model_type == 'ExpGSDis':
-        dist = ExpGSDist(log_pi=params[0], sample_size=samples_n, temp=temp)
+        dist = GS(log_pi=params[0], sample_size=samples_n, temp=temp)
     else:
         raise RuntimeError
     return dist
