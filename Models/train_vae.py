@@ -85,16 +85,8 @@ def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_ima
             t0 = time.time()
             train_loss_mean = tf.keras.metrics.Mean()
             for x_train in train_dataset.take(hyper['iter_per_epoch']):
-                output = vae_opt.compute_gradients(x=x_train)
-                gradients, loss, log_px_z, kl, kl_n, kl_d = output
-                vae_opt.apply_gradients(gradients=gradients)
-                iteration_counter += 1
-                train_loss_mean(loss)
-                append_train_summaries(tracking_losses=output, iteration_counter=iteration_counter)
-                update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
-                                               disc_c_linspace=disc_c_linspace,
-                                               cont_c_linspace=cont_c_linspace)
-
+                vae_opt, iteration_counter = perform_train_step(x_train, vae_opt, train_loss_mean,
+                                                                iteration_counter, disc_c_linspace, cont_c_linspace)
             if monitor_gradients:
                 grad_norm = vae_opt.monitor_parameter_gradients_at_psi(x=x_train)
                 grad_monitor_dict.update({iteration_counter: grad_norm.numpy()})
@@ -108,9 +100,22 @@ def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_ima
                                           train_loss_mean=train_loss_mean, time_taken=t1 - t0,
                                           grad_norm=grad_norm)
 
-            save_intermediate_results(epoch, model, vae_opt, test_images, hyper, results_file, results_path, writer)
+            save_intermediate_results(epoch, model, vae_opt, test_images,
+                                      hyper, results_file, results_path, writer)
 
         save_final_results(model, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
+
+
+def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace, cont_c_linspace):
+    output = vae_opt.compute_gradients(x=x_train)
+    gradients, loss, log_px_z, kl, kl_n, kl_d = output
+    vae_opt.apply_gradients(gradients=gradients)
+    iteration_counter += 1
+    train_loss_mean(loss)
+    append_train_summaries(tracking_losses=output, iteration_counter=iteration_counter)
+    update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
+                                   disc_c_linspace=disc_c_linspace, cont_c_linspace=cont_c_linspace)
+    return vae_opt, iteration_counter
 
 
 def save_intermediate_results(epoch, model, vae_opt, test_images, hyper, results_file, results_path, writer):
