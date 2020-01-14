@@ -3,10 +3,10 @@ import pickle
 import tensorflow as tf
 from Utils.load_data import load_vae_dataset
 from Models.VAENet import setup_model, determine_path_to_save_results
-from Models.OptVAE import OptVAE, OptGauSoftMax, OptGS, OptSBVAE, OptExpGS
-from Models.OptVAE import OptGauSoftMaxDis, OptGSDis, OptExpGSDis
+from Models.OptVAE import OptVAE, OptGauSoftMax, OptSBVAE, OptExpGS
+from Models.OptVAE import OptGauSoftMaxDis, OptExpGSDis
 from Models.OptVAE import OptPlanarNFDis
-from Utils.viz_vae import plot_grid_of_generated_digits, plot_originals
+from Utils.viz_vae import plot_originals
 from Utils.viz_vae import plot_reconstructions_samples_and_traversals
 from Utils.general import setup_logger
 from Utils.general import append_timestamp_to_file
@@ -35,9 +35,6 @@ def run_vae(hyper, run_with_sample):
     train_vae_model(vae_opt=vae_opt, model=model, writer=writer, hyper=hyper, train_dataset=train_dataset,
                     test_dataset=test_dataset, logger=logger, results_path=results_path,
                     test_images=test_images)
-
-    plot_grid_of_generated_digits(model=model, n_required=vae_opt.n_required, fig_size=vae_opt.n_required,
-                                  filename=results_path + '/samples_grid.html', digit_size=image_size[0])
 
 
 def start_all_logging_instruments(hyper, results_path, test_images):
