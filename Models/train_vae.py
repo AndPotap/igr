@@ -28,24 +28,6 @@ def run_vae(hyper, run_with_sample):
                     test_dataset=test_dataset, test_images=test_images)
 
 
-def start_all_logging_instruments(hyper, test_images):
-    results_path = determine_path_to_save_results(model_type=hyper['model_type'],
-                                                  dataset_name=hyper['dataset_name'])
-    writer = tf.summary.create_file_writer(logdir=results_path)
-    logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=results_path + '/loss.log',
-                                                                 termination='.log'),
-                          logger_name=append_timestamp_to_file('logger', termination=''))
-    log_all_hyperparameters(hyper=hyper, logger=logger)
-    plot_originals(test_images=test_images, results_path=results_path)
-    return writer, logger, results_path
-
-
-def log_all_hyperparameters(hyper, logger):
-    logger.info(f"GPU Available: {tf.test.is_gpu_available()}")
-    for key, value in hyper.items():
-        logger.info(f'Hyper: {key}: {value}')
-
-
 def get_model_and_optimizer(hyper, model_type):
     model = setup_model(hyper=hyper)
     optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
@@ -97,6 +79,24 @@ def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_ima
         save_final_results(model, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
 
 
+def start_all_logging_instruments(hyper, test_images):
+    results_path = determine_path_to_save_results(model_type=hyper['model_type'],
+                                                  dataset_name=hyper['dataset_name'])
+    writer = tf.summary.create_file_writer(logdir=results_path)
+    logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=results_path + '/loss.log',
+                                                                 termination='.log'),
+                          logger_name=append_timestamp_to_file('logger', termination=''))
+    log_all_hyperparameters(hyper=hyper, logger=logger)
+    plot_originals(test_images=test_images, results_path=results_path)
+    return writer, logger, results_path
+
+
+def log_all_hyperparameters(hyper, logger):
+    logger.info(f"GPU Available: {tf.test.is_gpu_available()}")
+    for key, value in hyper.items():
+        logger.info(f'Hyper: {key}: {value}')
+
+
 def run_initialization_procedure(hyper, test_images, results_path):
     (iteration_counter, results_file, hyper_file,
      cont_c_linspace, disc_c_linspace) = initialize_vae_variables(results_path=results_path, hyper=hyper)
@@ -107,43 +107,6 @@ def run_initialization_procedure(hyper, test_images, results_path):
         pickle.dump(obj=hyper, file=f)
 
     return iteration_counter, results_file, hyper_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict, grad_norm
-
-
-def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_counter, grad_monitor_dict, epoch):
-    if monitor_gradients:
-        grad_norm = vae_opt.monitor_parameter_gradients_at_psi(x=x_train)
-        grad_monitor_dict.update({iteration_counter: grad_norm.numpy()})
-        with open(file='./Results/gradients_' + str(epoch) + '.pkl', mode='wb') as f:
-            pickle.dump(obj=grad_monitor_dict, file=f)
-
-
-def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace, cont_c_linspace):
-    output = vae_opt.compute_gradients(x=x_train)
-    gradients, loss, log_px_z, kl, kl_n, kl_d = output
-    vae_opt.apply_gradients(gradients=gradients)
-    iteration_counter += 1
-    train_loss_mean(loss)
-    append_train_summaries(tracking_losses=output, iteration_counter=iteration_counter)
-    update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
-                                   disc_c_linspace=disc_c_linspace, cont_c_linspace=cont_c_linspace)
-    return vae_opt, iteration_counter
-
-
-def save_intermediate_results(epoch, model, vae_opt, test_images, hyper, results_file, results_path, writer):
-    if epoch % 10 == 0:
-        model.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
-        plot_reconstructions_samples_and_traversals(model=model, hyper=hyper, epoch=epoch,
-                                                    results_path=results_path,
-                                                    test_images=test_images, vae_opt=vae_opt)
-    writer.flush()
-
-
-def save_final_results(model, logger, results_file, initial_time, temp):
-    final_time = time.time()
-    logger.info(f'Total training time {final_time - initial_time: 4.1f} secs')
-    logger.info(f'Final temp {temp: 4.5f}')
-    results_file = append_timestamp_to_file(file_name=results_file, termination='.h5')
-    model.save_weights(filepath=results_file)
 
 
 def initialize_vae_variables(results_path, hyper):
@@ -160,10 +123,16 @@ def convert_into_linspace(limits_tuple):
     return var_linspace
 
 
-def update_regularization_channels(vae_opt, iteration_counter, disc_c_linspace, cont_c_linspace):
-    if iteration_counter < disc_c_linspace.shape[0]:
-        vae_opt.continuous_c = cont_c_linspace[iteration_counter]
-        vae_opt.discrete_c = disc_c_linspace[iteration_counter]
+def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace, cont_c_linspace):
+    output = vae_opt.compute_gradients(x=x_train)
+    gradients, loss, log_px_z, kl, kl_n, kl_d = output
+    vae_opt.apply_gradients(gradients=gradients)
+    iteration_counter += 1
+    train_loss_mean(loss)
+    append_train_summaries(tracking_losses=output, iteration_counter=iteration_counter)
+    update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
+                                   disc_c_linspace=disc_c_linspace, cont_c_linspace=cont_c_linspace)
+    return vae_opt, iteration_counter
 
 
 def append_train_summaries(tracking_losses, iteration_counter):
@@ -173,6 +142,20 @@ def append_train_summaries(tracking_losses, iteration_counter):
     tf.summary.scalar(name='Train KL', data=kl, step=iteration_counter)
     tf.summary.scalar(name='Train KL Norm', data=kl_n, step=iteration_counter)
     tf.summary.scalar(name='Train KL Dis', data=kl_d, step=iteration_counter)
+
+
+def update_regularization_channels(vae_opt, iteration_counter, disc_c_linspace, cont_c_linspace):
+    if iteration_counter < disc_c_linspace.shape[0]:
+        vae_opt.continuous_c = cont_c_linspace[iteration_counter]
+        vae_opt.discrete_c = disc_c_linspace[iteration_counter]
+
+
+def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_counter, grad_monitor_dict, epoch):
+    if monitor_gradients:
+        grad_norm = vae_opt.monitor_parameter_gradients_at_psi(x=x_train)
+        grad_monitor_dict.update({iteration_counter: grad_norm.numpy()})
+        with open(file='./Results/gradients_' + str(epoch) + '.pkl', mode='wb') as f:
+            pickle.dump(obj=grad_monitor_dict, file=f)
 
 
 def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, iteration_counter,
@@ -225,5 +208,22 @@ def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, i
     tf.summary.scalar(name='Test KL', data=kl_mean.result(), step=epoch)
     tf.summary.scalar(name='Test KL Norm', data=kl_n_mean.result(), step=epoch)
     tf.summary.scalar(name='Test KL Dis', data=kl_d_mean.result(), step=epoch)
+
+
+def save_intermediate_results(epoch, model, vae_opt, test_images, hyper, results_file, results_path, writer):
+    if epoch % 10 == 0:
+        model.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
+        plot_reconstructions_samples_and_traversals(model=model, hyper=hyper, epoch=epoch,
+                                                    results_path=results_path,
+                                                    test_images=test_images, vae_opt=vae_opt)
+    writer.flush()
+
+
+def save_final_results(model, logger, results_file, initial_time, temp):
+    final_time = time.time()
+    logger.info(f'Total training time {final_time - initial_time: 4.1f} secs')
+    logger.info(f'Final temp {temp: 4.5f}')
+    results_file = append_timestamp_to_file(file_name=results_file, termination='.h5')
+    model.save_weights(filepath=results_file)
 
 # ===========================================================================================================
