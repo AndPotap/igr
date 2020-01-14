@@ -108,18 +108,26 @@ def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_ima
                                           train_loss_mean=train_loss_mean, time_taken=t1 - t0,
                                           grad_norm=grad_norm)
 
-            if epoch % 10 == 0:
-                model.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
-                plot_reconstructions_samples_and_traversals(model=model, hyper=hyper, epoch=epoch,
-                                                            results_path=results_path,
-                                                            test_images=test_images, vae_opt=vae_opt)
-            writer.flush()
+            save_intermediate_results(epoch, model, vae_opt, test_images, hyper, results_file, results_path, writer)
 
-        final_time = time.time()
-        logger.info(f'Total training time {final_time - initial_time: 4.1f} secs')
-        logger.info(f'Final temp {vae_opt.temp.numpy(): 4.5f}')
-        results_file = append_timestamp_to_file(file_name=results_file, termination='.h5')
-        model.save_weights(filepath=results_file)
+        save_final_results(model, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
+
+
+def save_intermediate_results(epoch, model, vae_opt, test_images, hyper, results_file, results_path, writer):
+    if epoch % 10 == 0:
+        model.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
+        plot_reconstructions_samples_and_traversals(model=model, hyper=hyper, epoch=epoch,
+                                                    results_path=results_path,
+                                                    test_images=test_images, vae_opt=vae_opt)
+    writer.flush()
+
+
+def save_final_results(model, logger, results_file, initial_time, temp):
+    final_time = time.time()
+    logger.info(f'Total training time {final_time - initial_time: 4.1f} secs')
+    logger.info(f'Final temp {temp: 4.5f}')
+    results_file = append_timestamp_to_file(file_name=results_file, termination='.h5')
+    model.save_weights(filepath=results_file)
 
 
 def initialize_vae_variables(results_path, hyper):
