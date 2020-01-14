@@ -5,7 +5,7 @@ os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 class VAENet(tf.keras.Model):
-    def __init__(self, hyper: dict, image_shape: tuple = (28, 28, 1)):
+    def __init__(self, hyper: dict):
         super(VAENet, self).__init__()
         self.cont_latent_n = hyper['latent_norm_n']
         self.cont_var_num = hyper['num_of_norm_var']
@@ -27,7 +27,7 @@ class VAENet(tf.keras.Model):
         self.split_sizes_list += [self.disc_latent_n * self.disc_var_num for _ in range(self.disc_param_num)]
         self.num_var = (self.cont_var_num, self.disc_var_num)
 
-        self.image_shape = image_shape
+        self.image_shape = hyper['image_shape']
         self.inference_net = tf.keras.Sequential
         self.generative_net = tf.keras.Sequential
         self.sop_net = tf.keras.Sequential
@@ -255,7 +255,7 @@ def determine_path_to_save_results(model_type, dataset_name):
     return results_path
 
 
-def setup_model(hyper, image_size):
-    model = VAENet(hyper=hyper, image_shape=image_size)
+def setup_model(hyper):
+    model = VAENet(hyper=hyper)
     model.construct_architecture()
     return model

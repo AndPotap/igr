@@ -19,32 +19,30 @@ from Utils.general import append_timestamp_to_file
 def run_vae(hyper, run_with_sample):
     data = load_vae_dataset(dataset_name=hyper['dataset_name'], batch_n=hyper['batch_n'],
                             epochs=hyper['epochs'], run_with_sample=run_with_sample,
-                            architecture=hyper['architecture'])
-    (train_dataset, test_dataset, test_images, hyper['batch_n'], hyper['epochs'],
-     image_size, hyper['iter_per_epoch']) = data
+                            architecture=hyper['architecture'], hyper=hyper)
+    train_dataset, test_dataset, test_images, hyper = data
 
-    results_path = determine_path_to_save_results(model_type=hyper['model_type'],
-                                                  dataset_name=hyper['dataset_name'])
-    model = setup_model(hyper=hyper, image_size=image_size)
+    model = setup_model(hyper=hyper)
 
     vae_opt = setup_vae_optimizer(model=model, hyper=hyper, model_type=hyper['model_type'])
 
-    writer, logger = start_all_logging_instruments(hyper=hyper, results_path=results_path,
-                                                   test_images=test_images)
+    writer, logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
 
     train_vae_model(vae_opt=vae_opt, model=model, writer=writer, hyper=hyper, train_dataset=train_dataset,
                     test_dataset=test_dataset, logger=logger, results_path=results_path,
                     test_images=test_images)
 
 
-def start_all_logging_instruments(hyper, results_path, test_images):
+def start_all_logging_instruments(hyper, test_images):
+    results_path = determine_path_to_save_results(model_type=hyper['model_type'],
+                                                  dataset_name=hyper['dataset_name'])
     writer = tf.summary.create_file_writer(logdir=results_path)
     logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=results_path + '/loss.log',
                                                                  termination='.log'),
                           logger_name=append_timestamp_to_file('logger', termination=''))
     log_all_hyperparameters(hyper=hyper, logger=logger)
     plot_originals(test_images=test_images, results_path=results_path)
-    return writer, logger
+    return writer, logger, results_path
 
 
 def log_all_hyperparameters(hyper, logger):
