@@ -4,12 +4,9 @@ import tensorflow as tf
 from Utils.load_data import load_vae_dataset
 from Models.VAENet import setup_model, determine_path_to_save_results
 from Models.OptVAE import OptVAE, OptGauSoftMax, OptSBVAE, OptExpGS
-from Models.OptVAE import OptGauSoftMaxDis, OptExpGSDis
-from Models.OptVAE import OptPlanarNFDis
-from Utils.viz_vae import plot_originals
-from Utils.viz_vae import plot_reconstructions_samples_and_traversals
-from Utils.general import setup_logger
-from Utils.general import append_timestamp_to_file
+from Models.OptVAE import OptGauSoftMaxDis, OptExpGSDis, OptPlanarNFDis
+from Utils.viz_vae import plot_originals, plot_reconstructions_samples_and_traversals
+from Utils.general import setup_logger, append_timestamp_to_file
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ===========================================================================================================
 # Train VAE
