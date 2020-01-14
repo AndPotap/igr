@@ -53,7 +53,7 @@ def get_model_and_optimizer(hyper, model_type):
 def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_images, monitor_gradients=False):
     writer, logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     init_vars = run_initialization_procedure(hyper, test_images, results_path)
-    (iteration_counter, results_file, hyper_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
+    (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
      grad_norm) = init_vars
 
     with writer.as_default():
@@ -98,24 +98,26 @@ def log_all_hyperparameters(hyper, logger):
 
 
 def run_initialization_procedure(hyper, test_images, results_path):
-    (iteration_counter, results_file, hyper_file,
-     cont_c_linspace, disc_c_linspace) = initialize_vae_variables(results_path=results_path, hyper=hyper)
-    grad_monitor_dict = {}
-    grad_norm = tf.constant(0., dtype=tf.float32)
+    init_vars = initialize_vae_variables(results_path=results_path, hyper=hyper)
+    hyper_file, *_ = init_vars
 
     with open(file=hyper_file, mode='wb') as f:
         pickle.dump(obj=hyper, file=f)
 
-    return iteration_counter, results_file, hyper_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict, grad_norm
+    return init_vars
 
 
 def initialize_vae_variables(results_path, hyper):
     iteration_counter = 0
     results_file = results_path + '/vae.h5'
     hyper_file = results_path + '/hyper.pkl'
-    continuous_channel_lin = convert_into_linspace(hyper['continuous_c_linspace'])
-    discrete_channel_lin = convert_into_linspace(hyper['discrete_c_linspace'])
-    return iteration_counter, results_file, hyper_file, continuous_channel_lin, discrete_channel_lin
+    cont_c_linspace = convert_into_linspace(hyper['continuous_c_linspace'])
+    disc_c_linspace = convert_into_linspace(hyper['discrete_c_linspace'])
+    grad_monitor_dict = {}
+    grad_norm = tf.constant(0., dtype=tf.float32)
+    init_vars = (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
+                 grad_norm)
+    return init_vars
 
 
 def convert_into_linspace(limits_tuple):
