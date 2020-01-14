@@ -22,15 +22,10 @@ def run_vae(hyper, run_with_sample):
                             architecture=hyper['architecture'], hyper=hyper)
     train_dataset, test_dataset, test_images, hyper = data
 
-    model = setup_model(hyper=hyper)
+    model, vae_opt = get_model_and_optimizer(hyper=hyper, model_type=hyper['model_type'])
 
-    vae_opt = setup_vae_optimizer(model=model, hyper=hyper, model_type=hyper['model_type'])
-
-    writer, logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
-
-    train_vae_model(vae_opt=vae_opt, model=model, writer=writer, hyper=hyper, train_dataset=train_dataset,
-                    test_dataset=test_dataset, logger=logger, results_path=results_path,
-                    test_images=test_images)
+    train_vae_model(vae_opt=vae_opt, model=model, hyper=hyper, train_dataset=train_dataset,
+                    test_dataset=test_dataset, test_images=test_images)
 
 
 def start_all_logging_instruments(hyper, test_images):
@@ -51,7 +46,8 @@ def log_all_hyperparameters(hyper, logger):
         logger.info(f'Hyper: {key}: {value}')
 
 
-def setup_vae_optimizer(model, hyper, model_type):
+def get_model_and_optimizer(hyper, model_type):
+    model = setup_model(hyper=hyper)
     optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
     if model_type == 'VAE':
         vae_opt = OptVAE(model=model, optimizer=optimizer, hyper=hyper)
@@ -69,16 +65,17 @@ def setup_vae_optimizer(model, hyper, model_type):
         vae_opt = OptPlanarNFDis(model=model, optimizer=optimizer, hyper=hyper)
     else:
         raise RuntimeError
-    return vae_opt
+    return model, vae_opt
 
 
-def train_vae_model(vae_opt, model, writer, hyper, train_dataset, test_dataset, logger, results_path,
-                    test_images, monitor_gradients=False):
+def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_images, monitor_gradients=False):
 
+    writer, logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     (iteration_counter, results_file, hyper_file,
      cont_c_linspace, disc_c_linspace) = initialize_vae_variables(results_path=results_path, hyper=hyper)
     grad_monitor_dict = {}
     grad_norm = tf.constant(0., dtype=tf.float32)
+
     with open(file=hyper_file, mode='wb') as f:
         pickle.dump(obj=hyper, file=f)
 
