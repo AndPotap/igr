@@ -69,15 +69,10 @@ def get_model_and_optimizer(hyper, model_type):
 
 
 def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_images, monitor_gradients=False):
-
     writer, logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
-    (iteration_counter, results_file, hyper_file,
-     cont_c_linspace, disc_c_linspace) = initialize_vae_variables(results_path=results_path, hyper=hyper)
-    grad_monitor_dict = {}
-    grad_norm = tf.constant(0., dtype=tf.float32)
-
-    with open(file=hyper_file, mode='wb') as f:
-        pickle.dump(obj=hyper, file=f)
+    init_vars = run_initialization_procedure(hyper, test_images, results_path)
+    (iteration_counter, results_file, hyper_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
+     grad_norm) = init_vars
 
     with writer.as_default():
         initial_time = time.time()
@@ -87,13 +82,9 @@ def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_ima
             for x_train in train_dataset.take(hyper['iter_per_epoch']):
                 vae_opt, iteration_counter = perform_train_step(x_train, vae_opt, train_loss_mean,
                                                                 iteration_counter, disc_c_linspace, cont_c_linspace)
-            if monitor_gradients:
-                grad_norm = vae_opt.monitor_parameter_gradients_at_psi(x=x_train)
-                grad_monitor_dict.update({iteration_counter: grad_norm.numpy()})
-                with open(file='./Results/gradients_' + str(epoch) + '.pkl', mode='wb') as f:
-                    pickle.dump(obj=grad_monitor_dict, file=f)
-
             t1 = time.time()
+            monitor_vanishing_grads(monitor_gradients, x_train, vae_opt,
+                                    iteration_counter, grad_monitor_dict, epoch)
 
             evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
                                           hyper=hyper, logger=logger, iteration_counter=iteration_counter,
@@ -104,6 +95,26 @@ def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_ima
                                       hyper, results_file, results_path, writer)
 
         save_final_results(model, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
+
+
+def run_initialization_procedure(hyper, test_images, results_path):
+    (iteration_counter, results_file, hyper_file,
+     cont_c_linspace, disc_c_linspace) = initialize_vae_variables(results_path=results_path, hyper=hyper)
+    grad_monitor_dict = {}
+    grad_norm = tf.constant(0., dtype=tf.float32)
+
+    with open(file=hyper_file, mode='wb') as f:
+        pickle.dump(obj=hyper, file=f)
+
+    return iteration_counter, results_file, hyper_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict, grad_norm
+
+
+def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_counter, grad_monitor_dict, epoch):
+    if monitor_gradients:
+        grad_norm = vae_opt.monitor_parameter_gradients_at_psi(x=x_train)
+        grad_monitor_dict.update({iteration_counter: grad_norm.numpy()})
+        with open(file='./Results/gradients_' + str(epoch) + '.pkl', mode='wb') as f:
+            pickle.dump(obj=grad_monitor_dict, file=f)
 
 
 def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace, cont_c_linspace):
