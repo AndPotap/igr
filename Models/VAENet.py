@@ -186,14 +186,10 @@ class VAENet(tf.keras.Model):
 
     # -------------------------------------------------------------------------------------------------------
     def encode(self, x):
-        params = self.split_network_parameters(x=x)
+        params = self.split_and_reshape_network_parameters(x=x)
         return params
 
-    def decode(self, z):
-        logits = tf.split(self.generative_net(z), num_or_size_splits=self.log_px_z_params_num, axis=3)
-        return logits
-
-    def split_network_parameters(self, x):
+    def split_and_reshape_network_parameters(self, x):
         params = tf.split(self.inference_net(x), num_or_size_splits=self.split_sizes_list, axis=1)
         reshaped_params = []
         for idx, param in enumerate(params):
@@ -204,6 +200,10 @@ class VAENet(tf.keras.Model):
                 param = tf.reshape(param, shape=(batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
             reshaped_params.append(param)
         return reshaped_params
+
+    def decode(self, z):
+        logits = tf.split(self.generative_net(z), num_or_size_splits=self.log_px_z_params_num, axis=3)
+        return logits
     # -------------------------------------------------------------------------------------------------------
 
 
