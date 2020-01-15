@@ -13,7 +13,7 @@ class OptVAE:
         self.nets = nets
         self.optimizer = optimizer
         self.n_required = hyper['n_required']
-        self.run_analytical_kl = hyper['run_analytical_kl']
+        self.run_closed_form_kl = hyper['run_closed_form_kl']
         self.sample_size = hyper['sample_size']
         self.dataset_name = hyper['dataset_name']
 
@@ -72,19 +72,19 @@ class OptVAE:
         return x_logit
 
     @staticmethod
-    def compute_kl_elements(z, params_broad, run_analytical_kl):
+    def compute_kl_elements(z, params_broad, run_closed_form_kl):
         mean, log_var = params_broad
         kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
         kl_dis = tf.constant(0)
         return kl_norm, kl_dis
 
-    def compute_loss(self, x, x_logit, z, params_broad, run_jv, run_analytical_kl):
+    def compute_loss(self, x, x_logit, z, params_broad, run_jv, run_closed_form_kl):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
             log_px_z = compute_log_gaussian_pdf(x=x, x_logit=x_logit)
         else:
             log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
         kl_norm, kl_dis = self.compute_kl_elements(z=z, params_broad=params_broad,
-                                                   run_analytical_kl=run_analytical_kl)
+                                                   run_closed_form_kl=run_closed_form_kl)
         kl = kl_norm + kl_dis
         loss = compute_loss(log_px_z=log_px_z, kl_norm=kl_norm, kl_dis=kl_dis,
                             run_jv=run_jv, γ=self.γ,
@@ -93,10 +93,10 @@ class OptVAE:
                   tf.reduce_mean(kl_norm), tf.reduce_mean(kl_dis))
         return output
 
-    def compute_losses_from_x_wo_gradients(self, x, run_jv, run_analytical_kl):
+    def compute_losses_from_x_wo_gradients(self, x, run_jv, run_closed_form_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x=x)
         output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-                                   run_jv=run_jv, run_analytical_kl=run_analytical_kl)
+                                   run_jv=run_jv, run_closed_form_kl=run_closed_form_kl)
         loss, recon, kl, kl_norm, kl_dis = output
         return loss, recon, kl, kl_norm, kl_dis
 
@@ -104,7 +104,7 @@ class OptVAE:
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x)
             output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-                                       run_jv=self.run_jv, run_analytical_kl=self.run_analytical_kl)
+                                       run_jv=self.run_jv, run_closed_form_kl=self.run_closed_form_kl)
             loss, recon, kl, kl_n, kl_d = output
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         return gradients, loss, recon, kl, kl_n, kl_d
@@ -141,8 +141,8 @@ class OptGS(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
-    def compute_kl_elements(self, z, params_broad, run_analytical_kl):
-        if run_analytical_kl:
+    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
+        if run_closed_form_kl:
             kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
@@ -175,8 +175,8 @@ class OptGSDis(OptGS):
         z_discrete = [gs.psi]
         return z_discrete
 
-    def compute_kl_elements(self, z, params_broad, run_analytical_kl):
-        if run_analytical_kl:
+    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
+        if run_closed_form_kl:
             kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
@@ -218,7 +218,7 @@ class OptExpGS(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
-    def compute_kl_elements(self, z, params_broad, run_analytical_kl):
+    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
         mean, log_var, logits = params_broad
         z_norm, _ = z
         kl_norm = sample_kl_norm(z_norm=z_norm, mean=mean, log_var=log_var)
@@ -238,8 +238,8 @@ class OptExpGSDis(OptExpGS):
         z_discrete = [gs.log_psi]
         return z_discrete
 
-    def compute_kl_elements(self, z, params_broad, run_analytical_kl):
-        if run_analytical_kl:
+    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
+        if run_closed_form_kl:
             kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(params_broad=params_broad)
@@ -280,8 +280,8 @@ class OptGauSoftMax(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
-    def compute_kl_elements(self, z, params_broad, run_analytical_kl):
-        if run_analytical_kl:
+    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
+        if run_closed_form_kl:
             kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
@@ -330,8 +330,8 @@ class OptGauSoftMaxDis(OptGauSoftMax):
         z_discrete = [self.ng.log_psi]
         return z_discrete
 
-    def compute_kl_elements(self, z, params_broad, run_analytical_kl):
-        if run_analytical_kl:
+    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
+        if run_closed_form_kl:
             kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
@@ -408,8 +408,8 @@ class OptSBVAE(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
-    def compute_kl_elements(self, z, params_broad, run_analytical_kl):
-        if run_analytical_kl:
+    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
+        if run_closed_form_kl:
             kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
