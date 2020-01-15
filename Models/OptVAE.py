@@ -121,81 +121,6 @@ class OptVAE:
 # ===========================================================================================================
 
 
-class OptGS(OptVAE):
-
-    def __init__(self, nets, optimizer, hyper):
-        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
-
-    def reparameterize(self, params_broad):
-        mean, log_var, logits = params_broad
-        z_norm = sample_normal(mean=mean, log_var=log_var)
-        gs = GS(log_pi=logits, sample_size=self.nets.sample_size, temp=self.temp)
-        gs.do_reparameterization_trick()
-        z_discrete = gs.psi
-        self.n_required = z_discrete.shape[1]
-        z = [z_norm, z_discrete]
-        return z
-
-    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
-        if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
-        else:
-            kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
-        return kl_norm, kl_dis
-
-    @staticmethod
-    def compute_kl_elements_analytically(params_broad):
-        mean, log_var, logits = params_broad
-        kl_norm = calculate_kl_norm_via_analytical_formula(mean=mean, log_var=log_var)
-        kl_dis = calculate_categorical_closed_kl(log_α=logits)
-        return kl_norm, kl_dis
-
-    def compute_kl_elements_via_sample(self, z, params_broad):
-        mean, log_var, logits = params_broad
-        z_norm, z_discrete = z
-        kl_norm = sample_kl_norm(z_norm=z_norm, mean=mean, log_var=log_var)
-        kl_dis = sample_kl_gs(ψ=z_discrete, π=tf.math.softmax(logits, axis=1), temp=self.temp)
-        return kl_norm, kl_dis
-
-
-class OptGSDis(OptGS):
-    def __init__(self, nets, optimizer, hyper):
-        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-
-    def reparameterize(self, params_broad):
-        logits = params_broad[0]
-        gs = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
-        gs.do_reparameterization_trick()
-        self.n_required = gs.psi.shape[1]
-        z_discrete = [gs.psi]
-        return z_discrete
-
-    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
-        if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
-        else:
-            kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
-        return kl_norm, kl_dis
-
-    @staticmethod
-    def compute_kl_elements_analytically(params_broad):
-        logits = params_broad[0]
-        kl_norm = 0.
-        kl_dis = calculate_categorical_closed_kl(log_α=logits)
-        return kl_norm, kl_dis
-
-    def compute_kl_elements_via_sample(self, z, params_broad):
-        logits = params_broad[0]
-        z_discrete = z[0]
-        kl_norm = 0.
-        kl_dis = sample_kl_gs(ψ=z_discrete, π=tf.math.softmax(logits, axis=1), temp=self.temp)
-        return kl_norm, kl_dis
-
-
-# ===========================================================================================================
-
-
 class OptExpGS(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
@@ -493,7 +418,6 @@ def compute_log_bernoulli_pdf(x, x_logit):
 
 def compute_log_gaussian_pdf(x, x_logit):
     mu, xi = x_logit
-    # mu = x_logit
     mu = tf.math.sigmoid(mu)
     xi = 1.e-6 + tf.math.softplus(xi)
     pi = 3.141592653589793
@@ -501,9 +425,6 @@ def compute_log_gaussian_pdf(x, x_logit):
     batch_size, image_size, sample_size = mu.shape[0], mu.numpy().shape[1:4], mu.shape[4]
     x_w_extra_col = tf.reshape(x, shape=(batch_size,) + image_size + (1,))
     x_broad = tf.broadcast_to(x_w_extra_col, shape=(batch_size,) + image_size + (sample_size,))
-
-    # log_pixel = - 0.5 * (x_broad - mu) ** 2. - 0.5 * tf.math.log(2 * pi)
-    # log_px_z = tf.reduce_sum(log_pixel, axis=[1, 2, 3])
 
     log_pixel = - 0.5 * ((x_broad - mu) / xi) ** 2. - 0.5 * tf.math.log(2 * pi) - tf.math.log(1.e-8 + xi)
     log_px_z = tf.reduce_sum(log_pixel, axis=[1, 2, 3])
