@@ -14,11 +14,10 @@ class VAENet(tf.keras.Model):
         self.disc_var_num = hyper['num_of_discrete_var']
         self.disc_param_num = hyper['num_of_discrete_param']
         self.architecture_type = hyper['architecture']
-        self.batch_size = hyper['batch_n']
         self.model_name = hyper['dataset_name']
-        self.log_px_z_params_num = 1 if self.model_name == 'mnist' else 2
-        # self.log_px_z_params_num = 1 if self.model_name == 'celeb_a' else 1
+        self.image_shape = hyper['image_shape']
 
+        self.log_px_z_params_num = 1 if self.model_name == 'mnist' else 2
         self.latent_dim_in = (self.cont_param_num * self.cont_latent_n * self.cont_var_num +
                               self.disc_param_num * self.disc_latent_n * self.disc_var_num)
         self.latent_dim_out = (self.cont_var_num * self.cont_latent_n +
@@ -27,10 +26,8 @@ class VAENet(tf.keras.Model):
         self.split_sizes_list += [self.disc_latent_n * self.disc_var_num for _ in range(self.disc_param_num)]
         self.num_var = (self.cont_var_num, self.disc_var_num)
 
-        self.image_shape = hyper['image_shape']
         self.inference_net = tf.keras.Sequential
         self.generative_net = tf.keras.Sequential
-        self.sop_net = tf.keras.Sequential
         self.planar_flow = tf.keras.Sequential
 
     def construct_architecture(self):
@@ -188,7 +185,6 @@ class VAENet(tf.keras.Model):
         ])
 
     # -------------------------------------------------------------------------------------------------------
-    # Encoding and Decoding Methods
     def encode(self, x):
         params = self.split_network_parameters(x=x)
         return params
@@ -203,11 +199,9 @@ class VAENet(tf.keras.Model):
         for idx, param in enumerate(params):
             batch_size = param.shape[0]
             if self.disc_var_num > 1:
-                param = tf.reshape(param,
-                                   shape=(batch_size, self.disc_latent_n, 1, self.disc_var_num))
+                param = tf.reshape(param, shape=(batch_size, self.disc_latent_n, 1, self.disc_var_num))
             else:
-                param = tf.reshape(param,
-                                   shape=(batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
+                param = tf.reshape(param, shape=(batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
             reshaped_params.append(param)
         return reshaped_params
     # -------------------------------------------------------------------------------------------------------
