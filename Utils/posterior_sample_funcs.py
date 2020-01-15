@@ -28,7 +28,7 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
     for test_image in test_dataset:
         z, x_logit, params = vae_opt.perform_fwd_pass(test_image)
         dist = determine_distribution(model_type=model_type, params=params, temp=hyper['temp'], samples_n=samples_n)
-        dist.do_reparameterization_trick()
+        dist.generate_sample()
         ψ = dist.psi.numpy()
         for i in range(ψ.shape[0]):
             for k in range(ψ.shape[3]):
