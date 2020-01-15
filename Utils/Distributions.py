@@ -86,7 +86,7 @@ class IGR_I(Distributions):
         self.psi = tf.constant(0., dtype=tf.float32)
         self.log_psi = tf.constant(0., dtype=tf.float32)
 
-    def do_reparameterization_trick(self):
+    def generate_sample(self):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         epsilon = self.sample_noise(shape=mu_broad.shape)
         sigma = convert_ξ_to_σ(ξ=xi_broad,)
@@ -122,7 +122,7 @@ class LogitDist(Distributions):
                                                           kappa=self.kappa, temp=self.temp)
         return log_q_psi
 
-    def do_reparameterization_trick(self):
+    def generate_sample(self):
         # mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         # mu_broad = self.mu
         # xi_broad = self.xi
@@ -203,7 +203,7 @@ class GS(Distributions):
         self.log_pi = log_pi
         self.log_psi = tf.constant(value=0., dtype=tf.float32)
 
-    def do_reparameterization_trick(self):
+    def generate_sample(self):
         ς = 1.e-20
         log_pi_broad = self.broadcast_params_to_sample_size(params=[self.log_pi])[0]
         uniform = tf.random.uniform(shape=log_pi_broad.shape)
@@ -292,7 +292,7 @@ def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dis
                                              sample_size=sample_size, threshold=threshold,
                                              run_iteratively=run_iteratively)
 
-    chosen_dist.do_reparameterization_trick()
+    chosen_dist.generate_sample()
     psi_mean = tf.reduce_mean(chosen_dist.psi, axis=[0, 2, 3])
     if run_kl:
         loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required] + 1.e-20))
@@ -468,7 +468,7 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
     chosen_dist = select_chosen_distribution(dist_type=dist_type, threshold=threshold,
                                              params=params, temp=temp, sample_size=sample_size)
     categories_n = params[0].shape[1]
-    chosen_dist.do_reparameterization_trick()
+    chosen_dist.generate_sample()
     if output_one_hot:
         vector = np.zeros(shape=(1, categories_n, sample_size, 1))
         n_required = chosen_dist.psi.shape[1]
