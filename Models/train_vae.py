@@ -19,9 +19,9 @@ def run_vae(hyper, run_with_sample):
                             architecture=hyper['architecture'], hyper=hyper)
     train_dataset, test_dataset, test_images, hyper = data
 
-    model, vae_opt = get_model_and_optimizer(hyper=hyper, model_type=hyper['model_type'])
+    vae_opt = get_model_and_optimizer(hyper=hyper, model_type=hyper['model_type'])
 
-    train_vae_model(vae_opt=vae_opt, model=model, hyper=hyper, train_dataset=train_dataset,
+    train_vae_model(vae_opt=vae_opt, hyper=hyper, train_dataset=train_dataset,
                     test_dataset=test_dataset, test_images=test_images)
 
 
@@ -29,22 +29,22 @@ def get_model_and_optimizer(hyper, model_type):
     model = setup_model(hyper=hyper)
     optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
     if model_type == 'VAE':
-        vae_opt = OptVAE(model=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptVAE(nets=model, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS':
-        vae_opt = OptExpGS(model=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptExpGS(nets=model, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS_Dis':
-        vae_opt = OptExpGSDis(model=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptExpGSDis(nets=model, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_I':
-        vae_opt = OptGauSoftMax(model=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptGauSoftMax(nets=model, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_I_Dis':
-        vae_opt = OptGauSoftMaxDis(model=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptGauSoftMaxDis(nets=model, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_SB_Dis':
-        vae_opt = OptSBVAE(model=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptSBVAE(nets=model, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_Planar_Dis':
-        vae_opt = OptPlanarNFDis(model=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptPlanarNFDis(nets=model, optimizer=optimizer, hyper=hyper)
     else:
         raise RuntimeError
-    return model, vae_opt
+    return vae_opt
 
 
 def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_images, monitor_gradients=False):

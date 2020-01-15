@@ -9,8 +9,8 @@ os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 class OptVAE:
 
-    def __init__(self, model, optimizer, hyper):
-        self.model = model
+    def __init__(self, nets, optimizer, hyper):
+        self.nets = nets
         self.optimizer = optimizer
         self.n_required = hyper['n_required']
         self.run_analytical_kl = hyper['run_analytical_kl']
@@ -23,7 +23,7 @@ class OptVAE:
         self.continuous_c = tf.constant(0.)
 
     def perform_fwd_pass(self, x):
-        params = self.model.encode(x)
+        params = self.nets.encode(x)
         z = self.reparameterize(params_broad=params)
         x_logit = self.decode(z=z)
         return z, x_logit, params
@@ -44,10 +44,10 @@ class OptVAE:
         z = reshape_and_stack_z(z=z)
         batch_n, sample_size = z.shape[0], z.shape[2]
         x_logit = tf.TensorArray(dtype=tf.float32, size=sample_size,
-                                 element_shape=(batch_n,) + self.model.image_shape)
+                                 element_shape=(batch_n,) + self.nets.image_shape)
         for i in tf.range(sample_size):
-            x_logit = x_logit.write(index=i, value=self.model.decode(z[:, :, i])[0])
-            # x_logit = x_logit.write(index=i, value=self.model.decode(z[:, :, i]))
+            x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i])[0])
+            # x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i]))
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0])
         return x_logit
 
@@ -55,14 +55,14 @@ class OptVAE:
         z = reshape_and_stack_z(z=z)
         batch_n, sample_size = z.shape[0], z.shape[2]
         mu = tf.TensorArray(dtype=tf.float32, size=sample_size,
-                            element_shape=(batch_n,) + self.model.image_shape)
+                            element_shape=(batch_n,) + self.nets.image_shape)
         xi = tf.TensorArray(dtype=tf.float32, size=sample_size,
-                            element_shape=(batch_n,) + self.model.image_shape)
+                            element_shape=(batch_n,) + self.nets.image_shape)
         for i in tf.range(sample_size):
-            z_mu, z_xi = self.model.decode(z[:, :, i])
+            z_mu, z_xi = self.nets.decode(z[:, :, i])
             mu = mu.write(index=i, value=z_mu)
             xi = xi.write(index=i, value=z_xi)
-            # z_mu = self.model.decode(z[:, :, i])[0]
+            # z_mu = self.nets.decode(z[:, :, i])[0]
             # mu = mu.write(index=i, value=z_mu)
         # mu = tf.transpose(mu.stack(), perm=[1, 2, 3, 4, 0])
         mu = tf.transpose(mu.stack(), perm=[1, 2, 3, 4, 0])
@@ -106,12 +106,12 @@ class OptVAE:
             output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                        run_ccβvae=self.run_ccβvae, run_analytical_kl=self.run_analytical_kl)
             loss, recon, kl, kl_n, kl_d = output
-        gradients = tape.gradient(target=loss, sources=self.model.trainable_variables)
+        gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         return gradients, loss, recon, kl, kl_n, kl_d
 
     def monitor_parameter_gradients_at_psi(self, x):
         with tf.GradientTape() as tape:
-            params = self.model.encode(x)
+            params = self.nets.encode(x)
             z = self.reparameterize(params_broad=params)
             psi = tf.math.exp(z[-1])
         gradients = tape.gradient(target=psi, sources=params)
@@ -120,21 +120,21 @@ class OptVAE:
         return gradients_norm
 
     def apply_gradients(self, gradients):
-        self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
+        self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
 
 # ===========================================================================================================
 
 
 class OptGS(OptVAE):
 
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
 
     def reparameterize(self, params_broad):
         mean, log_var, logits = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        gs = GS(log_pi=logits, sample_size=self.model.sample_size, temp=self.temp)
+        gs = GS(log_pi=logits, sample_size=self.nets.sample_size, temp=self.temp)
         gs.do_reparameterization_trick()
         z_discrete = gs.psi
         self.n_required = z_discrete.shape[1]
@@ -164,8 +164,8 @@ class OptGS(OptVAE):
 
 
 class OptGSDis(OptGS):
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
 
     def reparameterize(self, params_broad):
         logits = params_broad[0]
@@ -202,8 +202,8 @@ class OptGSDis(OptGS):
 
 class OptExpGS(OptVAE):
 
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.log_psi = tf.constant(value=0., dtype=tf.float32)
 
@@ -227,8 +227,8 @@ class OptExpGS(OptVAE):
 
 
 class OptExpGSDis(OptExpGS):
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
 
     def reparameterize(self, params_broad):
         gs = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
@@ -261,8 +261,8 @@ class OptExpGSDis(OptExpGS):
 
 
 class OptGauSoftMax(OptVAE):
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.prior_file = hyper['prior_file']
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
@@ -314,14 +314,14 @@ class OptGauSoftMax(OptVAE):
         return kl_sb
 
     def load_prior_values(self):
-        shape = (self.model.batch_size, self.model.disc_latent_n, self.sample_size, self.model.disc_var_num)
+        shape = (self.nets.batch_size, self.nets.disc_latent_n, self.sample_size, self.nets.disc_var_num)
         self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
 
 
 class OptGauSoftMaxDis(OptGauSoftMax):
 
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
@@ -364,15 +364,15 @@ class OptGauSoftMaxDis(OptGauSoftMax):
 
 class OptPlanarNFDis(OptGauSoftMaxDis):
 
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
         epsilon = tf.random.normal(shape=mu.shape)
         self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
         sigma = tf.math.exp(xi)
-        self.ng.lam = self.model.planar_flow(mu + sigma * epsilon)
+        self.ng.lam = self.nets.planar_flow(mu + sigma * epsilon)
         self.ng.log_psi = self.ng.lam - tf.math.reduce_logsumexp(self.ng.lam, axis=1, keepdims=True)
         # psi = tf.math.softmax(lam / self.temp, axis=1)
         z_discrete = [self.ng.log_psi]
@@ -381,8 +381,8 @@ class OptPlanarNFDis(OptGauSoftMaxDis):
 
 class OptSBVAE(OptVAE):
 
-    def __init__(self, model, optimizer, hyper):
-        super().__init__(model=model, optimizer=optimizer, hyper=hyper)
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.max_categories = hyper['latent_discrete_n']
         self.threshold = hyper['threshold']
@@ -462,11 +462,11 @@ class OptSBVAE(OptVAE):
         categories_n = mu_0.shape[1]
 
         self.mu_0 = shape_prior_to_sample_size_and_discrete_var_num(
-            prior_param=mu_0, batch_size=self.model.batch_size, categories_n=categories_n,
-            sample_size=self.sample_size, discrete_var_num=self.model.disc_var_num)
+            prior_param=mu_0, batch_size=self.nets.batch_size, categories_n=categories_n,
+            sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
         self.xi_0 = shape_prior_to_sample_size_and_discrete_var_num(
-            prior_param=xi_0, batch_size=self.model.batch_size, categories_n=categories_n,
-            sample_size=self.sample_size, discrete_var_num=self.model.disc_var_num)
+            prior_param=xi_0, batch_size=self.nets.batch_size, categories_n=categories_n,
+            sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
 
 
 # ===========================================================================================================
