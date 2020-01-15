@@ -132,7 +132,7 @@ class OptExpGS(OptVAE):
         mean, log_var, logits = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
         gs = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
-        gs.do_reparameterization_trick()
+        gs.generate_sample()
         z_discrete = gs.psi
         self.log_psi = gs.log_psi
         self.n_required = z_discrete.shape[1]
@@ -153,7 +153,7 @@ class OptExpGSDis(OptExpGS):
 
     def reparameterize(self, params_broad):
         gs = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
-        gs.do_reparameterization_trick()
+        gs.generate_sample()
         self.log_psi = gs.log_psi
         self.n_required = gs.psi.shape[1]
         z_discrete = [gs.log_psi]
@@ -195,7 +195,7 @@ class OptGauSoftMax(OptVAE):
         mean, log_var, mu, xi = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
         self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
-        self.ng.do_reparameterization_trick()
+        self.ng.generate_sample()
         z_discrete = self.ng.psi
         self.n_required = z_discrete.shape[1]
         z = [z_norm, z_discrete]
@@ -247,7 +247,7 @@ class OptGauSoftMaxDis(OptGauSoftMax):
     def reparameterize(self, params_broad):
         mu, xi = params_broad
         self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
-        self.ng.do_reparameterization_trick()
+        self.ng.generate_sample()
         z_discrete = [self.ng.log_psi]
         return z_discrete
 
@@ -322,7 +322,7 @@ class OptSBVAE(OptVAE):
         self.sb = IGR_SB(mu=μ, xi=ξ, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
         self.sb.truncation_option = self.truncation_option
         self.sb.quantile = self.quantile
-        self.sb.do_reparameterization_trick()
+        self.sb.t()
         self.n_required = self.sb.psi.shape[1]
         z_discrete = self.complete_discrete_vector(psi=self.sb.psi)
 
