@@ -158,55 +158,47 @@ def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_count
 
 
 def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, iteration_counter,
-                                  time_taken, train_loss_mean, grad_norm):
-    n_mean = tf.keras.metrics.Mean()
-    recon_mean, kl_mean = tf.keras.metrics.Mean(), tf.keras.metrics.Mean()
-    kl_n_mean, kl_d_mean = tf.keras.metrics.Mean(), tf.keras.metrics.Mean()
-    jv_closed, jv = tf.keras.metrics.Mean(), tf.keras.metrics.Mean()
-    elbo_closed, elbo = tf.keras.metrics.Mean(), tf.keras.metrics.Mean()
-    use_analytical = hyper['use_analytical_in_test']
+                                  time_taken, train_loss_mean):
+    test_progress = create_test_progress_tracker()
     for x_test in test_dataset.take(hyper['iter_per_epoch']):
-        jv_closed_loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=True,
-                                                                        run_analytical_kl=True)
-        jv_loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=True,
-                                                                 run_analytical_kl=False)
-        output_closed = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=False,
-                                                                   run_analytical_kl=True)
-        output = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=False,
-                                                            run_analytical_kl=False)
-        elbo_loss, log_px_z, kl, kl_n, kl_d = output
-        elbo_closed_loss, log_px_z_closed, kl_closed, kl_n_closed, kl_d_closed = output_closed
-        jv_closed(jv_closed_loss)
-        jv(jv_loss)
-        elbo(elbo_loss)
-        elbo_closed(elbo_closed_loss)
-        n_mean(vae_opt.n_required)
-        recon_mean(log_px_z)
-        if use_analytical:
-            kl_mean(kl_closed)
-            kl_n_mean(kl_n_closed)
-            kl_d_mean(kl_d_closed)
-        else:
-            kl_mean(kl)
-            kl_n_mean(kl_n)
-            kl_d_mean(kl_d)
-    logger.info(f'Epoch {epoch:4d} || TeELBO {-elbo.result().numpy():2.5e} || '
+        test_progress = update_test_progress(test_progress)
+    log_test_progress()
+
+
+def create_test_progress_tracker():
+    vars_to_track = {'elbo': (False, False), 'elbo_closed': (False, True), 'jv': (True, False),
+                     'jv_closed': (True, True), 'n_mean': ()}
+    test_track = {'vars_to_track': vars_to_track}
+    for k, _ in vars_to_track.items():
+        test_track[k] = tf.keras.metrics.Mean()
+    return test_track
+
+
+def update_test_progress(x_test, vae_opt, test_progress):
+    test_progress['n_mean'](vae_opt.n_required)
+    for k, v in test_progress['vars_to_track'].items():
+        loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=v[0], run_closed_form_kl=v[1])
+        test_progress[k](loss)
+    return test_progress
+
+
+def log_test_progress(logger, test_progress, epoch, time_taken, iteration_counter, temp):
+    test_print = f'Epoch {epoch:4d} || '
+    for k, _ in test_progress['vars_to_track'].items():
+        loss = test_progress[k].result().numpy()
+        test_print += f'{k} {-loss:2.5e} || '
+    test_print +=
+    logger.info(f'TeELBO {-elbo.result().numpy():2.5e} || '
                 f'TeELBOC {-elbo_closed.result().numpy():2.5e} || '
                 f'TeJV {jv.result().numpy():2.5e} || '
                 f'TeJVC {jv_closed.result().numpy():2.5e} || '
                 f'TrL {train_loss_mean.result().numpy():2.5e} || '
                 f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || '
                 f'N: {n_mean.result():4.1f}')
-    if use_analytical:
-        tf.summary.scalar(name='Test ELBO', data=-elbo_closed.result(), step=epoch)
-    else:
-        tf.summary.scalar(name='Test ELBO', data=-elbo.result(), step=epoch)
-    tf.summary.scalar(name='N Required', data=n_mean.result(), step=epoch)
-    tf.summary.scalar(name='Temp', data=vae_opt.temp, step=epoch)
-    tf.summary.scalar(name='Test Recon', data=recon_mean.result(), step=epoch)
-    tf.summary.scalar(name='Test KL', data=kl_mean.result(), step=epoch)
-    tf.summary.scalar(name='Test KL Norm', data=kl_n_mean.result(), step=epoch)
-    tf.summary.scalar(name='Test KL Dis', data=kl_d_mean.result(), step=epoch)
+    logger.info(test_print)
+    tf.summary.scalar(name='Test ELBO', data=-test_progress['elbo'].result(), step=epoch)
+    tf.summary.scalar(name='N Required', data=test_progress['n_mean'].result(), step=epoch)
+    tf.summary.scalar(name='Temp', data=temp, step=epoch)
 
 
 def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path, writer):
