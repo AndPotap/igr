@@ -17,7 +17,7 @@ class OptVAE:
         self.sample_size = hyper['sample_size']
         self.dataset_name = hyper['dataset_name']
 
-        self.run_ccβvae = hyper['run_ccβvae']
+        self.run_jv = hyper['run_jv']
         self.γ = hyper['γ']
         self.discrete_c = tf.constant(0.)
         self.continuous_c = tf.constant(0.)
@@ -78,7 +78,7 @@ class OptVAE:
         kl_dis = tf.constant(0)
         return kl_norm, kl_dis
 
-    def compute_loss(self, x, x_logit, z, params_broad, run_ccβvae, run_analytical_kl):
+    def compute_loss(self, x, x_logit, z, params_broad, run_jv, run_analytical_kl):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
             log_px_z = compute_log_gaussian_pdf(x=x, x_logit=x_logit)
         else:
@@ -87,16 +87,16 @@ class OptVAE:
                                                    run_analytical_kl=run_analytical_kl)
         kl = kl_norm + kl_dis
         loss = compute_loss(log_px_z=log_px_z, kl_norm=kl_norm, kl_dis=kl_dis,
-                            run_ccβvae=run_ccβvae, γ=self.γ,
+                            run_jv=run_jv, γ=self.γ,
                             discrete_c=self.discrete_c, continuous_c=self.continuous_c)
         output = (loss, tf.reduce_mean(log_px_z), tf.reduce_mean(kl),
                   tf.reduce_mean(kl_norm), tf.reduce_mean(kl_dis))
         return output
 
-    def compute_losses_from_x_wo_gradients(self, x, run_ccβvae, run_analytical_kl):
+    def compute_losses_from_x_wo_gradients(self, x, run_jv, run_analytical_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x=x)
         output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-                                   run_ccβvae=run_ccβvae, run_analytical_kl=run_analytical_kl)
+                                   run_jv=run_jv, run_analytical_kl=run_analytical_kl)
         loss, recon, kl, kl_norm, kl_dis = output
         return loss, recon, kl, kl_norm, kl_dis
 
@@ -104,7 +104,7 @@ class OptVAE:
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x)
             output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-                                       run_ccβvae=self.run_ccβvae, run_analytical_kl=self.run_analytical_kl)
+                                       run_jv=self.run_jv, run_analytical_kl=self.run_analytical_kl)
             loss, recon, kl, kl_n, kl_d = output
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         return gradients, loss, recon, kl, kl_n, kl_d
@@ -474,9 +474,9 @@ class OptSBVAE(OptVAE):
 # ===========================================================================================================
 # Additional functions
 # ===========================================================================================================
-def compute_loss(log_px_z, kl_norm, kl_dis, run_ccβvae=False,
+def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
                  γ=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
-    if run_ccβvae:
+    if run_jv:
         loss = -tf.reduce_mean(log_px_z - γ * tf.math.abs(kl_norm - continuous_c)
                                - γ * tf.math.abs(kl_dis - discrete_c))
     else:

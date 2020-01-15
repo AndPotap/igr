@@ -166,13 +166,13 @@ def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, i
     elbo_closed, elbo = tf.keras.metrics.Mean(), tf.keras.metrics.Mean()
     use_analytical = hyper['use_analytical_in_test']
     for x_test in test_dataset.take(hyper['iter_per_epoch']):
-        jv_closed_loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_ccβvae=True,
+        jv_closed_loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=True,
                                                                         run_analytical_kl=True)
-        jv_loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_ccβvae=True,
+        jv_loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=True,
                                                                  run_analytical_kl=False)
-        output_closed = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_ccβvae=False,
+        output_closed = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=False,
                                                                    run_analytical_kl=True)
-        output = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_ccβvae=False,
+        output = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=False,
                                                             run_analytical_kl=False)
         elbo_loss, log_px_z, kl, kl_n, kl_d = output
         elbo_closed_loss, log_px_z_closed, kl_closed, kl_n_closed, kl_d_closed = output_closed
@@ -212,8 +212,7 @@ def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, i
 def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path, writer):
     if epoch % 10 == 0:
         vae_opt.nets.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
-        plot_reconstructions_samples_and_traversals(model=vae_opt.nets, hyper=hyper, epoch=epoch,
-                                                    results_path=results_path,
+        plot_reconstructions_samples_and_traversals(hyper=hyper, epoch=epoch, results_path=results_path,
                                                     test_images=test_images, vae_opt=vae_opt)
     writer.flush()
 

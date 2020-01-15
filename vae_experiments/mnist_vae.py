@@ -11,7 +11,7 @@ model_type = 'IGR_I_Dis'
 hyper = {'dataset_name': 'mnist', 'sample_size': 1, 'n_required': 9, 'num_of_discrete_var': 30,
          'latent_norm_n': 0, 'num_of_norm_var': 0, 'num_of_norm_param': 0,
          'learning_rate': 0.001, 'batch_n': 64, 'epochs': 100, 'architecture': 'dense',
-         'run_ccβvae': False, 'γ': tf.constant(30.),
+         'run_jv': False, 'γ': tf.constant(30.),
          'continuous_c_linspace': (0., 5., 25_000), 'discrete_c_linspace': (0., 5., 25_000)}
 hyper.update({'latent_discrete_n': hyper['n_required']})
 
