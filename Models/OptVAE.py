@@ -15,6 +15,7 @@ class OptVAE:
         self.n_required = hyper['n_required']
         self.run_closed_form_kl = hyper['run_closed_form_kl']
         self.sample_size = hyper['sample_size']
+        self.batch_size = hyper['sample_size']
         self.dataset_name = hyper['dataset_name']
 
         self.run_jv = hyper['run_jv']
@@ -47,7 +48,6 @@ class OptVAE:
                                  element_shape=(batch_n,) + self.nets.image_shape)
         for i in tf.range(sample_size):
             x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i])[0])
-            # x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i]))
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0])
         return x_logit
 
@@ -62,13 +62,9 @@ class OptVAE:
             z_mu, z_xi = self.nets.decode(z[:, :, i])
             mu = mu.write(index=i, value=z_mu)
             xi = xi.write(index=i, value=z_xi)
-            # z_mu = self.nets.decode(z[:, :, i])[0]
-            # mu = mu.write(index=i, value=z_mu)
-        # mu = tf.transpose(mu.stack(), perm=[1, 2, 3, 4, 0])
         mu = tf.transpose(mu.stack(), perm=[1, 2, 3, 4, 0])
         xi = tf.transpose(xi.stack(), perm=[1, 2, 3, 4, 0])
         x_logit = [mu, xi]
-        # x_logit = mu
         return x_logit
 
     @staticmethod
@@ -314,7 +310,7 @@ class OptGauSoftMax(OptVAE):
         return kl_sb
 
     def load_prior_values(self):
-        shape = (self.nets.batch_size, self.nets.disc_latent_n, self.sample_size, self.nets.disc_var_num)
+        shape = (self.batch_size, self.nets.disc_latent_n, self.sample_size, self.nets.disc_var_num)
         self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
 
 
@@ -462,10 +458,10 @@ class OptSBVAE(OptVAE):
         categories_n = mu_0.shape[1]
 
         self.mu_0 = shape_prior_to_sample_size_and_discrete_var_num(
-            prior_param=mu_0, batch_size=self.nets.batch_size, categories_n=categories_n,
+            prior_param=mu_0, batch_size=self.batch_size, categories_n=categories_n,
             sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
         self.xi_0 = shape_prior_to_sample_size_and_discrete_var_num(
-            prior_param=xi_0, batch_size=self.nets.batch_size, categories_n=categories_n,
+            prior_param=xi_0, batch_size=self.batch_size, categories_n=categories_n,
             sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
 
 
