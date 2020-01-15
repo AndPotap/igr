@@ -7,7 +7,8 @@ import tensorflow as tf
 from scipy.stats import norm
 
 
-def plot_reconstructions_samples_and_traversals(model, hyper, epoch, results_path, test_images, vae_opt):
+def plot_reconstructions_samples_and_traversals(hyper, epoch, results_path, test_images, vae_opt):
+    model = vae_opt.nets
     if hyper['latent_norm_n'] > 0:
         plot_grid_of_fixed_cont_traversal_along_all_disc_dim(
             model=model, fixed_cont_dim=np.random.choice(a=hyper['latent_norm_n'], size=1)[0],
