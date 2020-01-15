@@ -105,6 +105,9 @@ class OptVAE:
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         return gradients, loss, recon, kl, kl_n, kl_d
 
+    def apply_gradients(self, gradients):
+        self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
+
     def monitor_parameter_gradients_at_psi(self, x):
         with tf.GradientTape() as tape:
             params = self.nets.encode(x)
@@ -114,9 +117,6 @@ class OptVAE:
         gradients_norm = tf.linalg.norm(gradients, axis=2)
 
         return gradients_norm
-
-    def apply_gradients(self, gradients):
-        self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
 
 # ===========================================================================================================
 
