@@ -38,7 +38,7 @@ def construct_nets_and_optimizer(hyper, model_type):
         vae_opt = OptGauSoftMax(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_I_Dis':
         vae_opt = OptGauSoftMaxDis(nets=nets, optimizer=optimizer, hyper=hyper)
-    elif model_type == 'IGR_SB_Dis':
+    elif model_type == 'IGR_SB':
         vae_opt = OptSBVAE(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_Planar_Dis':
         vae_opt = OptPlanarNFDis(nets=nets, optimizer=optimizer, hyper=hyper)
@@ -69,8 +69,7 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, monitor_
                                           hyper=hyper, logger=logger, iteration_counter=iteration_counter,
                                           train_loss_mean=train_loss_mean, time_taken=t1 - t0)
 
-            save_intermediate_results(epoch, vae_opt, test_images,
-                                      hyper, results_file, results_path, writer)
+            save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path, writer)
 
         save_final_results(vae_opt.nets, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
 
