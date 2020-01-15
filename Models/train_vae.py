@@ -2,7 +2,7 @@ import time
 import pickle
 import tensorflow as tf
 from Utils.load_data import load_vae_dataset
-from Models.VAENet import setup_model, determine_path_to_save_results
+from Models.VAENet import construct_networks, determine_path_to_save_results
 from Models.OptVAE import OptVAE, OptGauSoftMax, OptSBVAE, OptExpGS
 from Models.OptVAE import OptGauSoftMaxDis, OptExpGSDis, OptPlanarNFDis
 from Utils.viz_vae import plot_originals, plot_reconstructions_samples_and_traversals
@@ -19,35 +19,35 @@ def run_vae(hyper, run_with_sample):
                             architecture=hyper['architecture'], hyper=hyper)
     train_dataset, test_dataset, test_images, hyper = data
 
-    vae_opt = get_model_and_optimizer(hyper=hyper, model_type=hyper['model_type'])
+    vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=hyper['model_type'])
 
-    train_vae_model(vae_opt=vae_opt, hyper=hyper, train_dataset=train_dataset,
-                    test_dataset=test_dataset, test_images=test_images)
+    train_vae(vae_opt=vae_opt, hyper=hyper, train_dataset=train_dataset,
+              test_dataset=test_dataset, test_images=test_images)
 
 
-def get_model_and_optimizer(hyper, model_type):
-    model = setup_model(hyper=hyper)
+def construct_nets_and_optimizer(hyper, model_type):
+    nets = construct_networks(hyper=hyper)
     optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
     if model_type == 'VAE':
-        vae_opt = OptVAE(nets=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptVAE(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS':
-        vae_opt = OptExpGS(nets=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptExpGS(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS_Dis':
-        vae_opt = OptExpGSDis(nets=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptExpGSDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_I':
-        vae_opt = OptGauSoftMax(nets=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptGauSoftMax(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_I_Dis':
-        vae_opt = OptGauSoftMaxDis(nets=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptGauSoftMaxDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_SB_Dis':
-        vae_opt = OptSBVAE(nets=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptSBVAE(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_Planar_Dis':
-        vae_opt = OptPlanarNFDis(nets=model, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptPlanarNFDis(nets=nets, optimizer=optimizer, hyper=hyper)
     else:
         raise RuntimeError
     return vae_opt
 
 
-def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_images, monitor_gradients=False):
+def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, monitor_gradients=False):
     writer, logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     init_vars = run_initialization_procedure(hyper, test_images, results_path)
     (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
@@ -70,10 +70,10 @@ def train_vae_model(vae_opt, model, hyper, train_dataset, test_dataset, test_ima
                                           train_loss_mean=train_loss_mean, time_taken=t1 - t0,
                                           grad_norm=grad_norm)
 
-            save_intermediate_results(epoch, model, vae_opt, test_images,
+            save_intermediate_results(epoch, vae_opt, test_images,
                                       hyper, results_file, results_path, writer)
 
-        save_final_results(model, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
+        save_final_results(vae_opt.nets, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
 
 
 def start_all_logging_instruments(hyper, test_images):
@@ -209,20 +209,20 @@ def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, i
     tf.summary.scalar(name='Test KL Dis', data=kl_d_mean.result(), step=epoch)
 
 
-def save_intermediate_results(epoch, model, vae_opt, test_images, hyper, results_file, results_path, writer):
+def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path, writer):
     if epoch % 10 == 0:
-        model.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
-        plot_reconstructions_samples_and_traversals(model=model, hyper=hyper, epoch=epoch,
+        vae_opt.nets.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
+        plot_reconstructions_samples_and_traversals(model=vae_opt.nets, hyper=hyper, epoch=epoch,
                                                     results_path=results_path,
                                                     test_images=test_images, vae_opt=vae_opt)
     writer.flush()
 
 
-def save_final_results(model, logger, results_file, initial_time, temp):
+def save_final_results(nets, logger, results_file, initial_time, temp):
     final_time = time.time()
     logger.info(f'Total training time {final_time - initial_time: 4.1f} secs')
     logger.info(f'Final temp {temp: 4.5f}')
     results_file = append_timestamp_to_file(file_name=results_file, termination='.h5')
-    model.save_weights(filepath=results_file)
+    nets.save_weights(filepath=results_file)
 
 # ===========================================================================================================

@@ -255,7 +255,7 @@ def determine_path_to_save_results(model_type, dataset_name):
     return results_path
 
 
-def setup_model(hyper):
+def construct_networks(hyper):
     model = VAENet(hyper=hyper)
     model.construct_architecture()
     return model
