@@ -12,10 +12,10 @@ hyper = {'dataset_name': 'mnist', 'sample_size': 1, 'n_required': 9, 'num_of_dis
          'latent_norm_n': 0, 'num_of_norm_var': 0, 'num_of_norm_param': 0,
          'learning_rate': 0.001, 'batch_n': 64, 'epochs': 100, 'architecture': 'dense',
          'run_jv': False, 'γ': tf.constant(30.),
-         'continuous_c_linspace': (0., 5., 25_000), 'discrete_c_linspace': (0., 5., 25_000)}
+         'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
 hyper.update({'latent_discrete_n': hyper['n_required']})
 
-if model_type in ['GS', 'ExpGS', 'GSDis', 'ExpGSDis']:
+if model_type in ['GS', 'GS_Dis']:
     hyper.update({'model_type': model_type, 'temp': 0.15, 'num_of_discrete_param': 1,
                   'run_closed_form_kl': False})
 
