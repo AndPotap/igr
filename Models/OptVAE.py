@@ -2,7 +2,7 @@ import pickle
 from typing import Tuple
 import tensorflow as tf
 from os import environ as os_env
-from Utils.Distributions import IGR_SB, compute_log_gs_dist, IGR_I, GS, compute_log_exp_gs_dist
+from Utils.Distributions import IGR_I, IGR_SB, GS, compute_log_exp_gs_dist
 from Utils.initializations import initialize_mu_and_xi_for_logistic
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -381,24 +381,6 @@ def compute_log_normal_pdf(sample, mean, log_var):
     return log_normal_pdf
 
 
-def sample_kl_gs(ψ, π, temp):
-    uniform_probs = get_broadcasted_uniform_probs(shape=ψ.shape)
-    log_pz = compute_log_gs_dist(psi=ψ, logits=uniform_probs, temp=temp)
-    log_qz_x = compute_log_gs_dist(psi=ψ, logits=π, temp=temp)
-    kl_discrete = tf.math.reduce_sum(log_qz_x - log_pz, axis=2)
-    return kl_discrete
-
-
-def get_broadcasted_uniform_probs(shape):
-    batch_n, categories_n, sample_size, disc_var_num = shape
-    uniform_probs = tf.constant([1 / categories_n for _ in range(categories_n)], dtype=tf.float32,
-                                shape=(1, categories_n, 1, 1))
-    uniform_probs = tf.broadcast_to(uniform_probs, shape=(batch_n, categories_n, 1, 1))
-    uniform_probs = tf.broadcast_to(uniform_probs, shape=(batch_n, categories_n, sample_size, 1))
-    uniform_probs = tf.broadcast_to(uniform_probs, shape=(batch_n, categories_n, sample_size, disc_var_num))
-    return uniform_probs
-
-
 def calculate_categorical_closed_kl(log_α):
     ς = 1.e-20
     categories_n = tf.constant(log_α.shape[1], dtype=tf.float32)
@@ -416,6 +398,16 @@ def sample_kl_exp_gs(log_ψ, log_π, temp):
     return kl_discrete
 
 
+def get_broadcasted_uniform_probs(shape):
+    batch_n, categories_n, sample_size, disc_var_num = shape
+    uniform_probs = tf.constant([1 / categories_n for _ in range(categories_n)], dtype=tf.float32,
+                                shape=(1, categories_n, 1, 1))
+    uniform_probs = tf.broadcast_to(uniform_probs, shape=(batch_n, categories_n, 1, 1))
+    uniform_probs = tf.broadcast_to(uniform_probs, shape=(batch_n, categories_n, sample_size, 1))
+    uniform_probs = tf.broadcast_to(uniform_probs, shape=(batch_n, categories_n, sample_size, disc_var_num))
+    return uniform_probs
+
+
 def shape_prior_to_sample_size_and_discrete_var_num(prior_param, batch_size, categories_n,
                                                     sample_size, discrete_var_num):
     prior_param = tf.reshape(prior_param, shape=(1, categories_n, 1, 1))
@@ -426,12 +418,6 @@ def shape_prior_to_sample_size_and_discrete_var_num(prior_param, batch_size, cat
     return prior_param
 
 
-def flatten_discrete_variables(original_z):
-    batch_n, disc_latent_n, sample_size, disc_var_num = original_z.shape
-    z_discrete = tf.reshape(original_z, shape=(batch_n, disc_var_num * disc_latent_n, sample_size))
-    return z_discrete
-
-
 def reshape_and_stack_z(z):
     if len(z) > 1:
         z = tf.concat(z, axis=1)
@@ -439,3 +425,9 @@ def reshape_and_stack_z(z):
     else:
         z = flatten_discrete_variables(original_z=z[0])
     return z
+
+
+def flatten_discrete_variables(original_z):
+    batch_n, disc_latent_n, sample_size, disc_var_num = original_z.shape
+    z_discrete = tf.reshape(original_z, shape=(batch_n, disc_var_num * disc_latent_n, sample_size))
+    return z_discrete
