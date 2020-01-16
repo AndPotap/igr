@@ -106,8 +106,8 @@ def initialize_vae_variables(results_path, hyper):
     iteration_counter = 0
     results_file = results_path + '/vae.h5'
     hyper_file = results_path + '/hyper.pkl'
-    cont_c_linspace = convert_into_linspace(hyper['continuous_c_linspace'])
-    disc_c_linspace = convert_into_linspace(hyper['discrete_c_linspace'])
+    cont_c_linspace = convert_into_linspace(hyper['cont_c_linspace'])
+    disc_c_linspace = convert_into_linspace(hyper['disc_c_linspace'])
     grad_monitor_dict = {}
     grad_norm = tf.constant(0., dtype=tf.float32)
     init_vars = (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
