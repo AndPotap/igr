@@ -2,7 +2,6 @@
 # ===========================================================================================================
 import numpy as np
 import tensorflow as tf
-from functools import partial
 from typing import Tuple, List
 from os import environ as os_env
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -499,14 +498,3 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
         raise RuntimeError
 
     return chosen_dist
-
-
-def generate_samples_mp(total_samples, params, dist_type, threshold, temp, pool, output_one_hot=False):
-    # TODO: correct this function
-    func = partial(generate_sample, params=params, threshold=threshold,
-                   dist_type=dist_type, temp=temp, output_one_hot=output_one_hot)
-    # noinspection PyTypeChecker
-    sb_samples = np.array(pool.map(func=func, iterable=[b for b in range(total_samples)]))
-
-    return sb_samples
-# ===========================================================================================================
