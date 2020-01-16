@@ -2,7 +2,7 @@ import pickle
 from typing import Tuple
 import tensorflow as tf
 from os import environ as os_env
-from Utils.Distributions import IGR_SB, compute_log_gs_dist, compute_log_sb_dist, IGR_I, GS, compute_log_exp_gs_dist
+from Utils.Distributions import IGR_SB, compute_log_gs_dist, IGR_I, GS, compute_log_exp_gs_dist
 from Utils.initializations import initialize_mu_and_xi_for_logistic
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -189,6 +189,7 @@ class OptGauSoftMax(OptVAE):
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.ng = IGR_I(mu=self.mu_0, xi=self.xi_0)
         self.load_prior_values()
+        self.compute_kl_norm = True
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
@@ -201,37 +202,18 @@ class OptGauSoftMax(OptVAE):
         return z
 
     def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
-        if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_via_closed_form(params_broad=params_broad)
+        if self.compute_kl_norm:
+            mean, log_var, μ0, ξ0 = params_broad
+            kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
-            kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
-        return kl_norm, kl_dis
-
-    def compute_kl_elements_via_closed_form(self, params_broad):
-        mean, log_var, μ0, ξ0 = params_broad
-        kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
+            μ0, ξ0 = params_broad
+            kl_norm = 0.
         current_batch_n = self.ng.lam.shape[0]
         ξ1 = self.xi_0[:current_batch_n, :, :]
         μ1 = self.mu_0[:current_batch_n, :, :]
         kl_dis = calculate_general_closed_form_gauss_kl(mean_0=μ0, log_var_0=2 * ξ0,
                                                         mean_1=μ1, log_var_1=2. * ξ1)
         return kl_norm, kl_dis
-
-    def compute_kl_elements_via_sample(self, z, params_broad):
-        mean, log_var, μ, ξ = params_broad
-        z_norm, z_discrete = z
-        kl_norm = sample_kl_norm(z_norm=z_norm, mean=mean, log_var=log_var)
-        kl_dis = self.sample_kl_sb()
-        return kl_norm, kl_dis
-
-    def sample_kl_sb(self):
-        current_batch_n = self.ng.lam.shape[0]
-        log_pz = compute_log_normal_pdf(sample=self.temp * self.ng.lam,
-                                        mean=self.mu_0[:current_batch_n, :self.ng.n_required, :],
-                                        log_var=self.xi_0[:current_batch_n, :self.ng.n_required, :])
-        log_qz_x = compute_log_normal_pdf(sample=self.temp * self.ng.lam, mean=self.ng.mu, log_var=self.ng.xi)
-        kl_sb = log_qz_x - log_pz
-        return kl_sb
 
     def load_prior_values(self):
         shape = (self.batch_size, self.nets.disc_latent_n, self.sample_size, self.nets.disc_var_num)
@@ -242,6 +224,7 @@ class OptGauSoftMaxDis(OptGauSoftMax):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.compute_kl_norm = False
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
@@ -249,37 +232,6 @@ class OptGauSoftMaxDis(OptGauSoftMax):
         self.ng.generate_sample()
         z_discrete = [self.ng.log_psi]
         return z_discrete
-
-    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
-        if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_via_closed_form(params_broad=params_broad)
-        else:
-            kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
-        return kl_norm, kl_dis
-
-    def compute_kl_elements_via_closed_form(self, params_broad):
-        μ0, ξ0 = params_broad
-        kl_norm = 0.
-        current_batch_n = self.ng.lam.shape[0]
-        ξ1 = self.xi_0[:current_batch_n, :, :]
-        μ1 = self.mu_0[:current_batch_n, :, :]
-        kl_dis = calculate_general_closed_form_gauss_kl(mean_0=μ0, log_var_0=2 * ξ0,
-                                                        mean_1=μ1, log_var_1=2. * ξ1,
-                                                        axis=(1, 3))
-        return kl_norm, kl_dis
-
-    def compute_kl_elements_via_sample(self, z, params_broad):
-        kl_norm = 0.
-        μ, ξ = params_broad
-        current_batch_n = self.ng.lam.shape[0]
-        log_pz = compute_log_normal_pdf(sample=self.temp * self.ng.lam,
-                                        mean=self.mu_0[:current_batch_n, :, :, :],
-                                        log_var=2. * self.xi_0[:current_batch_n, :, :, :])
-        log_qz_x = compute_log_normal_pdf(sample=self.temp * self.ng.lam,
-                                          mean=μ, log_var=2. * ξ)
-        kl_dis = log_qz_x - log_pz
-        kl_dis = tf.reduce_sum(kl_dis, axis=2)
-        return kl_norm, kl_dis
 
 
 class OptPlanarNFDis(OptGauSoftMaxDis):
@@ -294,7 +246,6 @@ class OptPlanarNFDis(OptGauSoftMaxDis):
         sigma = tf.math.exp(xi)
         self.ng.lam = self.nets.planar_flow(mu + sigma * epsilon)
         self.ng.log_psi = self.ng.lam - tf.math.reduce_logsumexp(self.ng.lam, axis=1, keepdims=True)
-        # psi = tf.math.softmax(lam / self.temp, axis=1)
         z_discrete = [self.ng.log_psi]
         return z_discrete
 
@@ -306,6 +257,7 @@ class OptSBVAE(OptGauSoftMax):
         self.max_categories = hyper['latent_discrete_n']
         self.threshold = hyper['threshold']
         self.prior_file = hyper['prior_file']
+        self.temp_min = hyper['temp']
         self.truncation_option = hyper['truncation_option']
         self.quantile = 70
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1))
