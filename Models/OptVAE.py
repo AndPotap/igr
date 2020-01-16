@@ -161,13 +161,13 @@ class OptExpGSDis(OptExpGS):
 
     def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
         if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
+            kl_norm, kl_dis = self.compute_kl_elements_via_closed_cat(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(params_broad=params_broad)
         return kl_norm, kl_dis
 
     @staticmethod
-    def compute_kl_elements_analytically(params_broad):
+    def compute_kl_elements_via_closed_cat(params_broad):
         kl_norm = 0.
         kl_dis = calculate_categorical_closed_kl(log_α=params_broad[0])
         return kl_norm, kl_dis
@@ -185,7 +185,6 @@ class OptGauSoftMax(OptVAE):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
-        self.prior_file = hyper['prior_file']
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.ng = IGR_I(mu=self.mu_0, xi=self.xi_0)
@@ -203,19 +202,19 @@ class OptGauSoftMax(OptVAE):
 
     def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
         if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
+            kl_norm, kl_dis = self.compute_kl_elements_via_closed_form(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
         return kl_norm, kl_dis
 
-    def compute_kl_elements_analytically(self, params_broad):
+    def compute_kl_elements_via_closed_form(self, params_broad):
         mean, log_var, μ0, ξ0 = params_broad
-        kl_norm = calculate_kl_norm_via_analytical_formula(mean=mean, log_var=log_var)
+        kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         current_batch_n = self.ng.lam.shape[0]
         ξ1 = self.xi_0[:current_batch_n, :, :]
         μ1 = self.mu_0[:current_batch_n, :, :]
-        kl_dis = calculate_kl_norm_via_general_analytical_formula(mean_0=μ0, log_var_0=2 * ξ0,
-                                                                  mean_1=μ1, log_var_1=2. * ξ1)
+        kl_dis = calculate_general_closed_form_gauss_kl(mean_0=μ0, log_var_0=2 * ξ0,
+                                                        mean_1=μ1, log_var_1=2. * ξ1)
         return kl_norm, kl_dis
 
     def compute_kl_elements_via_sample(self, z, params_broad):
@@ -253,20 +252,20 @@ class OptGauSoftMaxDis(OptGauSoftMax):
 
     def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
         if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
+            kl_norm, kl_dis = self.compute_kl_elements_via_closed_form(params_broad=params_broad)
         else:
             kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
         return kl_norm, kl_dis
 
-    def compute_kl_elements_analytically(self, params_broad):
+    def compute_kl_elements_via_closed_form(self, params_broad):
         μ0, ξ0 = params_broad
         kl_norm = 0.
         current_batch_n = self.ng.lam.shape[0]
         ξ1 = self.xi_0[:current_batch_n, :, :]
         μ1 = self.mu_0[:current_batch_n, :, :]
-        kl_dis = calculate_kl_norm_via_general_analytical_formula(mean_0=μ0, log_var_0=2 * ξ0,
-                                                                  mean_1=μ1, log_var_1=2. * ξ1,
-                                                                  axis=(1, 3))
+        kl_dis = calculate_general_closed_form_gauss_kl(mean_0=μ0, log_var_0=2 * ξ0,
+                                                        mean_1=μ1, log_var_1=2. * ξ1,
+                                                        axis=(1, 3))
         return kl_norm, kl_dis
 
     def compute_kl_elements_via_sample(self, z, params_broad):
@@ -300,21 +299,18 @@ class OptPlanarNFDis(OptGauSoftMaxDis):
         return z_discrete
 
 
-class OptSBVAE(OptVAE):
+class OptSBVAE(OptGauSoftMax):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.max_categories = hyper['latent_discrete_n']
         self.threshold = hyper['threshold']
         self.prior_file = hyper['prior_file']
-        self.temp_min = hyper['temp']
         self.truncation_option = hyper['truncation_option']
         self.quantile = 70
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1))
         self.sb = IGR_SB(mu=self.mu_0, xi=self.xi_0)
-        self.load_prior_values()
 
     def reparameterize(self, params_broad):
         mean, log_var, μ, ξ = params_broad
@@ -328,42 +324,6 @@ class OptSBVAE(OptVAE):
 
         z = [z_norm, z_discrete]
         return z
-
-    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
-        if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_analytically(params_broad=params_broad)
-        else:
-            kl_norm, kl_dis = self.compute_kl_elements_via_sample(z=z, params_broad=params_broad)
-        return kl_norm, kl_dis
-
-    def compute_kl_elements_analytically(self, params_broad):
-        mean, log_var, μ0, ξ0 = params_broad
-        kl_norm = calculate_kl_norm_via_analytical_formula(mean=mean, log_var=log_var)
-        current_batch_n = self.sb.lam.shape[0]
-        ξ1 = self.xi_0[:current_batch_n, :, :]
-        μ1 = self.mu_0[:current_batch_n, :, :]
-        kl_dis = calculate_kl_norm_via_general_analytical_formula(mean_0=μ0, log_var_0=2 * ξ0,
-                                                                  mean_1=μ1, log_var_1=2. * ξ1)
-        return kl_norm, kl_dis
-
-    def compute_kl_elements_via_sample(self, z, params_broad):
-        mean, log_var, μ, ξ = params_broad
-        z_norm, z_discrete = z
-        kl_norm = sample_kl_norm(z_norm=z_norm, mean=mean, log_var=log_var)
-        kl_dis = self.sample_kl_sb()
-        return kl_norm, kl_dis
-
-    def sample_kl_sb(self):
-        # TODO: take out of class once the function below is implemented
-        current_batch_n = self.sb.lam.shape[0]
-        sigma_0 = tf.math.exp(self.xi_0[:current_batch_n, :self.sb.n_required, :, 0])
-        epsilon_0 = (self.sb.delta - self.mu_0[:current_batch_n, :self.sb.n_required, :, 0]) / sigma_0
-        log_pz = compute_log_sb_dist(lam=self.sb.lam, kappa=self.sb.kappa, log_jac=self.sb.log_jac,
-                                     temp=tf.constant(self.temp_min),
-                                     sigma=sigma_0, epsilon=epsilon_0)
-        log_qz_x = self.sb.compute_log_sb_dist()
-        kl_sb = log_qz_x - log_pz
-        return kl_sb
 
     # -------------------------------------------------------------------------------------------------------
     # Utils
@@ -444,13 +404,13 @@ def sample_kl_norm(z_norm, mean, log_var):
     return kl_norm
 
 
-def calculate_kl_norm_via_analytical_formula(mean, log_var):
+def calculate_simple_closed_gauss_kl(mean, log_var):
     kl_norm = 0.5 * tf.reduce_sum(tf.math.exp(log_var) + tf.math.pow(mean, 2) - log_var - tf.constant(1.),
                                   axis=1)
     return kl_norm
 
 
-def calculate_kl_norm_via_general_analytical_formula(mean_0, log_var_0, mean_1, log_var_1, axis=(1,)):
+def calculate_general_closed_form_gauss_kl(mean_0, log_var_0, mean_1, log_var_1, axis=(1,)):
     var_0 = tf.math.exp(log_var_0)
     var_1 = tf.math.exp(log_var_1)
 
