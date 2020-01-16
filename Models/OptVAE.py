@@ -212,7 +212,8 @@ class OptGauSoftMax(OptVAE):
         mu_disc_prior = self.mu_0[:current_batch_n, :, :]
         xi_disc_prior = self.xi_0[:current_batch_n, :, :]
         kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc, log_var_q=2 * xi_disc,
-                                                        mean_p=mu_disc_prior, log_var_p=2. * xi_disc_prior)
+                                                        mean_p=mu_disc_prior, log_var_p=2. * xi_disc_prior,
+                                                        axis=(1, 3))
         return kl_norm, kl_dis
 
     def load_prior_values(self):
