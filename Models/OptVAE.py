@@ -234,10 +234,11 @@ class OptGauSoftMaxDis(OptGauSoftMax):
         return z_discrete
 
 
-class OptPlanarNFDis(OptGauSoftMaxDis):
+class OptPlanarNFDis(OptGauSoftMax):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.compute_kl_norm = False
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
@@ -270,7 +271,7 @@ class OptSBVAE(OptGauSoftMax):
         self.sb = IGR_SB(mu=μ, xi=ξ, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
         self.sb.truncation_option = self.truncation_option
         self.sb.quantile = self.quantile
-        self.sb.t()
+        self.sb.generate_sample()
         self.n_required = self.sb.psi.shape[1]
         z_discrete = self.complete_discrete_vector(psi=self.sb.psi)
 
