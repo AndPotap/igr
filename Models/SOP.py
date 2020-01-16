@@ -47,8 +47,6 @@ class SOP(tf.keras.Model):
 
 def sample_gs_bernoulli(params, temp, discretized):
     log_alpha_broad = params[0]
-    # log_alpha = params[0]
-    # log_alpha_broad = brodcast_to_sample_size(a=log_alpha, sample_size=sample_size)
     unif = tf.random.uniform(shape=log_alpha_broad.shape)
     gumbel = -tf.math.log(-tf.math.log(unif + 1.e-20))
     lam = (log_alpha_broad + gumbel) / temp
@@ -58,9 +56,6 @@ def sample_gs_bernoulli(params, temp, discretized):
 
 def sample_igr_bernoulli(params, temp, discretized):
     mu_broad, xi_broad = params
-    # mu, xi = params
-    # mu_broad = brodcast_to_sample_size(mu, sample_size=sample_size)
-    # xi_broad = brodcast_to_sample_size(xi, sample_size=sample_size)
     epsilon = tf.random.normal(shape=mu_broad.shape)
     sigma = tf.math.exp(xi_broad)
     lam = (mu_broad + sigma * epsilon) / temp
