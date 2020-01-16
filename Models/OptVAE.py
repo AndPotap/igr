@@ -203,16 +203,16 @@ class OptGauSoftMax(OptVAE):
 
     def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
         if self.compute_kl_norm:
-            mean, log_var, μ0, ξ0 = params_broad
+            mean, log_var, mu_disc, xi_disc = params_broad
             kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
-            μ0, ξ0 = params_broad
+            mu_disc, xi_disc = params_broad
             kl_norm = 0.
         current_batch_n = self.ng.lam.shape[0]
-        ξ1 = self.xi_0[:current_batch_n, :, :]
-        μ1 = self.mu_0[:current_batch_n, :, :]
-        kl_dis = calculate_general_closed_form_gauss_kl(mean_0=μ0, log_var_0=2 * ξ0,
-                                                        mean_1=μ1, log_var_1=2. * ξ1)
+        mu_disc_prior = self.mu_0[:current_batch_n, :, :]
+        xi_disc_prior = self.xi_0[:current_batch_n, :, :]
+        kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc, log_var_q=2 * xi_disc,
+                                                        mean_p=mu_disc_prior, log_var_p=2. * xi_disc_prior)
         return kl_norm, kl_dis
 
     def load_prior_values(self):
@@ -363,13 +363,13 @@ def calculate_simple_closed_gauss_kl(mean, log_var):
     return kl_norm
 
 
-def calculate_general_closed_form_gauss_kl(mean_0, log_var_0, mean_1, log_var_1, axis=(1,)):
-    var_0 = tf.math.exp(log_var_0)
-    var_1 = tf.math.exp(log_var_1)
+def calculate_general_closed_form_gauss_kl(mean_q, log_var_q, mean_p, log_var_p, axis=(1,)):
+    var_q = tf.math.exp(log_var_q)
+    var_p = tf.math.exp(log_var_p)
 
-    trace_term = tf.reduce_sum(var_0 / var_1 - 1., axis=axis)
-    means_term = tf.reduce_sum(tf.math.pow(mean_0 - mean_1, 2) / var_1, axis=axis)
-    log_det_term = tf.reduce_sum(log_var_1 - log_var_0, axis=axis)
+    trace_term = tf.reduce_sum(var_q / var_p - 1., axis=axis)
+    means_term = tf.reduce_sum(tf.math.pow(mean_q - mean_p, 2) / var_p, axis=axis)
+    log_det_term = tf.reduce_sum(log_var_p - log_var_q, axis=axis)
     kl_norm = 0.5 * (trace_term + means_term + log_det_term)
     return kl_norm
 
