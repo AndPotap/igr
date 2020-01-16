@@ -482,26 +482,15 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
 def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dtype=tf.float32),
                                sample_size: int = 1, threshold: float = 0.99, run_iteratively=False):
     if dist_type == 'logit':
-        # noinspection PyTypeChecker
         mu, xi = params
         chosen_dist = LogitDist(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
     elif dist_type == 'ExpGS':
         pi = params[0]
         chosen_dist = GS(log_pi=pi, temp=temp, sample_size=sample_size)
-    elif dist_type == 'IsoGauSoftMax':
-        mu = params[0]
-        chosen_dist = IsoGauSoftMax(mu=mu, temp=temp, sample_size=sample_size)
     elif dist_type == 'GauSoftMax':
         mu, xi, = params
         chosen_dist = IGR_I(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
-    elif dist_type == 'GauSoftPlus':
-        mu, xi, = params
-        chosen_dist = GaussianSoftPlus(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
-    elif dist_type == 'Cauchy':
-        mu, xi, = params
-        chosen_dist = CauchySoftmaxDist(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
     elif dist_type == 'sb':
-        # noinspection PyTypeChecker
         mu, xi = params
         chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
         if run_iteratively:
