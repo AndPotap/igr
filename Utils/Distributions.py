@@ -350,16 +350,6 @@ def convert_ξ_to_σ(ξ: tf.Tensor):
 
 
 @tf.function
-def project_to_vertices_via_softmax(λ):
-    ς = 1.e-25
-    λ_i_λ_j = λ - tf.math.reduce_max(λ, axis=1, keepdims=True)
-    exp_λ = tf.math.exp(λ_i_λ_j)
-    norm_λ = tf.math.reduce_sum(exp_λ, axis=1, keepdims=True)
-    ψ_plus = exp_λ / (norm_λ + ς)
-    return ψ_plus
-
-
-@tf.function
 def project_to_vertices_via_softmax_pp(lam):
     offset = 1.e-1
     lam_i_lam_max = lam - tf.math.reduce_max(lam, axis=1, keepdims=True)
