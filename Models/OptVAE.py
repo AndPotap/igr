@@ -217,7 +217,7 @@ class OptGauSoftMax(OptVAE):
         return kl_norm, kl_dis
 
     def load_prior_values(self):
-        shape = (self.batch_size, self.nets.disc_latent_n, self.sample_size, self.nets.disc_var_num)
+        shape = (self.batch_size, self.nets.disc_latent_in, self.sample_size, self.nets.disc_var_num)
         self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
 
 
