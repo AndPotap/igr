@@ -235,6 +235,23 @@ class OptGauSoftMaxDis(OptGauSoftMax):
         return z_discrete
 
 
+class OptPlanarNF(OptGauSoftMax):
+
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.compute_kl_norm = False
+
+    def reparameterize(self, params_broad):
+        mu, xi = params_broad
+        epsilon = tf.random.normal(shape=mu.shape)
+        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
+        sigma = tf.math.exp(xi)
+        self.ng.lam = self.nets.planar_flow(mu + sigma * epsilon)
+        self.ng.log_psi = self.ng.lam - tf.math.reduce_logsumexp(self.ng.lam, axis=1, keepdims=True)
+        z_discrete = [self.ng.log_psi]
+        return z_discrete
+
+
 class OptPlanarNFDis(OptGauSoftMax):
 
     def __init__(self, nets, optimizer, hyper):
