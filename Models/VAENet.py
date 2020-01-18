@@ -62,12 +62,7 @@ class VAENet(tf.keras.Model):
         ])
 
     def generate_dense_generative_net(self):
-        if self.model_name == 'celeb_a' or self.model_name == 'fmnist':
-            activation_type = 'elu'
-        elif self.model_name == 'mnist':
-            activation_type = 'linear'
-        else:
-            raise RuntimeError
+        activation_type = self.determine_activation_from_case()
         self.generative_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
             tf.keras.layers.Dense(units=256, activation='relu'),
@@ -77,6 +72,15 @@ class VAENet(tf.keras.Model):
             tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
                                                   self.image_shape[2] * self.log_px_z_params_num))
         ])
+
+    def determine_activation_from_case(self):
+        if self.model_name == 'celeb_a' or self.model_name == 'fmnist':
+            activation_type = 'elu'
+        elif self.model_name == 'mnist':
+            activation_type = 'linear'
+        else:
+            raise RuntimeError
+        return activation_type
 
     def generate_planar_flow(self):
         self.planar_flow = tf.keras.Sequential([
