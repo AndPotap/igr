@@ -102,11 +102,10 @@ class IGR_I(Distributions):
         return psi
 
 
-class IGR_Planar(Distributions):
+class IGR_Planar(IGR_I):
     def __init__(self, mu: tf.Tensor, xi: tf.Tensor, planar_flow, noise_type: str = 'normal', sample_size: int = 1,
                  temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
-        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
-                         noise_type=noise_type, temp=temp, num_of_vars=mu.shape[3])
+        super().__init__(mu, xi, noise_type, sample_size, temp)
         self.planar_flow = planar_flow
 
     def transform(self, mu_broad, sigma_broad, epsilon):
