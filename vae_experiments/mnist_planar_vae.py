@@ -12,7 +12,7 @@ hyper = {'dataset_name': 'mnist', 'sample_size': 1, 'n_required': 9, 'num_of_dis
          'learning_rate': 0.001, 'batch_n': 64, 'epochs': 100, 'architecture': 'dense_nf',
          'run_jv': False, 'γ': tf.constant(30.), 'run_closed_form_kl': True,
          'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
-hyper.update({'latent_discrete_n': hyper['n_required']})
+hyper.update({'latent_discrete_n': hyper['n_required'] + 1})
 
 run_vae(hyper=hyper, run_with_sample=run_with_sample)
 # ===========================================================================================================
