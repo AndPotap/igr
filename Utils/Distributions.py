@@ -363,13 +363,6 @@ def project_to_vertices_via_softmax_pp(lam):
     return psi
 
 
-def project_to_vertices_via_softplus(lam):
-    ς = 1.e-20
-    normalized_psi = tf.math.reduce_sum(tf.math.softplus(lam), axis=1, keepdims=True) + ς
-    psi = tf.math.softplus(lam) / normalized_psi
-    return psi
-
-
 def project_to_vertices_via_random_jump(eta, temp: tf.Tensor, uniform_sample, random_jump_threshold):
     λ = eta
     batch_size, categories_n, sample_size = eta.shape
