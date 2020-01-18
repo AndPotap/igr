@@ -354,11 +354,11 @@ def project_to_vertices_via_softmax_pp(lam):
     offset = 1.e-1
     lam_i_lam_max = lam - tf.math.reduce_max(lam, axis=1, keepdims=True)
     exp_lam = tf.math.exp(lam_i_lam_max)
-    norm_lam = tf.math.reduce_sum(exp_lam, axis=1, keepdims=True)
-    aux = exp_lam / (norm_lam + offset)
+    sum_exp_lam = tf.math.reduce_sum(exp_lam, axis=1, keepdims=True)
+    psi = exp_lam / (sum_exp_lam + offset)
 
-    psi_plus = (1 - tf.math.reduce_sum(aux, axis=1, keepdims=True))
-    psi = tf.concat(values=[aux, psi_plus], axis=1)
+    extra_cat = (1 - tf.math.reduce_sum(psi, axis=1, keepdims=True))
+    psi = tf.concat(values=[psi, extra_cat], axis=1)
 
     return psi
 
