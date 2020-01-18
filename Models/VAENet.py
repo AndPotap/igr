@@ -10,7 +10,8 @@ class VAENet(tf.keras.Model):
         self.cont_latent_n = hyper['latent_norm_n']
         self.cont_var_num = hyper['num_of_norm_var']
         self.cont_param_num = hyper['num_of_norm_param']
-        self.disc_latent_n = hyper['latent_discrete_n']
+        self.disc_latent_in = hyper['n_required']
+        self.disc_latent_out = hyper['latent_discrete_n']
         self.disc_var_num = hyper['num_of_discrete_var']
         self.disc_param_num = hyper['num_of_discrete_param']
         self.architecture_type = hyper['architecture']
@@ -19,11 +20,11 @@ class VAENet(tf.keras.Model):
 
         self.log_px_z_params_num = 1 if self.model_name == 'mnist' else 2
         self.latent_dim_in = (self.cont_param_num * self.cont_latent_n * self.cont_var_num +
-                              self.disc_param_num * self.disc_latent_n * self.disc_var_num)
+                              self.disc_param_num * self.disc_latent_in * self.disc_var_num)
         self.latent_dim_out = (self.cont_var_num * self.cont_latent_n +
-                               self.disc_var_num * self.disc_latent_n)
+                               self.disc_var_num * self.disc_latent_out)
         self.split_sizes_list = [self.cont_latent_n * self.cont_var_num for _ in range(self.cont_param_num)]
-        self.split_sizes_list += [self.disc_latent_n * self.disc_var_num for _ in range(self.disc_param_num)]
+        self.split_sizes_list += [self.disc_latent_in * self.disc_var_num for _ in range(self.disc_param_num)]
         self.num_var = (self.cont_var_num, self.disc_var_num)
 
         self.inference_net = tf.keras.Sequential
@@ -84,9 +85,9 @@ class VAENet(tf.keras.Model):
 
     def generate_planar_flow(self):
         self.planar_flow = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(self.disc_latent_n, 1, self.disc_var_num)),
-            PlanarFlowLayer(units=self.disc_latent_n, var_num=self.disc_var_num),
-            PlanarFlowLayer(units=self.disc_latent_n, var_num=self.disc_var_num)])
+            tf.keras.layers.InputLayer(input_shape=(self.disc_latent_in, 1, self.disc_var_num)),
+            PlanarFlowLayer(units=self.disc_latent_in, var_num=self.disc_var_num),
+            PlanarFlowLayer(units=self.disc_latent_in, var_num=self.disc_var_num)])
 
     # -------------------------------------------------------------------------------------------------------
     def generate_convolutional_inference_net_jointvae(self):
@@ -199,7 +200,7 @@ class VAENet(tf.keras.Model):
         for idx, param in enumerate(params):
             batch_size = param.shape[0]
             if self.disc_var_num > 1:
-                param = tf.reshape(param, shape=(batch_size, self.disc_latent_n, 1, self.disc_var_num))
+                param = tf.reshape(param, shape=(batch_size, self.disc_latent_in, 1, self.disc_var_num))
             else:
                 param = tf.reshape(param, shape=(batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
             reshaped_params.append(param)
