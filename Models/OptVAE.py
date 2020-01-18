@@ -242,14 +242,16 @@ class OptPlanarNF(OptGauSoftMax):
         self.compute_kl_norm = False
 
     def reparameterize(self, params_broad):
-        mu, xi = params_broad
+        mean, log_var, mu, xi = params_broad
+        z_norm = sample_normal(mean=mean, log_var=log_var)
         epsilon = tf.random.normal(shape=mu.shape)
         self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
         sigma = tf.math.exp(xi)
         self.ng.lam = self.nets.planar_flow(mu + sigma * epsilon)
         self.ng.log_psi = self.ng.lam - tf.math.reduce_logsumexp(self.ng.lam, axis=1, keepdims=True)
         z_discrete = [self.ng.log_psi]
-        return z_discrete
+        z = [z_norm, z_discrete]
+        return z
 
 
 class OptPlanarNFDis(OptGauSoftMax):
