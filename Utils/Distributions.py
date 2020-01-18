@@ -88,14 +88,30 @@ class IGR_I(Distributions):
     def generate_sample(self):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         epsilon = self.sample_noise(shape=mu_broad.shape)
-        sigma = convert_ξ_to_σ(ξ=xi_broad,)
-        self.lam = (mu_broad + sigma * epsilon) / self.temp
+        sigma_broad = convert_ξ_to_σ(ξ=xi_broad,)
+        self.lam = self.transform(mu_broad, sigma_broad, epsilon)
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
         self.psi = self.project_to_vertices()
+
+    def transform(self, mu_broad, sigma_broad, epsilon):
+        lam = (mu_broad + sigma_broad * epsilon) / self.temp
+        return lam
 
     def project_to_vertices(self):
         psi = project_to_vertices_via_softmax_pp(self.lam)
         return psi
+
+
+class IGR_Planar(Distributions):
+    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, planar_flow, noise_type: str = 'normal', sample_size: int = 1,
+                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
+        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
+                         noise_type=noise_type, temp=temp, num_of_vars=mu.shape[3])
+        self.planar_flow = planar_flow
+
+    def transform(self, mu_broad, sigma_broad, epsilon):
+        lam = (self.planar_flow(mu_broad + sigma_broad * epsilon)) / self.temp
+        return lam
 
 
 class LogitDist(Distributions):
