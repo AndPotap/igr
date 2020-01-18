@@ -249,7 +249,7 @@ class OptPlanarNF(OptGauSoftMax):
         sigma = tf.math.exp(xi)
         self.ng.lam = self.nets.planar_flow(mu + sigma * epsilon)
         self.ng.log_psi = self.ng.lam - tf.math.reduce_logsumexp(self.ng.lam, axis=1, keepdims=True)
-        z_discrete = [self.ng.log_psi]
+        z_discrete = self.ng.psi
         z = [z_norm, z_discrete]
         return z
 
