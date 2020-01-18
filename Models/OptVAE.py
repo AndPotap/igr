@@ -2,7 +2,7 @@ import pickle
 from typing import Tuple
 import tensorflow as tf
 from os import environ as os_env
-from Utils.Distributions import IGR_I, IGR_SB, GS, compute_log_exp_gs_dist
+from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, GS, compute_log_exp_gs_dist
 from Utils.initializations import initialize_mu_and_xi_for_logistic
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -244,11 +244,9 @@ class OptPlanarNF(OptGauSoftMax):
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        epsilon = tf.random.normal(shape=mu.shape)
-        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
-        sigma = tf.math.exp(xi)
-        self.ng.lam = self.nets.planar_flow(mu + sigma * epsilon)
-        self.ng.log_psi = self.ng.lam - tf.math.reduce_logsumexp(self.ng.lam, axis=1, keepdims=True)
+        self.ng = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
+                             temp=self.temp, sample_size=self.sample_size)
+        self.ng.generate_sample()
         z_discrete = self.ng.psi
         z = [z_norm, z_discrete]
         return z
@@ -262,12 +260,10 @@ class OptPlanarNFDis(OptGauSoftMax):
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
-        epsilon = tf.random.normal(shape=mu.shape)
-        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
-        sigma = tf.math.exp(xi)
-        self.ng.lam = self.nets.planar_flow(mu + sigma * epsilon)
-        self.ng.log_psi = self.ng.lam - tf.math.reduce_logsumexp(self.ng.lam, axis=1, keepdims=True)
-        z_discrete = [self.ng.log_psi]
+        self.ng = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
+                             temp=self.temp, sample_size=self.sample_size)
+        self.ng.generate_sample()
+        z_discrete = [self.ng.psi]
         return z_discrete
 
 
