@@ -48,10 +48,6 @@ class Distributions:
             epsilon = tf.random.normal(shape=shape)
         elif self.noise_type == 'trunc_normal':
             epsilon = tf.random.truncated_normal(shape=shape)
-        elif self.noise_type == 'gamma':
-            epsilon = tf.random.gamma(shape=shape, alpha=1., beta=1.)
-        elif self.noise_type == 'cauchy':
-            epsilon = tf.constant(np.random.standard_cauchy(size=shape), dtype=tf.float32)
         else:
             raise RuntimeError
         return epsilon
