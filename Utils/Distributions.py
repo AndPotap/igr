@@ -123,15 +123,6 @@ class LogitDist(Distributions):
         self.projection_option = 'softmax'
         self.random_jump_threshold = 0.25
 
-    def compute_log_logit_dist(self) -> tf.Tensor:
-        if self.projection_option == 'softmax':
-            log_q_psi = compute_log_logit_dist(epsilon=self.epsilon, sigma=self.sigma, kappa=self.kappa,
-                                               temp=self.temp, lam=self.lam)
-        else:
-            log_q_psi = compute_log_logit_dist_projection(epsilon=self.epsilon, sigma=self.sigma,
-                                                          kappa=self.kappa, temp=self.temp)
-        return log_q_psi
-
     def generate_sample(self):
         # mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         # mu_broad = self.mu
