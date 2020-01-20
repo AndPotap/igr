@@ -179,11 +179,6 @@ class IGR_SB(LogitDist):
         self.lower = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
         self.upper = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
 
-    def compute_log_sb_dist(self) -> tf.Tensor:
-        log_q_psi = compute_log_sb_dist(lam=self.lam, kappa=self.kappa, sigma=self.sigma,
-                                        epsilon=self.epsilon, log_jac=self.log_jac, temp=self.temp)
-        return log_q_psi
-
     def get_eta_and_n_required(self, kappa):
         if self.run_iteratively:
             self.eta, self.log_jac = self.compute_sb_and_log_jac_iteratively(κ=kappa)
