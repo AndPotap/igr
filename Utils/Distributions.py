@@ -71,9 +71,8 @@ class IGR_I(Distributions):
 
 
 class IGR_Planar(IGR_I):
-    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, planar_flow, noise_type: str = 'normal', sample_size: int = 1,
-                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
-        super().__init__(mu, xi, noise_type, sample_size, temp)
+    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, temp, planar_flow, noise_type: str = 'normal'):
+        super().__init__(mu, xi, temp, noise_type)
         self.planar_flow = planar_flow
 
     def transform(self, mu_broad, sigma_broad, epsilon):
