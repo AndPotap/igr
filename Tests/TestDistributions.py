@@ -6,10 +6,8 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
-from Utils.Distributions import SBDist, compute_log_jac
+from Utils.Distributions import SBDist, compute_log_jac, compute_log_exp_gs_dist
 from Utils.Distributions import iterative_sb_and_jac, generate_lower_and_upper_triangular_matrices_for_sb
-from Utils.Distributions import project_to_vertices_via_random_jump
-from Utils.Distributions import compute_log_exp_gs_dist
 # ===========================================================================================================
 
 
@@ -110,52 +108,6 @@ class TestDistributions(unittest.TestCase):
             relative_diff = np.linalg.norm(eta_it.numpy() - eta_ans) / np.linalg.norm(eta_ans)
             self.assertTrue(expr=relative_diff < test_tolerance)
 
-    def test_compute_log_jac(self):
-        test_tolerance = 1.e-7
-        sample_size = 3
-        #   Jacobian Test   #######
-        kappa_stick = np.array([[0.1, 0.22222224, 0.42857146, 0.75000006],
-                               [0.3, 0.4, 0.5, 0.6]])
-        # eta = np.array([[0.1, 0.2,  0.3,  0.3],
-        #                 [0.3, 0.28, 0.21, 0.126]])  # this is the corresponding eta
-        # eta_cumsum = np.array([[0.1, 0.3,  0.6,  0.9],
-        #                        [0.3, 0.58, 0.79, 0.916]])
-        max_size, batch_size = kappa_stick.shape[1], kappa_stick.shape[0]
-        kappa_stick = broadcast_to_sample_size(kappa_stick, sample_size=sample_size,
-                                               shape=(batch_size, max_size))
-
-        mu = broadcast_to_sample_size(np.array([1 for _ in range(max_size)]),
-                                      shape=(1, max_size), sample_size=sample_size)
-        xi = broadcast_to_sample_size(np.array([1 for _ in range(max_size)]),
-                                      shape=(1, max_size), sample_size=sample_size)
-        sb_dist = SBDist(mu=mu, xi=xi, sample_size=1, threshold=0.99)
-        sb_dist.lower, sb_dist.upper = generate_lower_and_upper_triangular_matrices_for_sb(
-            categories_n=sb_dist.categories_n, lower=sb_dist.lower, upper=sb_dist.upper,
-            batch_size=sb_dist.batch_size, sample_size=sb_dist.sample_size)
-        sb_dist.truncation_option = 'max'
-        _, jac = sb_dist.perform_stick_break_and_compute_log_jac(kappa=kappa_stick)
-
-        jac_ans = np.array([np.log(1 * (1 / (1 - 0.1)) * (1 / (1 - 0.3)) * (1 / (1 - 0.6))),
-                            np.log(1 * (1 / (1 - 0.3)) * (1 / (1 - 0.58)) * (1 / (1 - 0.79)))])
-        jac_ans = broadcast_to_sample_size(jac_ans, shape=(batch_size,), sample_size=sample_size)
-
-        jac_test = calculate_log_jac_η_from_κ(κ=kappa_stick.numpy())
-
-        jac_inverse = compute_log_jac(κ=kappa_stick)
-        _, jac_iter = iterative_sb_and_jac(κ=kappa_stick)
-
-        relative_diff = tf.linalg.norm(jac_test - jac_ans) / tf.linalg.norm(jac_ans)
-        self.assertTrue(expr=relative_diff < test_tolerance)
-
-        relative_diff = tf.linalg.norm(jac_iter - jac_ans) / tf.linalg.norm(jac_ans)
-        self.assertTrue(expr=relative_diff < test_tolerance)
-
-        relative_diff = tf.linalg.norm(jac_inverse - jac_ans) / tf.linalg.norm(jac_ans)
-        self.assertTrue(expr=relative_diff < test_tolerance)
-
-        relative_diff = tf.linalg.norm(jac - jac_ans) / tf.linalg.norm(jac_ans)
-        self.assertTrue(expr=relative_diff < test_tolerance)
-
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ===========================================================================================================
@@ -179,25 +131,6 @@ def calculate_log_exp_concrete(log_ψ, α, τ):
     aux = np.log(α) - τ * log_ψ
     log_sum = np.sum(aux) - categories_n * logsumexp(aux)
     return log_const + log_sum
-
-
-def calculate_log_jac_η_from_κ(κ):
-    η = calculate_η_from_κ(κ=κ)
-    log_jac_η = calculate_log_jac_η(η=η)
-    return log_jac_η
-
-
-def calculate_log_jac_η(η):
-    batch_size, n_required, sample_size = η.shape
-    ς = 1.e-20
-    log_jac_η = np.zeros(shape=(batch_size, n_required, sample_size))
-    for batch_id in range(batch_size):
-        for sample_id in range(sample_size):
-            cumsum = 0
-            for r in range(n_required):
-                log_jac_η[batch_id, r, sample_id] += -np.log(1. - cumsum + ς)
-                cumsum += η[batch_id, r, sample_id]
-    return np.sum(log_jac_η, axis=1)
 
 
 def calculate_η_from_κ(κ):
