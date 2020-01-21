@@ -228,7 +228,6 @@ def accumulate_one_minus_kappa_prods(kappa, lower, upper):
     one = tf.constant(value=1., dtype=tf.float32)
 
     diagonal_kappa = tf.linalg.diag(tf.transpose(one - kappa[:, :forget_last, :, :], perm=[0, 2, 3, 1]))
-    accumulation = tf.tensordot(lower, diagonal_kappa, axes=[[1], [3]])
     accumulation = tf.transpose(tf.tensordot(lower, diagonal_kappa, axes=[[1], [3]]), perm=[1, 0, 4, 2, 3])
     accumulation_w_ones = accumulation + upper
     cumprod = tf.math.reduce_prod(input_tensor=accumulation_w_ones, axis=2)
