@@ -329,10 +329,10 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
         chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
         if run_iteratively:
             chosen_dist.run_iteratively = True
-    elif dist_type == 'ExpGS':
+    elif dist_type == 'GS':
         pi = params[0]
         chosen_dist = GS(log_pi=pi, temp=temp, sample_size=sample_size)
-    elif dist_type == 'GauSoftMax':
+    elif dist_type == 'IGR_I':
         mu, xi, = params
         chosen_dist = IGR_I(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
     else:
