@@ -309,20 +309,20 @@ def project_into_simplex(vector: tf.Tensor):
     return projection
 
 
-def accumulate_one_minus_kappa_prods(kappa: tf.Tensor, lower, upper) -> tf.Tensor:
+def accumulate_one_minus_kappa_prods(kappa, lower, upper):
     forget_last = -1
     one = tf.constant(value=1., dtype=tf.float32)
 
-    diagonal_kappa = tf.linalg.diag(tf.transpose(one - kappa[:, :forget_last, :], perm=[0, 2, 1]))
-    accumulation = tf.transpose(tf.tensordot(lower, diagonal_kappa, axes=[[1], [2]]),
-                                perm=[1, 0, 3, 2])
+    diagonal_kappa = tf.linalg.diag(tf.transpose(one - kappa[:, :forget_last, :, :], perm=[0, 2, 3, 1]))
+    accumulation = tf.tensordot(lower, diagonal_kappa, axes=[[1], [3]])
+    accumulation = tf.transpose(tf.tensordot(lower, diagonal_kappa, axes=[[1], [3]]), perm=[1, 0, 4, 2, 3])
     accumulation_w_ones = accumulation + upper
     cumprod = tf.math.reduce_prod(input_tensor=accumulation_w_ones, axis=2)
     return cumprod
 
 
 def generate_lower_and_upper_triangular_matrices_for_sb(categories_n, lower, upper,
-                                                        batch_size, sample_size):
+                                                        batch_size, sample_size, num_of_vars=1):
     zeros_row = np.zeros(shape=categories_n - 1)
 
     for i in range(categories_n - 1):
@@ -339,8 +339,10 @@ def generate_lower_and_upper_triangular_matrices_for_sb(categories_n, lower, upp
     upper = np.vstack([upper, zeros_row])
 
     upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1))
-    upper = np.reshape(upper, newshape=(batch_size, categories_n, categories_n - 1, 1))
-    upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1, sample_size))
+    upper = np.reshape(upper, newshape=(batch_size, categories_n, categories_n - 1, 1, 1))
+    upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1, sample_size, 1))
+    upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1, sample_size, num_of_vars))
+
     lower = tf.constant(value=lower, dtype=tf.float32)  # no reshape needed
     upper = tf.constant(value=upper, dtype=tf.float32)
     return lower, upper
