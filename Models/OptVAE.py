@@ -187,7 +187,7 @@ class OptGauSoftMax(OptVAE):
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
-        self.ng = IGR_I(mu=self.mu_0, xi=self.xi_0)
+        self.ng = IGR_I(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
         self.load_prior_values()
         self.compute_kl_norm = True
 
