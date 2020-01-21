@@ -86,6 +86,7 @@ class IGR_SB(IGR_I):
         super().__init__(mu, xi, temp, sample_size, noise_type)
 
         self.threshold = threshold
+        self.eta = tf.constant(0., dtype=tf.float32)
         self.run_iteratively = False
         self.truncation_option = 'quantile'
         self.quantile = 70
@@ -131,12 +132,10 @@ class IGR_SB(IGR_I):
 
 class GS(Distributions):
 
-    def __init__(self, log_pi: tf.Tensor, sample_size: int = 1, noise_type: str = 'normal',
-                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
+    def __init__(self, log_pi, temp, sample_size: int = 1):
         super().__init__(batch_size=log_pi.shape[0], categories_n=log_pi.shape[1], sample_size=sample_size,
-                         noise_type=noise_type, temp=temp, num_of_vars=log_pi.shape[3])
+                         temp=temp, num_of_vars=log_pi.shape[3])
         self.log_pi = log_pi
-        self.log_psi = tf.constant(value=0., dtype=tf.float32)
 
     def generate_sample(self):
         ς = 1.e-20
