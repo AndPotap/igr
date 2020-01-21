@@ -5,9 +5,8 @@
 import unittest
 import numpy as np
 import tensorflow as tf
-from scipy.stats import norm
 from scipy.special import logsumexp, loggamma
-from Utils.Distributions import SBDist, compute_log_logit_normal, compute_log_jac, compute_log_sb_dist
+from Utils.Distributions import SBDist, compute_log_jac
 from Utils.Distributions import iterative_sb_and_jac, generate_lower_and_upper_triangular_matrices_for_sb
 from Utils.Distributions import project_to_vertices_via_random_jump
 from Utils.Distributions import compute_log_exp_gs_dist
@@ -156,31 +155,6 @@ class TestDistributions(unittest.TestCase):
 
         relative_diff = tf.linalg.norm(jac - jac_ans) / tf.linalg.norm(jac_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
-
-    def test_random_jump_projection_with_manual_case(self):
-        test_tolerance = 1.e-7
-        sample_size = 1
-        uniform_threshold = tf.constant(0.5)
-        uniform_sample = np.array([0.1, 0.7, 0.3])
-        temp = tf.constant(0.1)
-        eta = np.array([[0.8, 0.05, 0., 0.05],
-                        [0.3, 0.2, 0.05, 0.35],
-                        [0.1, 0.8, 0., 0.]])
-        batch_size, categories_n = eta.shape
-        eta = broadcast_to_sample_size(eta, shape=(batch_size, categories_n), sample_size=sample_size)
-        psi_ans = tf.constant(np.array([[0.8, 0.05, 0., 0.05],
-                                        [0.03, 0.02, 0.005, 0.935],
-                                        [0.1, 0.8, 0., 0.]]), dtype=tf.float32)
-        psi_ans = broadcast_to_sample_size(psi_ans, shape=(batch_size, categories_n),
-                                           sample_size=sample_size)
-        with tf.GradientTape() as tape:
-            tape.watch(eta)
-            lam, psi = project_to_vertices_via_random_jump(eta=eta, temp=temp, uniform_sample=uniform_sample,
-                                                           random_jump_threshold=uniform_threshold)
-        grad = tape.gradient(target=psi, sources=eta)
-        relative_diff = tf.linalg.norm(psi - psi_ans) / tf.linalg.norm(psi_ans)
-        self.assertTrue(expr=relative_diff < test_tolerance)
-        self.assertTrue(expr=grad is not None)
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
