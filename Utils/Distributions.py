@@ -109,83 +109,40 @@ class IGR_Planar(IGR_I):
         return lam
 
 
-class LogitDist(Distributions):
+class IGR_SB(IGR_I):
 
     def __init__(self, mu: tf.Tensor, xi: tf.Tensor, sample_size: int = 1, noise_type: str = 'normal',
                  temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32), threshold: float = 0.99):
-        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
-                         noise_type=noise_type, temp=temp, threshold=threshold)
-
-        self.mu = mu
-        self.xi = xi
-        self.eta = tf.constant(0., dtype=tf.float32)
-        self.lam = tf.constant(0., dtype=tf.float32)
-        self.projection_option = 'softmax'
-        self.random_jump_threshold = 0.25
-
-    def generate_sample(self):
-        # mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
-        # mu_broad = self.mu
-        # xi_broad = self.xi
-        mu_broad = self.mu[:, :, :, 0]
-        xi_broad = self.xi[:, :, :, 0]
-        mu_broad = tf.broadcast_to(mu_broad, shape=(self.batch_size, self.categories_n, self.sample_size))
-        xi_broad = tf.broadcast_to(xi_broad, shape=(self.batch_size, self.categories_n, self.sample_size))
-        epsilon = self.sample_noise(shape=mu_broad.shape)
-        sigma, delta, kappa = retrieve_transformations_up_to_kappa(mu_broad=mu_broad, xi_broad=xi_broad,
-                                                                   epsilon=epsilon)
-        self.get_eta_and_n_required(kappa=kappa)
-        self.subset_variables_to_n_required(epsilon, sigma, delta, kappa)
-        if self.projection_option == 'softmax':
-            # self.lam, self.psi = project_to_vertices_via_softmax(eta=self.eta, temp=self.temp)
-            # self.psi = project_to_vertices_via_softmax(λ=self.lam)
-            self.lam = self.eta / self.temp
-            self.psi = tf.math.softmax(self.lam, axis=1)
-            self.psi = tf.reshape(self.psi, shape=self.psi.numpy().shape + (1,))
-        else:
-            uniform_sample = tf.random.uniform(shape=(self.batch_size, self.sample_size),
-                                               minval=0, maxval=1)
-            self.lam, self.psi = project_to_vertices_via_random_jump(
-                eta=self.eta, temp=self.temp, uniform_sample=uniform_sample,
-                random_jump_threshold=self.random_jump_threshold)
-
-    def get_eta_and_n_required(self, kappa):
-        self.perform_truncation_via_threshold(vector=kappa)
-        self.eta = kappa[:, :self.n_required, :]
-
-
-class IGR_SB(LogitDist):
-
-    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, sample_size: int = 1, noise_type: str = 'normal',
-                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32), threshold: float = 0.99):
-        super().__init__(mu=mu, xi=xi, sample_size=sample_size,
-                         noise_type=noise_type, temp=temp, threshold=threshold)
+        super().__init__(mu, xi, noise_type, sample_size, temp)
 
         self.run_iteratively = False
         self.log_jac = tf.constant(0., dtype=tf.float32)
         self.lower = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
         self.upper = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
 
+    def transform(self, mu_broad, sigma_broad, epsilon):
+        kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
+        self.get_eta_and_n_required(kappa)
+        lam = self.eta / self.temp
+        return lam
+
     def get_eta_and_n_required(self, kappa):
         if self.run_iteratively:
-            self.eta, self.log_jac = self.compute_sb_and_log_jac_iteratively(κ=kappa)
+            self.eta, self.log_jac = self.perform_iter_stick_break(kappa)
         else:
             self.lower, self.upper = generate_lower_and_upper_triangular_matrices_for_sb(
                 categories_n=self.categories_n, lower=self.lower, upper=self.upper,
                 batch_size=self.batch_size, sample_size=self.sample_size)
-            self.eta, self.log_jac = self.perform_stick_break_and_compute_log_jac(kappa=kappa)
+            self.eta = self.perform_stick_break(kappa)
 
-    def perform_stick_break_and_compute_log_jac(self, kappa: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
-        accumulated_prods = accumulate_one_minus_kappa_products_for_sb(kappa=kappa, lower=self.lower,
-                                                                       upper=self.upper)
-        ς = 1.e-20
+    def perform_stick_break(self, kappa):
+        accumulated_prods = accumulate_one_minus_kappa_prods(kappa, self.lower, self.upper)
         eta = kappa * accumulated_prods
         self.perform_truncation_via_threshold(vector=eta)
-        log_jac = -tf.reduce_sum(tf.math.log(accumulated_prods[:, :self.n_required, :] + ς), axis=1)
-        return eta[:, :self.n_required, :], log_jac
+        return eta[:, :self.n_required, :]
 
-    def compute_sb_and_log_jac_iteratively(self, κ):
-        η, log_jac = iterative_sb_and_jac(κ=κ)
+    def perform_iter_stick_break(self, kappa):
+        η, log_jac = iterative_sb_and_jac(κ=kappa)
         self.perform_truncation_via_threshold(η)
         return η[:, :self.n_required, :], log_jac
 
@@ -371,7 +328,7 @@ def project_into_simplex(vector: tf.Tensor):
     return projection
 
 
-def accumulate_one_minus_kappa_products_for_sb(kappa: tf.Tensor, lower, upper) -> tf.Tensor:
+def accumulate_one_minus_kappa_prods(kappa: tf.Tensor, lower, upper) -> tf.Tensor:
     forget_last = -1
     one = tf.constant(value=1., dtype=tf.float32)
 
@@ -460,20 +417,17 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
 
 def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dtype=tf.float32),
                                sample_size: int = 1, threshold: float = 0.99, run_iteratively=False):
-    if dist_type == 'logit':
+    if dist_type == 'IGR_SB':
         mu, xi = params
-        chosen_dist = LogitDist(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
+        chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
+        if run_iteratively:
+            chosen_dist.run_iteratively = True
     elif dist_type == 'ExpGS':
         pi = params[0]
         chosen_dist = GS(log_pi=pi, temp=temp, sample_size=sample_size)
     elif dist_type == 'GauSoftMax':
         mu, xi, = params
         chosen_dist = IGR_I(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
-    elif dist_type == 'sb':
-        mu, xi = params
-        chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
-        if run_iteratively:
-            chosen_dist.run_iteratively = True
     else:
         raise RuntimeError
 
