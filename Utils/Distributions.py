@@ -233,33 +233,6 @@ def project_to_vertices_via_softmax_pp(lam):
     return psi
 
 
-def project_to_vertices_via_random_jump(eta, temp: tf.Tensor, uniform_sample, random_jump_threshold):
-    λ = eta
-    batch_size, categories_n, sample_size = eta.shape
-    ψ = tf.TensorArray(dtype=tf.float32, size=batch_size, element_shape=(categories_n, sample_size))
-    # noinspection PyTypeChecker
-    projection = temp * eta + (1. - temp) * project_into_simplex(eta)
-    for i in tf.range(batch_size):
-        if uniform_sample[i] <= random_jump_threshold:
-            ψ = ψ.write(index=i, value=eta[i, :, :])
-        else:
-            ψ = ψ.write(index=i, value=projection[i, :, :])
-    return λ, ψ.stack()
-
-
-def project_into_simplex(vector: tf.Tensor):
-    batch_size, n_required, sample_size = vector.shape
-    projection = np.zeros(shape=(batch_size, n_required, sample_size))
-
-    argmax_loc = np.argmax(vector.numpy(), axis=1)
-    for sample in range(sample_size):
-        for batch in range(batch_size):
-            projection[batch, argmax_loc[batch, sample], sample] = 1.
-
-    projection = tf.constant(value=projection, dtype=tf.float32)
-    return projection
-
-
 def accumulate_one_minus_kappa_prods(kappa, lower, upper):
     forget_last = -1
     one = tf.constant(value=1., dtype=tf.float32)
