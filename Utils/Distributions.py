@@ -82,25 +82,25 @@ class IGR_Planar(IGR_I):
 
 class IGR_SB(IGR_I):
 
-    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99):
+    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99, run_iteratively=False):
         super().__init__(mu, xi, temp, sample_size, noise_type)
 
         self.threshold = threshold
         self.eta = tf.constant(0., dtype=tf.float32)
-        self.run_iteratively = False
         self.truncation_option = 'quantile'
         self.quantile = 70
+        self.run_iteratively = run_iteratively
         self.lower = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
         self.upper = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
 
     def transform(self, mu_broad, sigma_broad, epsilon):
         kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
-        self.get_eta_and_n_required(kappa)
+        self.get_eta(kappa)
         self.perform_truncation_via_threshold(vector=self.eta)
         lam = self.eta[:, :self.n_required, :] / self.temp
         return lam
 
-    def get_eta_and_n_required(self, kappa):
+    def get_eta(self, kappa):
         if self.run_iteratively:
             self.eta = iterative_sb(kappa)
         else:
