@@ -97,13 +97,12 @@ class IGR_SB(IGR_I):
         kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
         self.get_eta_and_n_required(kappa)
         self.perform_truncation_via_threshold(vector=self.eta)
-        self.eta[:, :self.n_required, :]
-        lam = self.eta / self.temp
+        lam = self.eta[:, :self.n_required, :] / self.temp
         return lam
 
     def get_eta_and_n_required(self, kappa):
         if self.run_iteratively:
-            self.eta, self.log_jac = self.perform_iter_stick_break(kappa)
+            self.eta = iterative_sb(kappa)
         else:
             self.lower, self.upper = generate_lower_and_upper_triangular_matrices_for_sb(
                 categories_n=self.categories_n, lower=self.lower, upper=self.upper,
@@ -114,10 +113,6 @@ class IGR_SB(IGR_I):
         accumulated_prods = accumulate_one_minus_kappa_prods(kappa, self.lower, self.upper)
         eta = kappa * accumulated_prods
         return eta
-
-    def perform_iter_stick_break(self, kappa):
-        η, log_jac = iterative_sb_and_jac(κ=kappa)
-        return η[:, :self.n_required, :], log_jac
 
     def perform_truncation_via_threshold(self, vector):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
