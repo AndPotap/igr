@@ -89,8 +89,6 @@ class IGR_SB(IGR_I):
         self.truncation_option = 'quantile'
         self.quantile = 70
         self.run_iteratively = run_iteratively
-        self.lower = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
-        self.upper = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
 
     def transform(self, mu_broad, sigma_broad, epsilon):
         kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
@@ -100,19 +98,20 @@ class IGR_SB(IGR_I):
         return lam
 
     def get_eta(self, kappa):
-        if self.run_iteratively:
-            eta = iterative_sb(kappa)
-        else:
-            self.lower, self.upper = generate_lower_and_upper_triangular_matrices_for_sb(
-                categories_n=self.categories_n, lower=self.lower, upper=self.upper,
-                batch_size=self.batch_size, sample_size=self.sample_size)
-            eta = self.perform_stick_break(kappa)
+        eta = iterative_sb(kappa) if self.run_iteratively else self.perform_stick_break(kappa)
         return eta
 
     def perform_stick_break(self, kappa):
-        accumulated_prods = accumulate_one_minus_kappa_prods(kappa, self.lower, self.upper)
+        lower, upper = self.construct_matrices_for_sb()
+        accumulated_prods = accumulate_one_minus_kappa_prods(kappa, lower, upper)
         eta = kappa * accumulated_prods
         return eta
+
+    def construct_matrices_for_sb(self):
+        lower, upper = generate_lower_and_upper_triangular_matrices(self.categories_n)
+        lower, upper = broadcast_matrices_to_shape(lower, upper, self.batch_size,
+                                                   self.categories_n, self.sample_size, self.num_of_vars)
+        return lower, upper
 
     def perform_truncation_via_threshold(self, vector):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
@@ -236,8 +235,9 @@ def accumulate_one_minus_kappa_prods(kappa, lower, upper):
     return cumprod
 
 
-def generate_lower_and_upper_triangular_matrices_for_sb(categories_n, lower, upper,
-                                                        batch_size, sample_size, num_of_vars=1):
+def generate_lower_and_upper_triangular_matrices(categories_n):
+    lower = np.zeros(shape=(categories_n - 1, categories_n - 1))
+    upper = np.zeros(shape=(categories_n - 1, categories_n - 1))
     zeros_row = np.zeros(shape=categories_n - 1)
 
     for i in range(categories_n - 1):
@@ -253,6 +253,10 @@ def generate_lower_and_upper_triangular_matrices_for_sb(categories_n, lower, upp
     lower = np.vstack([zeros_row, lower])
     upper = np.vstack([upper, zeros_row])
 
+    return lower, upper
+
+
+def broadcast_matrices_to_shape(lower, upper, batch_size, categories_n, sample_size, num_of_vars):
     upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1))
     upper = np.reshape(upper, newshape=(batch_size, categories_n, categories_n - 1, 1, 1))
     upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1, sample_size, 1))
