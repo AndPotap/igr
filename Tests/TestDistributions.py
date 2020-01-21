@@ -6,8 +6,8 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
-from Utils.Distributions import SBDist, compute_log_jac, compute_log_exp_gs_dist
-from Utils.Distributions import iterative_sb_and_jac, generate_lower_and_upper_triangular_matrices_for_sb
+from Utils.Distributions import IGR_SB, compute_log_exp_gs_dist
+from Utils.Distributions import generate_lower_and_upper_triangular_matrices_for_sb
 # ===========================================================================================================
 
 
@@ -45,33 +45,33 @@ class TestDistributions(unittest.TestCase):
     def test_perform_stick_break_with_manual_input(self):
         test_tolerance = 1.e-7
         sample_size = 3
+        num_of_vars = 2
         threshold = 0.8
+        temp = tf.constant(0.1, dtype=tf.float32)
         kappa_stick = np.array([[0.1, 0.22222224, 0.42857146, 0.75000006],
                                 [0.3, 0.4, 0.5, 0.6],
                                 [0.3, 0.28571428571428575, 0.2, 0.5]])
         batch_size, max_size = kappa_stick.shape[0], kappa_stick.shape[1]
-        kappa_stick = broadcast_to_sample_size(kappa_stick, shape=kappa_stick.shape,
-                                               sample_size=sample_size)
+        kappa_stick = broadcast_sample_and_num(kappa_stick, kappa_stick.shape, sample_size, num_of_vars)
         eta_ans = np.array([[0.1, 0.2, 0.3, 0.3],
                             [0.3, 0.28, 0.21, 0.126],
                             [0.3, 0.2, 0.1, 0.2]])
         # eta_cumsum = np.array([[0.1, 0.3,  0.6,  0.9],
         #                        [0.3, 0.58, 0.79, 0.916],
         #                        [0.3, 0.5,  0.6,  0.8]])
-        eta_ans = broadcast_to_sample_size(eta_ans, shape=eta_ans.shape, sample_size=sample_size)
+        eta_ans = broadcast_sample_and_num(eta_ans, eta_ans.shape, sample_size, num_of_vars)
         n_required_ans = 2 + 1
         eta_ans = eta_ans[:, :n_required_ans, :]
-        mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1))
-        xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1))
-        sb_dist = SBDist(mu=mu, xi=xi, sample_size=1, threshold=threshold)
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
+        sb_dist = IGR_SB(mu, xi, temp, sample_size=sample_size, threshold=threshold)
         sb_dist.lower, sb_dist.upper = generate_lower_and_upper_triangular_matrices_for_sb(
             categories_n=sb_dist.categories_n, lower=sb_dist.lower, upper=sb_dist.upper,
             batch_size=sb_dist.batch_size, sample_size=sb_dist.sample_size)
-        sb_dist.truncation_option = 'quantile'
-        eta, _ = sb_dist.perform_stick_break_and_compute_log_jac(kappa=kappa_stick)
-        eta_iter, _ = sb_dist.compute_sb_and_log_jac_iteratively(κ=kappa_stick)
+        eta = sb_dist.perform_stick_break(kappa_stick)
+        eta_iter, _ = sb_dist.perform_iter_stick_break(kappa_stick)
 
-        eta_test = calculate_η_from_κ(kappa_stick)[:, :n_required_ans, :]
+        eta_test = calculate_eta_from_kappa(kappa_stick)[:, :n_required_ans, :]
         relative_diff = tf.linalg.norm(eta_test - eta_ans) / tf.linalg.norm(eta_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
@@ -89,14 +89,14 @@ class TestDistributions(unittest.TestCase):
         mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1))
         xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1))
         for threshold in thresholds:
-            sb_dist = SBDist(mu=mu, xi=xi, sample_size=sample_size, threshold=threshold)
+            sb_dist = IGR_SB(mu=mu, xi=xi, sample_size=sample_size, threshold=threshold)
             sb_dist.lower, sb_dist.upper = generate_lower_and_upper_triangular_matrices_for_sb(
                 categories_n=sb_dist.categories_n, lower=sb_dist.lower, upper=sb_dist.upper,
                 batch_size=sb_dist.batch_size, sample_size=sb_dist.sample_size)
             kappa = np.array([1 / (2 ** (i + 1)) for i in range(max_size)])
             kappa = np.broadcast_to(kappa, shape=(batch_size, max_size))
-            kappa = broadcast_to_sample_size(kappa, shape=(batch_size, max_size), sample_size=sample_size)
-            eta_ans = calculate_η_from_κ(kappa)
+            kappa = broadcast_sample_and_num(kappa, shape=(batch_size, max_size), sample_size=sample_size)
+            eta_ans = calculate_eta_from_kappa(kappa)
 
             eta, _ = sb_dist.perform_stick_break_and_compute_log_jac(kappa=kappa)
             n_required = eta.shape[1]
@@ -133,38 +133,34 @@ def calculate_log_exp_concrete(log_ψ, α, τ):
     return log_const + log_sum
 
 
-def calculate_η_from_κ(κ):
-    batch_size, n_required, sample_size = κ.shape
-    η = np.zeros(shape=(batch_size, n_required, sample_size))
-    for batch_id in range(batch_size):
-        for sample_id in range(sample_size):
-            cumsum = 0
-            for r in range(n_required):
-                η[batch_id, r, sample_id] = κ[batch_id, r, sample_id] * (1. - cumsum)
-                cumsum += η[batch_id, r, sample_id]
-    return η
+def calculate_eta_from_kappa(kappa):
+    batch_size, n_required, sample_size, num_of_vars = kappa.shape
+    eta = np.zeros(shape=(batch_size, n_required, sample_size, num_of_vars))
+    for b in range(batch_size):
+        for s in range(sample_size):
+            for v in range(num_of_vars):
+                cumsum = 0
+                for r in range(n_required):
+                    eta[b, r, s, v] = kappa[b, r, s, v] * (1. - cumsum)
+                    cumsum += eta[b, r, s, v]
+    return eta
 
 
 def broadcast_to_batch_and_sample_size(a, batch_n, sample_size):
     shape = a.shape
     a = np.reshape(a, newshape=(1,) + shape)
     a = np.broadcast_to(a, shape=(batch_n,) + shape)
-    a = broadcast_to_sample_size(a=a, shape=a.shape, sample_size=sample_size)
+    a = broadcast_sample_and_num(a=a, shape=a.shape, sample_size=sample_size)
     return a
 
 
-def broadcast_to_sample_size(a, shape, sample_size):
-    a = np.reshape(a, newshape=shape + (1, ))
-    a = np.broadcast_to(a, shape=shape + (sample_size, ))
+def broadcast_sample_and_num(a, shape, sample_size, num_of_vars):
+    a = np.reshape(a, newshape=shape + (1, 1))
+    a = np.broadcast_to(a, shape=shape + (sample_size, 1))
+    a = np.broadcast_to(a, shape=shape + (sample_size, num_of_vars))
     a = tf.constant(value=a, dtype=tf.float32)
     return a
-# ===========================================================================================================
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ===========================================================================================================
-# If main block
-# ===========================================================================================================
 
 
 if __name__ == '__main__':
     unittest.main()
-# ===========================================================================================================
