@@ -56,7 +56,7 @@ class IGR_I(Distributions):
     def generate_sample(self):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         epsilon = self.sample_noise(shape=mu_broad.shape)
-        sigma_broad = convert_ξ_to_σ(ξ=xi_broad,)
+        sigma_broad = tf.math.exp(xi_broad)
         self.lam = self.transform(mu_broad, sigma_broad, epsilon)
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
         self.psi = self.project_to_vertices()
@@ -209,11 +209,6 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 # ===========================================================================================================
 # Utils
 # ===========================================================================================================
-def convert_ξ_to_σ(ξ: tf.Tensor):
-    σ = tf.math.exp(ξ)
-    return σ
-
-
 @tf.function
 def project_to_vertices_via_softmax_pp(lam):
     offset = 1.e-1
