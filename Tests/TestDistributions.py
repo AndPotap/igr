@@ -13,7 +13,7 @@ from Utils.Distributions import IGR_SB, compute_log_exp_gs_dist
 class TestDistributions(unittest.TestCase):
 
     def test_compute_log_exp_gs_dist(self):
-        test_tolerance = 1.e-5
+        test_tolerance = 1.e-4
         batch_n, categories_n, sample_size, num_of_vars = 2, 10, 1, 3
         τ = tf.constant(value=0.6, dtype=tf.float32)
         log_π = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
@@ -121,9 +121,9 @@ def calculate_log_exp_concrete(log_ψ, α, τ):
 
 def compute_and_threshold_eta(sb, kappa_stick, run_iteratively):
     sb.run_iteratively = run_iteratively
-    sb.get_eta(kappa_stick)
-    sb.perform_truncation_via_threshold(sb.eta)
-    eta = sb.eta[:, :sb.n_required, :, :]
+    eta = sb.get_eta(kappa_stick)
+    sb.perform_truncation_via_threshold(eta)
+    eta = eta[:, :sb.n_required, :, :]
     return eta
 
 
