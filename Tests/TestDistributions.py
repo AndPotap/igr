@@ -66,43 +66,39 @@ class TestDistributions(unittest.TestCase):
         xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
 
         sb = IGR_SB(mu, xi, temp, sample_size=sample_size, threshold=threshold)
-        eta_matrix = compute_and_threshold_eta(sb, kappa_stick)
-
-        sb.run_iteratively = True
-        eta_iter = compute_and_threshold_eta(sb, kappa_stick)
+        eta_matrix = compute_and_threshold_eta(sb, kappa_stick, run_iteratively=False)
+        eta_iter = compute_and_threshold_eta(sb, kappa_stick, run_iteratively=True)
         eta_np = calculate_eta_from_kappa(kappa_stick)[:, :n_required_ans, :]
 
-        eta_all = [eta_np, eta_matrix, eta_iter]
+        eta_all = [eta_np, eta_matrix.numpy(), eta_iter.numpy()]
         for e in eta_all:
-            relative_diff = tf.linalg.norm(e - eta_ans) / tf.linalg.norm(eta_ans)
+            relative_diff = np.linalg.norm(e - eta_ans) / np.linalg.norm(eta_ans)
             self.assertTrue(expr=relative_diff < test_tolerance)
 
     def test_perform_stick_break_with_generated_kappa(self):
         #    Global parameters  #######
         test_tolerance = 1.e-7
-        batch_size, max_size, sample_size = 2, 20, 10
+        temp = tf.constant(0.1, dtype=tf.float32)
+        batch_size, max_size, sample_size, num_of_vars = 2, 20, 10, 4
         thresholds = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
-        mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1))
-        xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1))
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
         for threshold in thresholds:
-            sb_dist = IGR_SB(mu=mu, xi=xi, sample_size=sample_size, threshold=threshold)
-            sb_dist.lower, sb_dist.upper = generate_lower_and_upper_triangular_matrices_for_sb(
-                categories_n=sb_dist.categories_n, lower=sb_dist.lower, upper=sb_dist.upper,
-                batch_size=sb_dist.batch_size, sample_size=sb_dist.sample_size)
+            sb_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
             kappa = np.array([1 / (2 ** (i + 1)) for i in range(max_size)])
             kappa = np.broadcast_to(kappa, shape=(batch_size, max_size))
-            kappa = broadcast_sample_and_num(kappa, shape=(batch_size, max_size), sample_size=sample_size)
+            kappa = broadcast_sample_and_num(kappa, shape=(batch_size, max_size), sample_size=sample_size,
+                                             num_of_vars=num_of_vars)
             eta_ans = calculate_eta_from_kappa(kappa)
 
-            eta, _ = sb_dist.perform_stick_break_and_compute_log_jac(kappa=kappa)
-            n_required = eta.shape[1]
-            eta_ans = eta_ans[:, :n_required, :]
-            relative_diff = np.linalg.norm(eta.numpy() - eta_ans) / np.linalg.norm(eta_ans)
-            self.assertTrue(expr=relative_diff < test_tolerance)
-
-            eta_it, _ = sb_dist.compute_sb_and_log_jac_iteratively(κ=kappa)
-            relative_diff = np.linalg.norm(eta_it.numpy() - eta_ans) / np.linalg.norm(eta_ans)
-            self.assertTrue(expr=relative_diff < test_tolerance)
+            eta_matrix = compute_and_threshold_eta(sb_dist, kappa, run_iteratively=False)
+            eta_iter = compute_and_threshold_eta(sb_dist, kappa, run_iteratively=True)
+            n_required = eta_matrix.shape[1]
+            eta_ans = eta_ans[:, :n_required, :, :]
+            eta_all = [eta_matrix, eta_iter]
+            for e in eta_all:
+                relative_diff = np.linalg.norm(e.numpy() - eta_ans) / np.linalg.norm(eta_ans)
+                self.assertTrue(expr=relative_diff < test_tolerance)
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -129,7 +125,8 @@ def calculate_log_exp_concrete(log_ψ, α, τ):
     return log_const + log_sum
 
 
-def compute_and_threshold_eta(sb, kappa_stick):
+def compute_and_threshold_eta(sb, kappa_stick, run_iteratively):
+    sb.run_iteratively = run_iteratively
     sb.get_eta(kappa_stick)
     sb.perform_truncation_via_threshold(sb.eta)
     eta = sb.eta[:, :sb.n_required, :, :]
