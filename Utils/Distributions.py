@@ -116,8 +116,6 @@ class IGR_SB(IGR_I):
     def perform_truncation_via_threshold(self, vector):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
         larger_than_threshold = tf.where(condition=vector_cumsum <= self.threshold)
-        import pdb
-        pdb.set_trace()
         if self.truncation_option == 'quantile':
             self.n_required = int((np.percentile(larger_than_threshold[:, 1] + 1, q=self.quantile)))
         elif self.truncation_option == 'max':
