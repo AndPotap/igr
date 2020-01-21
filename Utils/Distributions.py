@@ -46,9 +46,8 @@ class Distributions:
 
 
 class IGR_I(Distributions):
-    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, noise_type: str = 'normal', sample_size: int = 1,
-                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
-        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
+    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, temp, noise_type: str = 'normal'):
+        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=mu.shape[2],
                          noise_type=noise_type, temp=temp, num_of_vars=mu.shape[3])
 
         self.mu = mu
