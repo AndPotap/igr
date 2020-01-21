@@ -294,18 +294,6 @@ def iterative_sb_and_jac(κ):
     return tf.transpose(η.stack(), perm=[1, 0, 2]), -jac_sum
 
 
-@tf.function
-def compute_log_jac(κ):
-    batch_size, n_required, samples_n = κ.shape
-    cumsum = tf.identity(κ[:, 0, :])
-    jac_sum = tf.constant(value=0., dtype=tf.float32, shape=(batch_size, samples_n))
-    max_iter = tf.constant(value=n_required, dtype=tf.int32)
-    for i in tf.range(1, max_iter):
-        jac_sum += tf.math.log(1. - cumsum + 1.e-20)
-        cumsum += κ[:, i, :] * (1. - cumsum)
-    return -jac_sum
-
-
 def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: float = 0.99,
                     output_one_hot=False):
     chosen_dist = select_chosen_distribution(dist_type=dist_type, threshold=threshold,
