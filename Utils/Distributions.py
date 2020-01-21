@@ -86,7 +86,6 @@ class IGR_SB(IGR_I):
         super().__init__(mu, xi, temp, sample_size, noise_type)
 
         self.threshold = threshold
-        self.eta = tf.constant(0., dtype=tf.float32)
         self.truncation_option = 'quantile'
         self.quantile = 70
         self.run_iteratively = run_iteratively
@@ -95,19 +94,20 @@ class IGR_SB(IGR_I):
 
     def transform(self, mu_broad, sigma_broad, epsilon):
         kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
-        self.get_eta(kappa)
-        self.perform_truncation_via_threshold(vector=self.eta)
-        lam = self.eta[:, :self.n_required, :] / self.temp
+        eta = self.get_eta(kappa)
+        self.perform_truncation_via_threshold(vector=eta)
+        lam = eta[:, :self.n_required, :] / self.temp
         return lam
 
     def get_eta(self, kappa):
         if self.run_iteratively:
-            self.eta = iterative_sb(kappa)
+            eta = iterative_sb(kappa)
         else:
             self.lower, self.upper = generate_lower_and_upper_triangular_matrices_for_sb(
                 categories_n=self.categories_n, lower=self.lower, upper=self.upper,
                 batch_size=self.batch_size, sample_size=self.sample_size)
-            self.eta = self.perform_stick_break(kappa)
+            eta = self.perform_stick_break(kappa)
+        return eta
 
     def perform_stick_break(self, kappa):
         accumulated_prods = accumulate_one_minus_kappa_prods(kappa, self.lower, self.upper)
