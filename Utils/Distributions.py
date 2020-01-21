@@ -52,22 +52,6 @@ class Distributions:
             raise RuntimeError
         return epsilon
 
-    def perform_truncation_via_threshold(self, vector):
-        vector_cumsum = tf.math.cumsum(x=vector, axis=1)
-        larger_than_threshold = tf.where(condition=vector_cumsum <= self.threshold)
-        if self.truncation_option == 'quantile':
-            self.n_required = int((np.percentile(larger_than_threshold[:, 1] + 1, q=self.quantile)))
-        elif self.truncation_option == 'max':
-            self.n_required = (tf.math.reduce_max(larger_than_threshold[:, 1]) + 1).numpy()
-        else:
-            self.n_required = (tf.math.reduce_mean(larger_than_threshold[:, 1]) + 1).numpy()
-
-    def subset_variables_to_n_required(self, epsilon, sigma, delta, kappa):
-        self.epsilon = epsilon[:, :self.n_required, :]
-        self.sigma = sigma[:, :self.n_required, :]
-        self.delta = delta[:, :self.n_required, :]
-        self.kappa = kappa[:, :self.n_required, :]
-
 
 class IGR_I(Distributions):
     def __init__(self, mu: tf.Tensor, xi: tf.Tensor, noise_type: str = 'normal', sample_size: int = 1,
@@ -116,6 +100,8 @@ class IGR_SB(IGR_I):
         super().__init__(mu, xi, noise_type, sample_size, temp)
 
         self.run_iteratively = False
+        self.truncation_option = 'quantile'
+        self.quantile = 70
         self.log_jac = tf.constant(0., dtype=tf.float32)
         self.lower = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
         self.upper = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
@@ -123,6 +109,8 @@ class IGR_SB(IGR_I):
     def transform(self, mu_broad, sigma_broad, epsilon):
         kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
         self.get_eta_and_n_required(kappa)
+        self.perform_truncation_via_threshold(vector=self.eta)
+        self.eta[:, :self.n_required, :]
         lam = self.eta / self.temp
         return lam
 
@@ -138,13 +126,21 @@ class IGR_SB(IGR_I):
     def perform_stick_break(self, kappa):
         accumulated_prods = accumulate_one_minus_kappa_prods(kappa, self.lower, self.upper)
         eta = kappa * accumulated_prods
-        self.perform_truncation_via_threshold(vector=eta)
-        return eta[:, :self.n_required, :]
+        return eta
 
     def perform_iter_stick_break(self, kappa):
         η, log_jac = iterative_sb_and_jac(κ=kappa)
-        self.perform_truncation_via_threshold(η)
         return η[:, :self.n_required, :], log_jac
+
+    def perform_truncation_via_threshold(self, vector):
+        vector_cumsum = tf.math.cumsum(x=vector, axis=1)
+        larger_than_threshold = tf.where(condition=vector_cumsum <= self.threshold)
+        if self.truncation_option == 'quantile':
+            self.n_required = int((np.percentile(larger_than_threshold[:, 1] + 1, q=self.quantile)))
+        elif self.truncation_option == 'max':
+            self.n_required = (tf.math.reduce_max(larger_than_threshold[:, 1]) + 1).numpy()
+        else:
+            self.n_required = (tf.math.reduce_mean(larger_than_threshold[:, 1]) + 1).numpy()
 
 
 class GS(Distributions):
