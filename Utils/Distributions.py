@@ -211,13 +211,15 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 # ===========================================================================================================
 @tf.function
 def project_to_vertices_via_softmax_pp(lam):
-    offset = 1.
+    offset = tf.constant(1., dtype=tf.float32)
+    one = tf.constant(1., dtype=tf.float32)
+
     lam_i_lam_max = lam - tf.math.reduce_max(lam, axis=1, keepdims=True)
     exp_lam = tf.math.exp(lam_i_lam_max)
     sum_exp_lam = tf.math.reduce_sum(exp_lam, axis=1, keepdims=True)
     psi = exp_lam / (sum_exp_lam + offset)
 
-    extra_cat = (1 - tf.math.reduce_sum(psi, axis=1, keepdims=True))
+    extra_cat = (one - tf.math.reduce_sum(psi, axis=1, keepdims=True))
     psi = tf.concat(values=[psi, extra_cat], axis=1)
 
     return psi
