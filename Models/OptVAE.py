@@ -194,7 +194,7 @@ class OptGauSoftMax(OptVAE):
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
+        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp)
         self.ng.generate_sample()
         z_discrete = self.ng.psi
         self.n_required = z_discrete.shape[1]
@@ -229,7 +229,7 @@ class OptGauSoftMaxDis(OptGauSoftMax):
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
-        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
+        self.ng = IGR_I(mu=mu, xi=xi, temp=self.temp)
         self.ng.generate_sample()
         z_discrete = [self.ng.log_psi]
         return z_discrete
