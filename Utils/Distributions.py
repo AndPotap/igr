@@ -152,48 +152,6 @@ class GS(Distributions):
 # ===========================================================================================================
 # Distribution functions
 # ===========================================================================================================
-def compute_log_sb_dist(lam, kappa, sigma, epsilon, log_jac, temp: tf.Tensor):
-    log_q_lam = compute_log_logit_dist(lam=lam, kappa=kappa, sigma=sigma, epsilon=epsilon, temp=temp)
-    log_q_psi = log_q_lam + log_jac
-    return log_q_psi
-
-
-def compute_log_logit_dist(lam, kappa, sigma, epsilon, temp: tf.Tensor):
-    n_required = epsilon.shape[1]
-    log_q_kappa = compute_log_logit_normal(epsilon=epsilon, sigma=sigma, kappa=kappa)
-    log_q_psi = log_q_kappa + (n_required * tf.math.log(temp) + temp * tf.math.reduce_sum(lam, axis=1))
-    return log_q_psi
-
-
-def compute_log_logit_dist_projection(kappa, sigma, epsilon, temp: tf.Tensor):
-    n_required = epsilon.shape[1]
-    log_q_kappa = compute_log_logit_normal(epsilon=epsilon, sigma=sigma, kappa=kappa)
-    log_q_psi = log_q_kappa - n_required * tf.math.log(temp)
-    return log_q_psi
-
-
-def compute_log_logit_normal(epsilon, sigma, kappa) -> tf.Tensor:
-    log_norm_cons = compute_log_logit_normal_normalizing_constant(sigma, kappa)
-    log_exp_sum = -(tf.constant(value=0.5, dtype=tf.float32) * tf.reduce_sum(epsilon ** 2, axis=1))
-
-    log_q_kappa = log_norm_cons + log_exp_sum
-    return log_q_kappa
-
-
-def compute_log_logit_normal_normalizing_constant(sigma, kappa) -> tf.Tensor:
-    math_pi = 3.141592653589793
-    ς = 1.e-20
-    n_required = kappa.shape[1]
-
-    constant_term = -n_required / 2 * tf.math.log(2. * math_pi)
-    sigma_term = -tf.reduce_sum(tf.math.log(sigma + ς), axis=1)
-    kappa_term = -(tf.reduce_sum(tf.math.log(kappa + ς), axis=1) +
-                   tf.reduce_sum(tf.math.log(1 - kappa + ς), axis=1))
-
-    log_norm_const = constant_term + sigma_term + kappa_term
-    return log_norm_const
-
-
 def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> tf.Tensor:
     n_required = tf.constant(value=psi.shape[1], dtype=tf.float32)
     ς = tf.constant(1.e-20)
