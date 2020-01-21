@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
-from Utils.Distributions import IGR_SB, compute_log_exp_gs_dist
+from Utils.Distributions import IGR_SB, IGR_SB_Finite, compute_log_exp_gs_dist
 # ===========================================================================================================
 
 
@@ -37,6 +37,32 @@ class TestDistributions(unittest.TestCase):
         log_exp_gs = compute_log_exp_gs_dist(log_psi=log_ψ, logits=tf.math.log(π), temp=τ)
         relative_diff = tf.linalg.norm(log_exp_gs.numpy() - log_exp_gs_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
+
+    def test_perform_finite_stick_break_with_manual_input(self):
+        test_tolerance = 1.e-7
+        sample_size, num_of_vars = 5, 2
+        temp = tf.constant(0.1, dtype=tf.float32)
+        kappa_stick = np.array([[0.1, 0.22222224, 0.42857146, 0.75000006],
+                                [0.3, 0.4, 0.5, 0.6],
+                                [0.3, 0.28571428571428575, 0.2, 0.5]])
+        batch_size, max_size = kappa_stick.shape[0], kappa_stick.shape[1]
+        kappa_stick = broadcast_sample_and_num(kappa_stick, kappa_stick.shape, sample_size, num_of_vars)
+        eta_ans = np.array([[0.1, 0.2, 0.3, 0.3],
+                            [0.3, 0.28, 0.21, 0.126],
+                            [0.3, 0.2, 0.1, 0.2]])
+        eta_ans = broadcast_sample_and_num(eta_ans, eta_ans.shape, sample_size, num_of_vars)
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
+
+        sb = IGR_SB_Finite(mu, xi, temp, sample_size=sample_size)
+        eta_matrix = compute_and_threshold_eta(sb, kappa_stick, run_iteratively=False)
+        eta_iter = compute_and_threshold_eta(sb, kappa_stick, run_iteratively=True)
+        eta_np = calculate_eta_from_kappa(kappa_stick)
+
+        eta_all = [eta_np, eta_matrix.numpy(), eta_iter.numpy()]
+        for e in eta_all:
+            relative_diff = np.linalg.norm(e - eta_ans) / np.linalg.norm(eta_ans)
+            self.assertTrue(expr=relative_diff < test_tolerance)
 
     def test_perform_stick_break_with_manual_input(self):
         test_tolerance = 1.e-7
