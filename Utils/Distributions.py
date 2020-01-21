@@ -273,25 +273,21 @@ def generate_lower_and_upper_triangular_matrices_for_sb(categories_n, lower, upp
 
 
 @tf.function
-def iterative_sb_and_jac(κ):
-    batch_size, max_size, samples_n = κ.shape
-    ς = 1.e-20
-    η = tf.TensorArray(dtype=tf.float32, size=max_size, element_shape=(batch_size, samples_n),
-                       clear_after_read=True)
-    η = η.write(index=0, value=κ[:, 0, :])
-    cumsum = tf.identity(κ[:, 0, :])
-    next_cumsum = tf.identity(κ[:, 1, :] * (1 - κ[:, 0, :]) + κ[:, 0, :])
-    jac_sum = tf.constant(value=0., dtype=tf.float32, shape=(batch_size, samples_n))
+def iterative_sb(kappa):
+    batch_size, max_size, sample_size, num_of_vars = kappa.shape
+    η = tf.TensorArray(dtype=tf.float32, size=max_size, clear_after_read=True,
+                       element_shape=(batch_size, sample_size, num_of_vars))
+    η = η.write(index=0, value=kappa[:, 0, :, :])
+    cumsum = tf.identity(kappa[:, 0, :, :])
+    next_cumsum = tf.identity(kappa[:, 1, :, :] * (1 - kappa[:, 0, :, :]) + kappa[:, 0, :, :])
     max_iter = tf.constant(value=max_size - 1, dtype=tf.int32)
     for i in tf.range(1, max_iter):
-        η = η.write(index=i, value=κ[:, i, :] * (1. - cumsum))
-        jac_sum += tf.math.log(1. - cumsum + ς)
-        cumsum += κ[:, i, :] * (1. - cumsum)
-        next_cumsum += κ[:, i + 1, :] * (1. - next_cumsum)
+        η = η.write(index=i, value=kappa[:, i, :, :] * (1. - cumsum))
+        cumsum += kappa[:, i, :, :] * (1. - cumsum)
+        next_cumsum += kappa[:, i + 1, :, :] * (1. - next_cumsum)
 
-    η = η.write(index=max_size - 1, value=κ[:, max_size - 1, :] * (1. - cumsum))
-    jac_sum += tf.math.log(1. - cumsum + ς)
-    return tf.transpose(η.stack(), perm=[1, 0, 2]), -jac_sum
+    η = η.write(index=max_size - 1, value=kappa[:, max_size - 1, :, :] * (1. - cumsum))
+    return tf.transpose(η.stack(), perm=[1, 0, 2, 3])
 
 
 def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: float = 0.99,
