@@ -80,6 +80,21 @@ class IGR_Planar(IGR_I):
         return lam
 
 
+class IGR_SB_Finite(IGR_I):
+    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
+        super().__init__(mu, xi, temp, sample_size, noise_type)
+
+    def transform(self, mu_broad, sigma_broad, epsilon):
+        kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
+        eta = self.apply_finite_stick_break(kappa)
+        lam = eta / self.temp
+        return lam
+
+    def apply_finite_stick_break(self, kappa):
+        eta = kappa
+        return eta
+
+
 class IGR_SB(IGR_I):
 
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99, run_iteratively=False):
@@ -92,16 +107,16 @@ class IGR_SB(IGR_I):
 
     def transform(self, mu_broad, sigma_broad, epsilon):
         kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
-        eta = self.get_eta(kappa)
+        eta = self.apply_stick_break(kappa)
         lam = eta / self.temp
         return lam
 
-    def get_eta(self, kappa):
-        eta = iterative_sb(kappa) if self.run_iteratively else self.perform_stick_break(kappa)
+    def apply_stick_break(self, kappa):
+        eta = iterative_sb(kappa) if self.run_iteratively else self.perform_matrix_sb(kappa)
         self.perform_truncation_via_threshold(vector=eta)
         return eta[:, :self.n_required, :, :]
 
-    def perform_stick_break(self, kappa):
+    def perform_matrix_sb(self, kappa):
         lower, upper = self.construct_matrices_for_sb()
         accumulated_prods = accumulate_one_minus_kappa_prods(kappa, lower, upper)
         eta = kappa * accumulated_prods
