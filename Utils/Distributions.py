@@ -214,13 +214,6 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 # ===========================================================================================================
 # Utils
 # ===========================================================================================================
-def retrieve_transformations_up_to_kappa(mu_broad: tf.Tensor, xi_broad: tf.Tensor, epsilon: tf.Tensor):
-    sigma = convert_ξ_to_σ(ξ=xi_broad)
-    delta = mu_broad + sigma * epsilon
-    kappa = tf.math.sigmoid(delta)
-    return sigma, delta, kappa
-
-
 def convert_ξ_to_σ(ξ: tf.Tensor):
     σ = tf.math.exp(ξ)
     return σ
