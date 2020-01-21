@@ -7,7 +7,6 @@ import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
 from Utils.Distributions import IGR_SB, compute_log_exp_gs_dist
-from Utils.Distributions import generate_lower_and_upper_triangular_matrices_for_sb
 # ===========================================================================================================
 
 
@@ -15,10 +14,7 @@ class TestDistributions(unittest.TestCase):
 
     def test_compute_log_exp_gs_dist(self):
         test_tolerance = 1.e-5
-        sample_size = 1
-        categories_n = 10
-        num_of_vars = 3
-        batch_n = 2
+        batch_n, categories_n, sample_size, num_of_vars = 2, 10, 1, 3
         τ = tf.constant(value=0.6, dtype=tf.float32)
         log_π = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
 
@@ -44,9 +40,7 @@ class TestDistributions(unittest.TestCase):
 
     def test_perform_stick_break_with_manual_input(self):
         test_tolerance = 1.e-7
-        sample_size = 5
-        num_of_vars = 2
-        threshold = 0.8
+        sample_size, num_of_vars, threshold = 5, 2, 0.8
         temp = tf.constant(0.1, dtype=tf.float32)
         kappa_stick = np.array([[0.1, 0.22222224, 0.42857146, 0.75000006],
                                 [0.3, 0.4, 0.5, 0.6],
