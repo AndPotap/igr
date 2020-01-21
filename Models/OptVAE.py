@@ -2,7 +2,7 @@ import pickle
 from typing import Tuple
 import tensorflow as tf
 from os import environ as os_env
-from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, GS, compute_log_exp_gs_dist
+from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite, GS, compute_log_exp_gs_dist
 from Utils.initializations import initialize_mu_and_xi_for_logistic
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -181,7 +181,7 @@ class OptExpGSDis(OptExpGS):
 # ===========================================================================================================
 
 
-class OptGauSoftMax(OptVAE):
+class OptIGR(OptVAE):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
@@ -221,7 +221,7 @@ class OptGauSoftMax(OptVAE):
         self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
 
 
-class OptGauSoftMaxDis(OptGauSoftMax):
+class OptIGRDis(OptIGR):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
@@ -235,7 +235,7 @@ class OptGauSoftMaxDis(OptGauSoftMax):
         return z_discrete
 
 
-class OptPlanarNF(OptGauSoftMax):
+class OptPlanarNF(OptIGR):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
@@ -252,7 +252,7 @@ class OptPlanarNF(OptGauSoftMax):
         return z
 
 
-class OptPlanarNFDis(OptGauSoftMax):
+class OptPlanarNFDis(OptIGR):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
@@ -267,41 +267,20 @@ class OptPlanarNFDis(OptGauSoftMax):
         return z_discrete
 
 
-class OptSBVAE(OptGauSoftMax):
+class OptSBDis(OptIGR):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.max_categories = hyper['latent_discrete_n']
-        self.threshold = hyper['threshold']
         self.prior_file = hyper['prior_file']
-        self.temp_min = hyper['temp']
-        self.truncation_option = hyper['truncation_option']
-        self.quantile = 70
-        self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1))
-        self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1))
-        self.sb = IGR_SB(mu=self.mu_0, xi=self.xi_0)
+        self.sb = IGR_SB_Finite(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
 
     def reparameterize(self, params_broad):
-        mean, log_var, μ, ξ = params_broad
-        z_norm = sample_normal(mean=mean, log_var=log_var)
-        self.sb = IGR_SB(mu=μ, xi=ξ, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
-        self.sb.truncation_option = self.truncation_option
-        self.sb.quantile = self.quantile
+        mu, xi = params_broad
+        self.sb = IGR_SB_Finite(mu, xi, self.temp, self.sample_size)
         self.sb.generate_sample()
-        self.n_required = self.sb.psi.shape[1]
-        z_discrete = self.complete_discrete_vector(psi=self.sb.psi)
-
-        z = [z_norm, z_discrete]
+        z = [self.sb.psi]
         return z
-
-    # -------------------------------------------------------------------------------------------------------
-    # Utils
-    def complete_discrete_vector(self, psi):
-        batch_size, n_required = psi.shape[0], psi.shape[1]
-        missing = self.max_categories - n_required
-        zeros = tf.constant(value=0., dtype=tf.float32, shape=(batch_size, missing, self.sample_size, 1))
-        z_discrete = tf.concat([psi, zeros], axis=1)
-        return z_discrete
 
     def load_prior_values(self):
         with open(file=self.prior_file, mode='rb') as f:
@@ -317,6 +296,29 @@ class OptSBVAE(OptGauSoftMax):
         self.xi_0 = shape_prior_to_sample_size_and_discrete_var_num(
             prior_param=xi_0, batch_size=self.batch_size, categories_n=categories_n,
             sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
+
+
+class OptSB(OptSBDis):
+
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.threshold = hyper['threshold']
+        self.truncation_option = hyper['truncation_option']
+        self.quantile = 70
+        self.sb = IGR_SB(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
+
+    def reparameterize(self, params_broad):
+        mean, log_var, μ, ξ = params_broad
+        z_norm = sample_normal(mean=mean, log_var=log_var)
+        self.sb = IGR_SB(mu=μ, xi=ξ, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
+        self.sb.truncation_option = self.truncation_option
+        self.sb.quantile = self.quantile
+        self.sb.generate_sample()
+        self.n_required = self.sb.psi.shape[1]
+        z_discrete = self.complete_discrete_vector(psi=self.sb.psi)
+
+        z = [z_norm, z_discrete]
+        return z
 
 
 # ===========================================================================================================
