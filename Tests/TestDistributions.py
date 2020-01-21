@@ -44,7 +44,7 @@ class TestDistributions(unittest.TestCase):
 
     def test_perform_stick_break_with_manual_input(self):
         test_tolerance = 1.e-7
-        sample_size = 3
+        sample_size = 1
         num_of_vars = 2
         threshold = 0.8
         temp = tf.constant(0.1, dtype=tf.float32)
