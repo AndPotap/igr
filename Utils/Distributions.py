@@ -80,21 +80,6 @@ class IGR_Planar(IGR_I):
         return lam
 
 
-class IGR_SB_Finite(IGR_I):
-    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
-        super().__init__(mu, xi, temp, sample_size, noise_type)
-
-    def transform(self, mu_broad, sigma_broad, epsilon):
-        kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
-        eta = self.apply_finite_stick_break(kappa)
-        lam = eta / self.temp
-        return lam
-
-    def apply_finite_stick_break(self, kappa):
-        eta = kappa
-        return eta
-
-
 class IGR_SB(IGR_I):
 
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99, run_iteratively=False):
@@ -131,12 +116,23 @@ class IGR_SB(IGR_I):
     def perform_truncation_via_threshold(self, vector):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
         larger_than_threshold = tf.where(condition=vector_cumsum <= self.threshold)
+        import pdb
+        pdb.set_trace()
         if self.truncation_option == 'quantile':
             self.n_required = int((np.percentile(larger_than_threshold[:, 1] + 1, q=self.quantile)))
         elif self.truncation_option == 'max':
             self.n_required = (tf.math.reduce_max(larger_than_threshold[:, 1]) + 1).numpy()
         else:
             self.n_required = (tf.math.reduce_mean(larger_than_threshold[:, 1]) + 1).numpy()
+
+
+class IGR_SB_Finite(IGR_SB):
+    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
+        super().__init__(mu=mu, xi=xi, temp=temp, sample_size=sample_size, noise_type=noise_type)
+
+    def apply_stick_break(self, kappa):
+        eta = iterative_sb(kappa) if self.run_iteratively else self.perform_matrix_sb(kappa)
+        return eta
 
 
 class GS(Distributions):
