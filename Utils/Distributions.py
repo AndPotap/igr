@@ -93,13 +93,13 @@ class IGR_SB(IGR_I):
     def transform(self, mu_broad, sigma_broad, epsilon):
         kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
         eta = self.get_eta(kappa)
-        self.perform_truncation_via_threshold(vector=eta)
-        lam = eta[:, :self.n_required, :] / self.temp
+        lam = eta / self.temp
         return lam
 
     def get_eta(self, kappa):
         eta = iterative_sb(kappa) if self.run_iteratively else self.perform_stick_break(kappa)
-        return eta
+        self.perform_truncation_via_threshold(vector=eta)
+        return eta[:, :self.n_required, :, :]
 
     def perform_stick_break(self, kappa):
         lower, upper = self.construct_matrices_for_sb()
