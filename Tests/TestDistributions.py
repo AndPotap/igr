@@ -69,7 +69,14 @@ class TestDistributions(unittest.TestCase):
             categories_n=sb_dist.categories_n, lower=sb_dist.lower, upper=sb_dist.upper,
             batch_size=sb_dist.batch_size, sample_size=sb_dist.sample_size)
         eta = sb_dist.perform_stick_break(kappa_stick)
-        eta_iter, _ = sb_dist.perform_iter_stick_break(kappa_stick)
+        sb_dist.perform_truncation_via_threshold(eta)
+        eta = eta[:, :sb_dist.n_required, :, :]
+        sb_dist.run_iteratively = True
+        sb_dist.get_eta_and_n_required(kappa_stick)
+        sb_dist.perform_truncation_via_threshold(sb_dist.eta)
+        eta_iter = sb_dist.eta[:, :sb_dist.n_required, :, :]
+        import pdb
+        pdb.set_trace()
 
         eta_test = calculate_eta_from_kappa(kappa_stick)[:, :n_required_ans, :]
         relative_diff = tf.linalg.norm(eta_test - eta_ans) / tf.linalg.norm(eta_ans)
