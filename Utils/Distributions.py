@@ -46,8 +46,8 @@ class Distributions:
 
 
 class IGR_I(Distributions):
-    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, temp, noise_type: str = 'normal'):
-        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=mu.shape[2],
+    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
+        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
                          noise_type=noise_type, temp=temp, num_of_vars=mu.shape[3])
 
         self.mu = mu
@@ -71,8 +71,8 @@ class IGR_I(Distributions):
 
 
 class IGR_Planar(IGR_I):
-    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, temp, planar_flow, noise_type: str = 'normal'):
-        super().__init__(mu, xi, temp, noise_type)
+    def __init__(self, mu, xi, temp, planar_flow, sample_size=1, noise_type='normal'):
+        super().__init__(mu, xi, temp, sample_size, noise_type)
         self.planar_flow = planar_flow
 
     def transform(self, mu_broad, sigma_broad, epsilon):
@@ -82,14 +82,13 @@ class IGR_Planar(IGR_I):
 
 class IGR_SB(IGR_I):
 
-    def __init__(self, mu: tf.Tensor, xi: tf.Tensor, sample_size: int = 1, noise_type: str = 'normal',
-                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32), threshold: float = 0.99):
-        super().__init__(mu, xi, noise_type, sample_size, temp)
+    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99):
+        super().__init__(mu, xi, temp, sample_size, noise_type)
 
+        self.threshold = threshold
         self.run_iteratively = False
         self.truncation_option = 'quantile'
         self.quantile = 70
-        self.threshold = threshold
         self.lower = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
         self.upper = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
 
