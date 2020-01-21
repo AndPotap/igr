@@ -122,8 +122,6 @@ def calculate_log_exp_concrete(log_ψ, α, τ):
 def compute_and_threshold_eta(sb, kappa_stick, run_iteratively):
     sb.run_iteratively = run_iteratively
     eta = sb.get_eta(kappa_stick)
-    sb.perform_truncation_via_threshold(eta)
-    eta = eta[:, :sb.n_required, :, :]
     return eta
 
 
