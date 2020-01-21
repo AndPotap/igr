@@ -13,27 +13,19 @@ os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 class Distributions:
 
     def __init__(self, batch_size: int, categories_n: int, sample_size: int = 1, num_of_vars: int = 1,
-                 noise_type: str = 'normal',
-                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32), threshold: float = 0.99):
+                 noise_type: str = 'normal', temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
 
         self.noise_type = noise_type
-        self.threshold = threshold
         self.temp = temp
         self.batch_size = batch_size
         self.categories_n = categories_n
         self.sample_size = sample_size
         self.num_of_vars = num_of_vars
 
-        self.epsilon = tf.constant(0., dtype=tf.float32)
-        self.sigma = tf.constant(0., dtype=tf.float32)
-        self.delta = tf.constant(0., dtype=tf.float32)
-        self.kappa = tf.constant(0., dtype=tf.float32)
         self.n_required = categories_n
+        self.lam = tf.constant(0., dtype=tf.float32)
+        self.log_psi = tf.constant(0., dtype=tf.float32)
         self.psi = tf.constant(0., dtype=tf.float32)
-
-        self.truncation_option = 'quantile'
-        self.quantile = 70
-        self.log_q_psi = tf.constant(0., dtype=tf.float32)
 
     def broadcast_params_to_sample_size(self, params: list):
         params_broad = []
@@ -61,9 +53,6 @@ class IGR_I(Distributions):
 
         self.mu = mu
         self.xi = xi
-        self.lam = tf.constant(0., dtype=tf.float32)
-        self.psi = tf.constant(0., dtype=tf.float32)
-        self.log_psi = tf.constant(0., dtype=tf.float32)
 
     def generate_sample(self):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
@@ -102,7 +91,7 @@ class IGR_SB(IGR_I):
         self.run_iteratively = False
         self.truncation_option = 'quantile'
         self.quantile = 70
-        self.log_jac = tf.constant(0., dtype=tf.float32)
+        self.threshold = threshold
         self.lower = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
         self.upper = np.zeros(shape=(self.categories_n - 1, self.categories_n - 1))
 
