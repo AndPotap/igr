@@ -191,6 +191,7 @@ def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dis
     psi_mean = tf.reduce_mean(chosen_dist.psi, axis=[0, 2, 3])
     if run_kl:
         loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required + 1] + 1.e-20))
+        # loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required] + 1.e-20))
         loss = tf.reduce_sum(loss)
     else:
         loss = tf.reduce_sum((psi_mean - probs[:chosen_dist.n_required]) ** 2)
@@ -222,7 +223,8 @@ def project_to_vertices_via_softmax_pp(lam):
     offset = tf.constant(1., dtype=tf.float32)
     one = tf.constant(1., dtype=tf.float32)
 
-    lam_i_lam_max = lam - tf.math.reduce_max(lam, axis=1, keepdims=True)
+    # lam_i_lam_max = lam - tf.math.reduce_max(lam, axis=1, keepdims=True)
+    lam_i_lam_max = lam
     exp_lam = tf.math.exp(lam_i_lam_max)
     sum_exp_lam = tf.math.reduce_sum(exp_lam, axis=1, keepdims=True)
     psi = exp_lam / (sum_exp_lam + offset)
@@ -306,7 +308,7 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
         vector[:, :n_required, :, :] = chosen_dist.psi.numpy()
         return vector
     else:
-        sample = np.argmax(chosen_dist.psi.numpy(), axis=1)
+        sample = np.argmax(chosen_dist.psi.numpy(), axis=1)[0, 0, 0]
         return sample
 
 
@@ -315,6 +317,11 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
     if dist_type == 'IGR_SB':
         mu, xi = params
         chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
+        if run_iteratively:
+            chosen_dist.run_iteratively = True
+    if dist_type == 'IGR_SB_Finite':
+        mu, xi = params
+        chosen_dist = IGR_SB_Finite(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
         if run_iteratively:
             chosen_dist.run_iteratively = True
     elif dist_type == 'GS':
