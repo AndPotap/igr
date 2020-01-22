@@ -153,7 +153,11 @@ def get_initial_params_for_model_type(model_type, shape):
         params_init = [tf.Variable(initial_value=pi_init)]
     elif model_type == 'IGR_SB' or model_type == 'IGR_SB_Finite':
         shape_igr = (batch_size, categories_n - 1, sample_size, num_of_vars)
-        mu, xi = initialize_mu_and_xi_for_logistic(shape_igr, seed=21)
+        # mu, xi = initialize_mu_and_xi_for_logistic(shape_igr, seed=21)
+        mu = tf.constant(0., dtype=tf.float32, shape=shape_igr)
+        xi = tf.constant(0., dtype=tf.float32, shape=shape_igr)
+        mu = tf.Variable(mu)
+        xi = tf.Variable(xi)
         mu_init, xi_init = tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())
         params = [mu, xi]
         params_init = [mu_init, xi_init]
