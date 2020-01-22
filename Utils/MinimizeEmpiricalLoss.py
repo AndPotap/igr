@@ -148,7 +148,7 @@ class MinimizeEmpiricalLoss:
 
 def get_initial_params_for_model_type(model_type, shape):
     batch_size, categories_n, sample_size, num_of_vars = shape
-    if model_type == 'ExpGS':
+    if model_type == 'GS':
         uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
         pi = tf.constant(value=np.log(uniform_probs), dtype=tf.float32,
                          shape=(batch_size, categories_n, 1, 1))
@@ -156,14 +156,14 @@ def get_initial_params_for_model_type(model_type, shape):
                               shape=(batch_size, categories_n, 1, 1))
         params = [tf.Variable(initial_value=pi)]
         params_init = [tf.Variable(initial_value=pi_init)]
-    elif model_type == 'sb':
+    elif model_type == 'IGR_SB':
         shape2 = (batch_size, categories_n, sample_size)
         mu, xi = initialize_mu_and_xi_for_logistic(shape2, seed=21)
         mu_init, xi_init = tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())
         params = [mu, xi]
         params_init = [mu_init, xi_init]
 
-    elif model_type == 'GauSoftMax' or model_type == 'GauSoftPlus':
+    elif model_type == 'IGR_I':
         mu, xi = initialize_mu_and_xi_for_logistic(shape, seed=21)
         mu_init, xi_init = tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())
         params = [mu, xi]
@@ -176,12 +176,6 @@ def get_initial_params_for_model_type(model_type, shape):
         # mu_init, xi_init = tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())
         # params = [tf.Variable(initial_value=mu), tf.Variable(initial_value=xi)]
         # params_init = [tf.Variable(initial_value=mu_init), tf.Variable(initial_value=xi_init)]
-    elif model_type == 'IsoGauSoftMax' or model_type == 'IsoGauSoftPlus':
-        mu = np.random.normal(size=shape)
-        mu_init = tf.constant(value=mu.copy(), dtype=tf.float32)
-        mu = tf.constant(value=mu, dtype=tf.float32)
-        params = [tf.Variable(initial_value=mu)]
-        params_init = [tf.Variable(initial_value=mu_init)]
     else:
         raise RuntimeError
     return params, params_init
