@@ -19,6 +19,7 @@ from Utils.initializations import get_uniform_mix_probs, sample_from_uniform_mix
 
 sample_size = 1000
 total_iterations = 2 * int(1.e2)
+# total_iterations = 2
 learning_rate = 1.e-2
 
 # Global parameters
@@ -26,7 +27,7 @@ samples_plot_n = int(1.e3)
 batch_n = 1
 np.random.RandomState(seed=21)
 pool = Pool()
-temp_init, temp_final = 0.5, 0.5
+temp_init, temp_final = 0.1, 0.1
 threshold = 0.99
 categories_n = 10
 # categories_n = 30
@@ -35,9 +36,9 @@ categories_n = 10
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
 # model_type = 'ExpGS'
-# model_type = 'IGR_I'
+model_type = 'IGR_I'
 # model_type = 'IGR_SB'
-model_type = 'IGR_SB_Finite'
+# model_type = 'IGR_SB_Finite'
 
 skip_first_iterations = 10
 tolerance = 1.e-2
@@ -53,7 +54,7 @@ if run_against == 'uniform':
     uniform_cats = categories_n
     results_file = f'./Results/mu_xi_unif_{uniform_cats}.pkl'
     p_samples = np.random.randint(size=samples_plot_n, low=0, high=categories_n)
-    probs = tf.constant(np.array([1 / uniform_cats for _ in range(uniform_cats)]),
+    probs = tf.constant(np.array([1 / (uniform_cats + 1) for _ in range(uniform_cats)]),
                         dtype=tf.float32, shape=uniform_cats)
 
 elif run_against == 'uniform_mix':
@@ -128,7 +129,7 @@ if save_parameters:
 # ===========================================================================================================
 # Run samples
 # ===========================================================================================================
-temp = tf.constant(0.1, dtype=tf.float32)
+temp = tf.constant(temp_final, dtype=tf.float32)
 q_samples = np.zeros(shape=samples_plot_n)
 q_samples_init = np.zeros(shape=samples_plot_n)
 for sample_id in range(samples_plot_n):
@@ -139,10 +140,10 @@ for sample_id in range(samples_plot_n):
                                                 temp=temp, threshold=minimizer.threshold)
 # q_samples = minimizer.q_samples
 print(f'{model_type}')
-print(f'Mean {np.mean(minimizer.q_samples):4.2f} || '
-      f'Var {np.var(minimizer.q_samples):4.2f} || '
-      f'Std {np.std(minimizer.q_samples):4.2f}'
-      f'\nMin: {np.min(minimizer.q_samples):4.0f} || Max {np.max(minimizer.q_samples):4.0f}')
+print(f'Mean {np.mean(q_samples):4.2f} || '
+      f'Var {np.var(q_samples):4.2f} || '
+      f'Std {np.std(q_samples):4.2f}'
+      f'\nMin: {np.min(q_samples):4.0f} || Max {np.max(q_samples):4.0f}')
 print('\nOriginal Dist')
 print(f'Mean {mean_p:4.2f} || Var {var_p:4.2f} || Std {std_p:4.2f}'
       f'\nMin: {min_p:4d} || Max {max_p:4d}')
