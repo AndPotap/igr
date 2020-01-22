@@ -2,7 +2,7 @@ import time
 import numpy as np
 import tensorflow as tf
 from Utils.Distributions import compute_gradients, apply_gradients, generate_sample
-from Utils.initializations import initialize_mu_and_xi_for_logistic
+from Utils.initializations import initialize_mu_and_xi_for_logistic, initialize_mu_and_xi_equally
 from Utils.mmd import compute_mmd2u
 from Utils.general import setup_logger
 logger = setup_logger(log_file_name='./Log/discrete.log')
@@ -133,7 +133,7 @@ class MinimizeEmpiricalLoss:
     def check_moments_convergence(self, mean_p, var_p):
         for i in range(self.q_samples.shape[0]):
             self.q_samples[i] = generate_sample(sample_size=1, params=self.params, dist_type=self.model_type,
-                                                temp=self.temp, threshold=self.threshold)[0, :]
+                                                temp=self.temp, threshold=self.threshold)
 
         self.diff = np.sqrt(((np.mean(self.q_samples) - mean_p) ** 2 +
                              (np.var(self.q_samples) - var_p) ** 2))
@@ -162,21 +162,18 @@ def get_initial_params_for_model_type(model_type, shape):
         mu_init, xi_init = tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())
         params = [mu, xi]
         params_init = [mu_init, xi_init]
-
-    elif model_type == 'IGR_I':
+    elif model_type == 'IGR_SB_Finite':
         shape_igr = (batch_size, categories_n - 1, sample_size, num_of_vars)
         mu, xi = initialize_mu_and_xi_for_logistic(shape_igr, seed=21)
         mu_init, xi_init = tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())
         params = [mu, xi]
         params_init = [mu_init, xi_init]
-
-        # mu = np.random.normal(size=shape)
-        # xi = np.random.normal(size=shape)
-        # mu = tf.constant(value=mu, dtype=tf.float32)
-        # xi = tf.constant(value=xi, dtype=tf.float32)
-        # mu_init, xi_init = tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())
-        # params = [tf.Variable(initial_value=mu), tf.Variable(initial_value=xi)]
-        # params_init = [tf.Variable(initial_value=mu_init), tf.Variable(initial_value=xi_init)]
+    elif model_type == 'IGR_I':
+        shape_igr = (batch_size, categories_n - 1, sample_size, num_of_vars)
+        mu, xi = initialize_mu_and_xi_equally(shape_igr)
+        mu_init, xi_init = tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())
+        params = [mu, xi]
+        params_init = [mu_init, xi_init]
     else:
         raise RuntimeError
     return params, params_init
@@ -194,7 +191,7 @@ def obtain_results_from_minimizer(minimizer):
 def update_results(results_to_update, minimizer, dist_case, run_case, cat_case: int = 1):
     tracks = obtain_results_from_minimizer(minimizer=minimizer)
     for idx, var in enumerate(results_to_update):
-        if minimizer.model_type == 'ExpGS':
+        if minimizer.model_type == 'GS':
             var[cat_case, dist_case, run_case] = tracks[idx]
         else:
             var[dist_case, run_case] = tracks[idx]
