@@ -28,18 +28,15 @@ np.random.RandomState(seed=21)
 pool = Pool()
 temp_init, temp_final = 0.1, 0.1
 threshold = 0.99
-# categories_n = 10
-# categories_n = 30
-categories_n = 50
-# categories_n = 200
+categories_n = 10
+# categories_n = 50
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
-# model_type = 'ExpGS'
-# model_type = 'IGR_I'
-model_type = 'IGR_SB'
-
+# model_type = 'GS'
+model_type = 'IGR_I'
+# model_type = 'IGR_SB_Finite'
 skip_first_iterations = 10
-tolerance = 1.e-5
+tolerance = 1.e-2
 
 uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 
@@ -137,9 +134,9 @@ q_samples_init = np.zeros(shape=samples_plot_n)
 for sample_id in range(samples_plot_n):
     q_samples[sample_id] = generate_sample(sample_size=1, params=params, temp=temp,
                                            threshold=minimizer.threshold,
-                                           dist_type=model_type)[0, 0]
+                                           dist_type=model_type)
     q_samples_init[sample_id] = generate_sample(sample_size=1, params=params_init, dist_type=model_type,
-                                                temp=temp, threshold=minimizer.threshold)[0, 0]
+                                                temp=temp, threshold=minimizer.threshold)
 # q_samples = minimizer.q_samples
 print(f'{model_type}')
 print(f'Mean {np.mean(minimizer.q_samples):4.2f} || '
