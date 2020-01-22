@@ -156,24 +156,6 @@ def compute_num(psi: tf.Tensor) -> tf.Tensor:
     return expectation
 
 
-def compute_log_q_poisson(kappa: tf.Tensor,
-                          delta: tf.Tensor,
-                          n_required: int,
-                          poisson_mean: tf.Tensor) -> tf.Tensor:
-    probs = np.array([poisson.pmf(k=k, mu=poisson_mean.numpy()) for k in range(n_required)])
-    mu_0 = np.zeros(shape=(n_required, kappa.shape[1]))
-    mu_0[:n_required, :] = get_initial_analytical_mus(probs=probs, initialization_type='stick-break')
-    mu_0 = tf.constant(value=mu_0, dtype=tf.float32)
-    chi_0 = tf.constant(value=0.541324854612918, dtype=tf.float32,
-                        shape=(n_required, kappa.shape[1]))
-    sigma_0 = tf.math.softplus(chi_0)
-    epsilon_0 = (delta[:n_required] - mu_0) / sigma_0
-    log_q_kappa = compute_log_logit_normal(kappa=kappa[:n_required],
-                                           sigma=sigma_0[:n_required],
-                                           epsilon=epsilon_0[:n_required])
-    return log_q_kappa
-
-
 def sample_poisson_truncated(truncated_at: int, sample_size: int, poisson_mean: np.ndarray) -> np.ndarray:
     gathered, iteration = 0, 0
     max_iter = 1000
