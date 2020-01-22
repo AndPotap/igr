@@ -3,7 +3,6 @@ import numpy as np
 import tensorflow as tf
 from Utils.Distributions import compute_gradients, apply_gradients, generate_sample
 from Utils.initializations import initialize_mu_and_xi_for_logistic
-from Utils.mmd import compute_mmd2u
 from Utils.general import setup_logger
 logger = setup_logger(log_file_name='./Log/discrete.log')
 
@@ -74,10 +73,6 @@ class MinimizeEmpiricalLoss:
         self.training_time = time.time() - t0
         logger.info(f'\nTraining took: {self.training_time:6.1f} sec')
         self.check_moments_convergence(mean_p=mean_p, var_p=var_p)
-        choose_100_at_random = np.random.choice(a=self.total_samples_for_moment_evaluation,
-                                                size=100, replace=False)
-        self.mmd = compute_mmd2u(p_samples=p_samples[choose_100_at_random], bandwidth=self.mmd_bandwidth,
-                                 q_samples=self.q_samples[choose_100_at_random])
         logger.info(f'Diff {self.diff: 2.2f}')
         logger.info(f'MMD_u^2 {self.mmd: 2.2e}')
 
