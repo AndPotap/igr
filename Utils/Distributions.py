@@ -190,11 +190,10 @@ def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dis
     chosen_dist.generate_sample()
     psi_mean = tf.reduce_mean(chosen_dist.psi, axis=[0, 2, 3])
     if run_kl:
-        loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required + 1] + 1.e-20))
-        # loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required] + 1.e-20))
+        loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs + 1.e-20))
         loss = tf.reduce_sum(loss)
     else:
-        loss = tf.reduce_sum((psi_mean - probs[:chosen_dist.n_required]) ** 2)
+        loss = tf.reduce_sum((psi_mean - probs) ** 2)
     return loss, chosen_dist.n_required
 
 
@@ -220,7 +219,7 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 # ===========================================================================================================
 @tf.function
 def project_to_vertices_via_softmax_pp(lam):
-    offset = tf.constant(7.9891, dtype=tf.float32)
+    offset = tf.constant(0.1, dtype=tf.float32)
     one = tf.constant(1., dtype=tf.float32)
 
     # lam_i_lam_max = lam - tf.math.reduce_max(lam, axis=1, keepdims=True)
