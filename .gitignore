@@ -1,3 +1,4 @@
 *.pyc
 /Log
+/Results
 */__pycache__
