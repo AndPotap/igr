@@ -6,11 +6,23 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
-from Utils.Distributions import IGR_SB, IGR_SB_Finite, compute_log_exp_gs_dist
+from Utils.Distributions import IGR_SB, IGR_SB_Finite
+from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
 # ===========================================================================================================
 
 
 class TestDistributions(unittest.TestCase):
+
+    def test_softmaxpp(self):
+        test_tolerance = 1.e-4
+        batch_size, categories_n, sample_size, num_of_vars = 2, 3, 4, 5
+        lam = tf.constant(0., shape=(batch_size, categories_n - 1, sample_size, num_of_vars))
+        psi_ans = np.zeros(shape=(batch_size, categories_n, sample_size, num_of_vars))
+        for i in range(categories_n):
+            psi_ans[:, i, :, :] = 1 / categories_n
+        psi = project_to_vertices_via_softmax_pp(lam).numpy()
+        relative_diff = np.linalg.norm(psi - psi_ans) / np.linalg.norm(psi_ans)
+        self.assertTrue(expr=relative_diff < test_tolerance)
 
     def test_compute_log_exp_gs_dist(self):
         test_tolerance = 1.e-4
