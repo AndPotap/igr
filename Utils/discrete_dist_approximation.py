@@ -29,12 +29,16 @@ pool = Pool()
 temp_init, temp_final = 0.5, 0.5
 threshold = 0.99
 categories_n = 10
+# categories_n = 30
 # categories_n = 50
+# categories_n = 200
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
-# model_type = 'GS'
-model_type = 'IGR_I'
-# model_type = 'IGR_SB_Finite'
+# model_type = 'ExpGS'
+# model_type = 'IGR_I'
+# model_type = 'IGR_SB'
+model_type = 'IGR_SB_Finite'
+
 skip_first_iterations = 10
 tolerance = 1.e-2
 
@@ -117,12 +121,8 @@ minimizer.optimize_model(mean_p=mean_p, var_p=var_p, probs=probs, p_samples=p_sa
 
 if save_parameters:
     with open(file=results_file, mode='wb') as f:
-        if model_type == 'sb' or model_type == 'ng' or model_type == 'GauSoftPlus':
+        if model_type in ['IGR_I', 'IGR_SB', 'IGR_SB_Finite']:
             pickle.dump(obj={'mu': params[0].numpy(), 'xi': params[1].numpy()}, file=f)
-            # pickle.dump(obj={'mu': params_init[0].numpy(), 'xi': params_init[1].numpy()}, file=f)
-        elif model_type == 'IsoGauSoftMax':
-            pickle.dump(obj={'mu': params[0].numpy(),
-                             'xi': np.zeros(shape=params[0].numpy().shape)}, file=f)
 # ===========================================================================================================
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ===========================================================================================================
