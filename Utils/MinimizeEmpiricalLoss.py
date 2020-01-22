@@ -2,7 +2,7 @@ import time
 import numpy as np
 import tensorflow as tf
 from Utils.Distributions import compute_gradients, apply_gradients, generate_sample
-from Utils.initializations import initialize_mu_and_xi_for_logistic
+from Utils.initializations import initialize_mu_and_xi_for_logistic, initialize_mu_and_xi_equally
 from Utils.general import setup_logger
 logger = setup_logger(log_file_name='./Log/discrete.log')
 
