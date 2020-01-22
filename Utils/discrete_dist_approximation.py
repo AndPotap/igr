@@ -35,8 +35,8 @@ categories_n = 50
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
 # model_type = 'ExpGS'
-# model_type = 'sb'
-model_type = 'GauSoftMax'
+# model_type = 'IGR_I'
+model_type = 'IGR_SB'
 
 skip_first_iterations = 10
 tolerance = 1.e-5
@@ -44,7 +44,8 @@ tolerance = 1.e-5
 uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 
 # run_against = 'geometric'
-run_against = 'negative_binomial'
+# run_against = 'negative_binomial'
+run_against = 'uniform'
 save_parameters = False
 
 if run_against == 'uniform':
