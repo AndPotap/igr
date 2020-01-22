@@ -188,12 +188,12 @@ class OptIGR(OptVAE):
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.dist = IGR_I(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
-        self.load_prior_values()
         self.compute_kl_norm = True
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
+        self.load_prior_values()
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
         z_discrete = self.dist.psi
@@ -262,7 +262,6 @@ class OptSBDis(OptIGRDis):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.max_categories = hyper['latent_discrete_n']
         self.prior_file = hyper['prior_file']
         self.sb = IGR_SB_Finite(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
 
@@ -289,6 +288,7 @@ class OptSB(OptSBDis):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.max_categories = hyper['latent_discrete_n']
         self.threshold = hyper['threshold']
         self.truncation_option = hyper['truncation_option']
         self.quantile = 70
