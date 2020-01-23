@@ -17,26 +17,22 @@ from Utils.example_funcs import plot_loss_and_initial_final_histograms
 from Utils.initializations import get_uniform_mix_probs, sample_from_uniform_mix
 
 sample_size = 1000
-total_iterations = 3 * int(1.e2)
+# total_iterations = 3 * int(1.e2)
+total_iterations = 1 * int(1.e2)
 learning_rate = 1.e-2
 
 # Global parameters
 samples_plot_n = int(1.e3)
 batch_n = 1
 np.random.RandomState(seed=21)
-pool = Pool()
 temp_init, temp_final = 0.1, 0.1
 threshold = 0.99
 categories_n = 10
-# categories_n = 30
-# categories_n = 50
-# categories_n = 200
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
-# model_type = 'ExpGS'
-# model_type = 'IGR_I'
+model_type = 'IGR_I'
 # model_type = 'IGR_SB'
-model_type = 'IGR_SB_Finite'
+# model_type = 'IGR_SB_Finite'
 
 skip_first_iterations = 10
 tolerance = 1.e-2
@@ -109,10 +105,9 @@ min_p, max_p = np.min(p_samples), np.max(p_samples)
 params, params_init = get_initial_params_for_model_type(model_type=model_type, shape=shape)
 
 minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp_init=temp_init,
-                                  temp_final=temp_final, pool=pool, sample_size=sample_size,
+                                  temp_final=temp_final, sample_size=sample_size,
                                   tolerance=tolerance, run_kl=True,
-                                  max_iterations=total_iterations, model_type=model_type,
-                                  type_temp_schedule=type_temp_schedule)
+                                  max_iterations=total_iterations, model_type=model_type)
 minimizer.set_variables(params=params)
 minimizer.threshold = threshold
 minimizer.run_iteratively = False
