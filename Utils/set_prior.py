@@ -13,8 +13,8 @@ from Utils.example_funcs import plot_loss_and_initial_final_histograms
 from Utils.initializations import get_uniform_mix_probs, sample_from_uniform_mix
 
 sample_size = 1000
-# total_iterations = 3 * int(1.e2)
-total_iterations = 1 * int(1.e2)
+total_iterations = 3 * int(1.e2)
+# total_iterations = 1 * int(1.e2)
 learning_rate = 1.e-2
 
 # Global parameters
@@ -26,9 +26,9 @@ threshold = 0.99
 categories_n = 10
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
-model_type = 'IGR_I'
+# model_type = 'IGR_I'
 # model_type = 'IGR_SB'
-# model_type = 'IGR_SB_Finite'
+model_type = 'IGR_SB_Finite'
 
 skip_first_iterations = 10
 tolerance = 1.e-2
