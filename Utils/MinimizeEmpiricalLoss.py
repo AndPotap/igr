@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import tensorflow as tf
-from Utils.Distributions import compute_gradients, apply_gradients, generate_sample
+from Utils.Distributions import compute_gradients, apply_gradients
 from Utils.initializations import initialize_mu_and_xi_for_logistic, initialize_mu_and_xi_equally
 from Utils.general import setup_logger
 logger = setup_logger(log_file_name='./Log/discrete.log')
@@ -10,9 +10,8 @@ logger = setup_logger(log_file_name='./Log/discrete.log')
 class MinimizeEmpiricalLoss:
 
     def __init__(self, learning_rate: float, temp_init: float, temp_final: float, moments_diff: float = 9.2,
-                 pool=None, sample_size: int = int(1.e3), max_iterations: int = int(1.e4),
-                 run_kl: bool = True, tolerance: float = 1.e-5,
-                 model_type: str = 'logit', type_temp_schedule: str = 'anneal'):
+                 sample_size: int = int(1.e3), max_iterations: int = int(1.e4),
+                 run_kl: bool = True, tolerance: float = 1.e-5, model_type: str = 'IGR_I'):
 
         self.learning_rate = learning_rate
         self.moments_diff = moments_diff
@@ -22,30 +21,22 @@ class MinimizeEmpiricalLoss:
         self.max_iterations = max_iterations
         self.tolerance = tolerance
         self.model_type = model_type
-        self.type_temp_schedule = type_temp_schedule
         self.run_kl = run_kl
 
         self.iteration = 0
         self.training_time = 0
         self.iter_time = 0
         self.total_samples_for_moment_evaluation = 1
-        self.mean_progress = 10
         self.mean_loss = 10
         self.mean_n_required = 0
-        self.diff = 10
-        self.mmd = 10
         self.check_every = 10
-        self.anneal_rate = 0.00003
         self.threshold = 0.9
         self.temp_schedule = np.linspace(temp_final, temp_init, num=max_iterations)
         self.temp = tf.constant(value=temp_init, dtype=tf.float32)
-        self.pool = pool
-        self.q_samples = np.zeros(shape=self.total_samples_for_moment_evaluation)
         self.categories_n = 0
         self.params = []
         self.loss_iter = np.zeros(shape=max_iterations)
         self.n_required_iter = np.zeros(shape=max_iterations)
-        self.mmd_bandwidth = np.sqrt(9 / 2)
         self.run_iteratively = False
 
     def set_variables(self, params):
@@ -56,7 +47,6 @@ class MinimizeEmpiricalLoss:
         optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         continue_training = True
         self.total_samples_for_moment_evaluation = 100
-        self.q_samples = np.zeros(shape=self.total_samples_for_moment_evaluation)
         t0 = time.time()
         while continue_training:
             current_iter_time = time.time()
@@ -65,16 +55,12 @@ class MinimizeEmpiricalLoss:
 
             self.loss_iter[self.iteration] = loss.numpy()
             self.n_required_iter[self.iteration] = n_required
-            self.update_temperature()
 
             self.evaluate_progress(loss_iter=self.loss_iter, n_required_iter=self.n_required_iter)
             self.iteration += 1
             continue_training = self.determine_continuation()
         self.training_time = time.time() - t0
         logger.info(f'\nTraining took: {self.training_time:6.1f} sec')
-        self.check_moments_convergence(mean_p=mean_p, var_p=var_p)
-        logger.info(f'Diff {self.diff: 2.2f}')
-        logger.info(f'MMD_u^2 {self.mmd: 2.2e}')
 
     def take_gradient_step_and_compute_loss(self, optimizer, probs):
         grad, loss, n_required = compute_gradients(params=self.params, temp=self.temp,
@@ -85,19 +71,6 @@ class MinimizeEmpiricalLoss:
         apply_gradients(optimizer=optimizer, gradients=grad, variables=self.params)
         return loss, n_required
 
-    def update_temperature(self):
-        if self.type_temp_schedule == 'anneal':
-            current_temp = np.maximum(self.temp_init * np.exp(-self.anneal_rate * self.iteration),
-                                      self.temp_final)
-        elif self.type_temp_schedule == 'linear':
-            current_temp = self.temp_schedule[-self.iteration]
-        elif self.type_temp_schedule == 'constant':
-            current_temp = self.temp
-        else:
-            current_temp = 0
-            print('Temp Error - No valid type selected')
-        self.temp = tf.constant(current_temp, dtype=tf.float32)
-
     def evaluate_progress(self, loss_iter, n_required_iter):
         if (self.iteration % self.check_every == 0) & (self.iteration > self.check_every):
             self.check_mean_loss_to_previous_iterations(loss_iter=loss_iter, n_required_iter=n_required_iter)
@@ -106,37 +79,15 @@ class MinimizeEmpiricalLoss:
 
             logger.info(f'Iter {self.iteration:4d} || '
                         f'Loss {self.mean_loss:2.3e} || '
-                        f'N Required {int(self.mean_n_required):4d} || '
-                        f'R {self.mean_progress: 2.1e} || '
-                        f'Diff {self.diff: 2.2f}')
+                        f'N Required {int(self.mean_n_required):4d}')
 
     def check_mean_loss_to_previous_iterations(self, loss_iter, n_required_iter):
         new_window = self.iteration - self.check_every
         self.mean_loss = np.mean(loss_iter[new_window: self.iteration])
         self.mean_n_required = np.mean(n_required_iter[new_window: self.iteration])
 
-    def check_mean_progress_to_previous_iterations(self, loss_iter):
-        past_window = self.iteration - 2 * self.check_every
-        new_window = self.iteration - self.check_every
-        sufficient_iterations_have_passed = past_window >= 0
-        if sufficient_iterations_have_passed:
-            recent_mean_improvement = np.mean(loss_iter[new_window: self.iteration])
-            last_mean_improvement = np.mean(loss_iter[past_window:new_window])
-
-            self.mean_progress = (np.abs(recent_mean_improvement - last_mean_improvement))
-
-    def check_moments_convergence(self, mean_p, var_p):
-        for i in range(self.q_samples.shape[0]):
-            self.q_samples[i] = generate_sample(sample_size=1, params=self.params, dist_type=self.model_type,
-                                                temp=self.temp, threshold=self.threshold)
-
-        self.diff = np.sqrt(((np.mean(self.q_samples) - mean_p) ** 2 +
-                             (np.var(self.q_samples) - var_p) ** 2))
-
     def determine_continuation(self):
         continue_training = ((self.iteration < self.max_iterations) &
-                             (self.mean_progress > self.tolerance) &
-                             (self.diff > self.moments_diff) &
                              (np.abs(self.mean_loss) > self.tolerance))
         return continue_training
 
@@ -171,10 +122,8 @@ def get_initial_params_for_model_type(model_type, shape):
 def obtain_results_from_minimizer(minimizer):
     iteration = minimizer.iteration
     time_taken = minimizer.iter_time
-    diff = minimizer.diff
-    mmd = minimizer.mmd
     n_required = minimizer.mean_n_required
-    return iteration, time_taken, diff, mmd, n_required
+    return iteration, time_taken, n_required
 
 
 def update_results(results_to_update, minimizer, dist_case, run_case, cat_case: int = 1):
