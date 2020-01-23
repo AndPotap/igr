@@ -59,15 +59,11 @@ class IGR_I(Distributions):
         sigma_broad = tf.math.exp(xi_broad)
         self.lam = self.transform(mu_broad, sigma_broad, epsilon)
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
-        self.psi = self.project_to_vertices()
+        self.psi = project_to_vertices_via_softmax_pp(self.lam)
 
     def transform(self, mu_broad, sigma_broad, epsilon):
         lam = (mu_broad + sigma_broad * epsilon) / self.temp
         return lam
-
-    def project_to_vertices(self):
-        psi = project_to_vertices_via_softmax_pp(self.lam)
-        return psi
 
 
 class IGR_Planar(IGR_I):
