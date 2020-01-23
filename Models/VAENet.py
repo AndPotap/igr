@@ -44,6 +44,8 @@ class VAENet(tf.keras.Model):
         elif self.architecture_type == 'conv_jointvae':
             if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
                 self.generate_convolutional_inference_net_jointvae_celeb_a()
+                if self.model_type.find('Planar') > 0:
+                    self.generate_planar_flow()
                 self.generate_convolutional_generative_net_jointvae_celeb_a()
             else:
                 self.generate_convolutional_inference_net_jointvae()
