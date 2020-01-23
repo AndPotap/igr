@@ -9,14 +9,11 @@ logger = setup_logger(log_file_name='./Log/discrete.log')
 
 class MinimizeEmpiricalLoss:
 
-    def __init__(self, learning_rate: float, temp_init: float, temp_final: float, moments_diff: float = 9.2,
+    def __init__(self, learning_rate: float, temp: float, moments_diff: float = 9.2,
                  sample_size: int = int(1.e3), max_iterations: int = int(1.e4),
                  run_kl: bool = True, tolerance: float = 1.e-5, model_type: str = 'IGR_I'):
 
         self.learning_rate = learning_rate
-        self.moments_diff = moments_diff
-        self.temp_init = temp_init
-        self.temp_final = temp_final
         self.sample_size = sample_size
         self.max_iterations = max_iterations
         self.tolerance = tolerance
@@ -31,8 +28,7 @@ class MinimizeEmpiricalLoss:
         self.mean_n_required = 0
         self.check_every = 10
         self.threshold = 0.9
-        self.temp_schedule = np.linspace(temp_final, temp_init, num=max_iterations)
-        self.temp = tf.constant(value=temp_init, dtype=tf.float32)
+        self.temp = tf.constant(value=temp, dtype=tf.float32)
         self.categories_n = 0
         self.params = []
         self.loss_iter = np.zeros(shape=max_iterations)
