@@ -15,10 +15,10 @@ class VAENet(tf.keras.Model):
         self.disc_var_num = hyper['num_of_discrete_var']
         self.disc_param_num = hyper['num_of_discrete_param']
         self.architecture_type = hyper['architecture']
-        self.model_name = hyper['dataset_name']
+        self.dataset_name = hyper['dataset_name']
         self.image_shape = hyper['image_shape']
 
-        self.log_px_z_params_num = 1 if self.model_name == 'mnist' else 2
+        self.log_px_z_params_num = 1 if self.dataset_name == 'mnist' else 2
         self.latent_dim_in = (self.cont_param_num * self.cont_latent_n * self.cont_var_num +
                               self.disc_param_num * self.disc_latent_in * self.disc_var_num)
         self.latent_dim_out = (self.cont_var_num * self.cont_latent_n +
@@ -43,7 +43,7 @@ class VAENet(tf.keras.Model):
             self.generate_convolutional_inference_net()
             self.generate_convolutional_generative_net()
         elif self.architecture_type == 'conv_jointvae':
-            if self.model_name == 'celeb_a' or self.model_name == 'fmnist':
+            if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
                 self.generate_convolutional_inference_net_jointvae_celeb_a()
                 self.generate_convolutional_generative_net_jointvae_celeb_a()
             else:
@@ -75,9 +75,9 @@ class VAENet(tf.keras.Model):
         ])
 
     def determine_activation_from_case(self):
-        if self.model_name == 'celeb_a' or self.model_name == 'fmnist':
+        if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
             activation_type = 'elu'
-        elif self.model_name == 'mnist':
+        elif self.dataset_name == 'mnist':
             activation_type = 'linear'
         else:
             raise RuntimeError
