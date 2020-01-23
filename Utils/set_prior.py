@@ -17,8 +17,7 @@ from Utils.example_funcs import plot_loss_and_initial_final_histograms
 from Utils.initializations import get_uniform_mix_probs, sample_from_uniform_mix
 
 sample_size = 1000
-total_iterations = 2 * int(1.e2)
-# total_iterations = 2
+total_iterations = 3 * int(1.e2)
 learning_rate = 1.e-2
 
 # Global parameters
@@ -35,9 +34,9 @@ categories_n = 10
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
 # model_type = 'ExpGS'
-model_type = 'IGR_I'
+# model_type = 'IGR_I'
 # model_type = 'IGR_SB'
-# model_type = 'IGR_SB_Finite'
+model_type = 'IGR_SB_Finite'
 
 skip_first_iterations = 10
 tolerance = 1.e-2
@@ -47,11 +46,11 @@ uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 # run_against = 'geometric'
 # run_against = 'negative_binomial'
 run_against = 'uniform'
-save_parameters = False
+save_parameters = True
 
 if run_against == 'uniform':
     uniform_cats = categories_n
-    results_file = f'./Results/mu_xi_unif_{uniform_cats}.pkl'
+    results_file = f'./Results/mu_xi_unif_{uniform_cats}_{model_type}.pkl'
     p_samples = np.random.randint(size=samples_plot_n, low=0, high=categories_n)
     probs = tf.constant(np.array([1 / (uniform_cats + 1) for _ in range(uniform_cats)]),
                         dtype=tf.float32, shape=uniform_cats)
@@ -116,7 +115,7 @@ minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp_init=temp_in
                                   type_temp_schedule=type_temp_schedule)
 minimizer.set_variables(params=params)
 minimizer.threshold = threshold
-minimizer.run_iteratively = True
+minimizer.run_iteratively = False
 minimizer.optimize_model(mean_p=mean_p, var_p=var_p, probs=probs, p_samples=p_samples)
 
 if save_parameters:
