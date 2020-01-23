@@ -16,6 +16,7 @@ class VAENet(tf.keras.Model):
         self.disc_param_num = hyper['num_of_discrete_param']
         self.architecture_type = hyper['architecture']
         self.dataset_name = hyper['dataset_name']
+        self.model_type = hyper['model_type']
         self.image_shape = hyper['image_shape']
 
         self.log_px_z_params_num = 1 if self.dataset_name == 'mnist' else 2
@@ -34,10 +35,8 @@ class VAENet(tf.keras.Model):
     def construct_architecture(self):
         if self.architecture_type == 'dense':
             self.generate_dense_inference_net()
-            self.generate_dense_generative_net()
-        elif self.architecture_type == 'dense_nf':
-            self.generate_dense_inference_net()
-            self.generate_planar_flow()
+            if self.model_type.find('Planar') > 0:
+                self.generate_planar_flow()
             self.generate_dense_generative_net()
         elif self.architecture_type == 'conv':
             self.generate_convolutional_inference_net()
