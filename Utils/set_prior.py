@@ -6,11 +6,7 @@ import pickle
 import numpy as np
 import tensorflow as tf
 from matplotlib import pyplot as plt
-from multiprocessing import Pool
-from scipy.stats import poisson
-from scipy.stats import binom
-from scipy.stats import geom
-from scipy.stats import nbinom
+from scipy.stats import poisson, binom, geom, nbinom
 from Utils.MinimizeEmpiricalLoss import MinimizeEmpiricalLoss, get_initial_params_for_model_type
 from Utils.Distributions import generate_sample
 from Utils.example_funcs import plot_loss_and_initial_final_histograms
@@ -25,7 +21,7 @@ learning_rate = 1.e-2
 samples_plot_n = int(1.e3)
 batch_n = 1
 np.random.RandomState(seed=21)
-temp_init, temp_final = 0.1, 0.1
+temp = 0.1
 threshold = 0.99
 categories_n = 10
 shape = (batch_n, categories_n, 1, 1)
@@ -104,8 +100,7 @@ min_p, max_p = np.min(p_samples), np.max(p_samples)
 # ===========================================================================================================
 params, params_init = get_initial_params_for_model_type(model_type=model_type, shape=shape)
 
-minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp_init=temp_init,
-                                  temp_final=temp_final, sample_size=sample_size,
+minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp=temp, sample_size=sample_size,
                                   tolerance=tolerance, run_kl=True,
                                   max_iterations=total_iterations, model_type=model_type)
 minimizer.set_variables(params=params)
@@ -122,7 +117,7 @@ if save_parameters:
 # ===========================================================================================================
 # Run samples
 # ===========================================================================================================
-temp = tf.constant(temp_final, dtype=tf.float32)
+temp = tf.constant(temp, dtype=tf.float32)
 q_samples = np.zeros(shape=samples_plot_n)
 q_samples_init = np.zeros(shape=samples_plot_n)
 for sample_id in range(samples_plot_n):
