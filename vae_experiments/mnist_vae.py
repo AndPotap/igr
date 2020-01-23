@@ -4,10 +4,11 @@
 # ===========================================================================================================
 import tensorflow as tf
 from Models.train_vae import run_vae
-run_with_sample = True
+run_with_sample = False
 # model_type = 'GS_Dis'
 # model_type = 'IGR_I_Dis'
-model_type = 'IGR_SB_Dis'
+# model_type = 'IGR_SB_Dis'
+model_type = 'IGR_Planar_Dis'
 
 hyper = {'dataset_name': 'mnist', 'sample_size': 1, 'n_required': 9, 'num_of_discrete_var': 30,
          'latent_norm_n': 0, 'num_of_norm_var': 0, 'num_of_norm_param': 0,
@@ -17,10 +18,10 @@ hyper = {'dataset_name': 'mnist', 'sample_size': 1, 'n_required': 9, 'num_of_dis
 hyper.update({'latent_discrete_n': hyper['n_required'] + 1})
 
 if model_type in ['GS', 'GS_Dis']:
-    hyper.update({'model_type': model_type, 'temp': 0.15, 'num_of_discrete_param': 1,
-                  'run_closed_form_kl': False})
+    hyper.update({'model_type': model_type, 'temp': 0.25, 'num_of_discrete_param': 1,
+                  'run_closed_form_kl': False, 'n_required': hyper['n_required'] + 1})
 
-elif model_type in ['IGR_I_Dis', 'IGR_I', 'IGR_SB_Dis']:
+elif model_type in ['IGR_I_Dis', 'IGR_SB_Dis', 'IGR_Planar_Dis']:
     hyper.update({'model_type': model_type, 'temp': 0.10,
                   'prior_file': './Results/mu_xi_unif_10_IGR_SB_Finite.pkl', 'num_of_discrete_param': 2,
                   'run_closed_form_kl': True})
