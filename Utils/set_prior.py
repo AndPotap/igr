@@ -32,11 +32,8 @@ model_type = 'IGR_I'
 
 skip_first_iterations = 10
 tolerance = 1.e-2
-
 uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 
-# run_against = 'geometric'
-# run_against = 'negative_binomial'
 run_against = 'uniform'
 save_parameters = True
 
@@ -102,9 +99,8 @@ params, params_init = get_initial_params_for_model_type(model_type=model_type, s
 
 minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp=temp, sample_size=sample_size,
                                   tolerance=tolerance, run_kl=True,
-                                  max_iterations=total_iterations, model_type=model_type)
+                                  max_iterations=total_iterations, model_type=model_type, threshold=threshold)
 minimizer.set_variables(params=params)
-minimizer.threshold = threshold
 minimizer.run_iteratively = False
 minimizer.optimize_model(mean_p=mean_p, var_p=var_p, probs=probs, p_samples=p_samples)
 
