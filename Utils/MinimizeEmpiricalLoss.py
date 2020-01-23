@@ -9,40 +9,33 @@ logger = setup_logger(log_file_name='./Log/discrete.log')
 
 class MinimizeEmpiricalLoss:
 
-    def __init__(self, learning_rate: float, temp: float, moments_diff: float = 9.2,
-                 sample_size: int = int(1.e3), max_iterations: int = int(1.e4),
-                 run_kl: bool = True, tolerance: float = 1.e-5, model_type: str = 'IGR_I'):
+    def __init__(self, params, learning_rate, temp, sample_size=int(1.e3), max_iterations=int(1.e4),
+                 run_kl=True, tolerance=1.e-5, model_type='IGR_I', threshold=0.9):
 
+        self.params = params
         self.learning_rate = learning_rate
+        self.temp = tf.constant(value=temp, dtype=tf.float32)
         self.sample_size = sample_size
         self.max_iterations = max_iterations
+        self.run_kl = run_kl
         self.tolerance = tolerance
         self.model_type = model_type
-        self.run_kl = run_kl
+        self.threshold = threshold
 
         self.iteration = 0
         self.training_time = 0
         self.iter_time = 0
-        self.total_samples_for_moment_evaluation = 1
         self.mean_loss = 10
         self.mean_n_required = 0
         self.check_every = 10
-        self.threshold = 0.9
-        self.temp = tf.constant(value=temp, dtype=tf.float32)
-        self.categories_n = 0
         self.params = []
         self.loss_iter = np.zeros(shape=max_iterations)
         self.n_required_iter = np.zeros(shape=max_iterations)
         self.run_iteratively = False
 
-    def set_variables(self, params):
-        self.params = params
-        self.categories_n = params[0].shape[1]
-
     def optimize_model(self, mean_p, var_p, probs, p_samples):
         optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         continue_training = True
-        self.total_samples_for_moment_evaluation = 100
         t0 = time.time()
         while continue_training:
             current_iter_time = time.time()
