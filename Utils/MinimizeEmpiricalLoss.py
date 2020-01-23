@@ -74,8 +74,6 @@ class MinimizeEmpiricalLoss:
     def evaluate_progress(self, loss_iter, n_required_iter):
         if (self.iteration % self.check_every == 0) & (self.iteration > self.check_every):
             self.check_mean_loss_to_previous_iterations(loss_iter=loss_iter, n_required_iter=n_required_iter)
-            # self.check_mean_progress_to_previous_iterations(loss_iter=loss_iter)
-            # self.check_moments_convergence(mean_p=mean_p, var_p=var_p)
 
             logger.info(f'Iter {self.iteration:4d} || '
                         f'Loss {self.mean_loss:2.3e} || '
