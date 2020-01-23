@@ -156,7 +156,7 @@ class OptExpGSDis(OptExpGS):
         gs.generate_sample()
         self.log_psi = gs.log_psi
         self.n_required = gs.psi.shape[1]
-        z_discrete = [gs.log_psi]
+        z_discrete = [gs.psi]
         return z_discrete
 
     def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
