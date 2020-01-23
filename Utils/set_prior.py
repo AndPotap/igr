@@ -98,10 +98,8 @@ min_p, max_p = np.min(p_samples), np.max(p_samples)
 params, params_init = get_initial_params_for_model_type(model_type=model_type, shape=shape)
 
 minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp=temp, sample_size=sample_size,
-                                  tolerance=tolerance, run_kl=True,
+                                  tolerance=tolerance, run_kl=True, params=params,
                                   max_iterations=total_iterations, model_type=model_type, threshold=threshold)
-minimizer.set_variables(params=params)
-minimizer.run_iteratively = False
 minimizer.optimize_model(mean_p=mean_p, var_p=var_p, probs=probs, p_samples=p_samples)
 
 if save_parameters:
