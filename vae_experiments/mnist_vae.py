@@ -22,7 +22,7 @@ if model_type in ['GS', 'GS_Dis']:
 
 elif model_type in ['IGR_I_Dis', 'IGR_I', 'IGR_SB_Dis']:
     hyper.update({'model_type': model_type, 'temp': 0.10,
-                  'prior_file': './Results/mu_xi_unif_10_ng.pkl', 'num_of_discrete_param': 2,
+                  'prior_file': './Results/mu_xi_unif_10_IGR_SB_Finite.pkl', 'num_of_discrete_param': 2,
                   'run_closed_form_kl': True})
 else:
     raise RuntimeError
