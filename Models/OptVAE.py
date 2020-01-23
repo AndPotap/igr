@@ -193,7 +193,6 @@ class OptIGR(OptVAE):
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        self.load_prior_values()
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
         z_discrete = self.dist.psi
@@ -232,6 +231,7 @@ class OptIGRDis(OptIGR):
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
+        self.load_prior_values()
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
         z_discrete = [self.dist.psi]
