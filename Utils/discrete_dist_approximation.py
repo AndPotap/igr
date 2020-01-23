@@ -138,7 +138,6 @@ for sample_id in range(samples_plot_n):
                                            dist_type=model_type)
     q_samples_init[sample_id] = generate_sample(sample_size=1, params=params_init, dist_type=model_type,
                                                 temp=temp, threshold=minimizer.threshold)
-# q_samples = minimizer.q_samples
 print(f'{model_type}')
 print(f'Mean {np.mean(q_samples):4.2f} || '
       f'Var {np.var(q_samples):4.2f} || '
@@ -147,21 +146,6 @@ print(f'Mean {np.mean(q_samples):4.2f} || '
 print('\nOriginal Dist')
 print(f'Mean {mean_p:4.2f} || Var {var_p:4.2f} || Std {std_p:4.2f}'
       f'\nMin: {min_p:4d} || Max {max_p:4d}')
-# ===========================================================================================================
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ===========================================================================================================
-# Plot Loss and Histograms
-# ===========================================================================================================
-# plt.style.use(style='ggplot')
-# q_samples_list = [q_samples for _ in range(3)]
-# q_samples_init_list = [q_samples_init for _ in range(3)]
-# fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(8, 6))
-# plot_histograms_of_gs(ax=ax, p_samples=p_samples, q_samples_list=q_samples_list,
-#                       q_samples_init_list=q_samples_init_list, number_of_bins=np.max(p_samples))
-# plt.tight_layout()
-# plt.savefig(fname='./Results/gs_hist.png')
-# plt.show()
-# ===========================================================================================================
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ===========================================================================================================
 # Plot Loss and Histograms
@@ -172,7 +156,7 @@ fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(8, 6))
 plot_loss_and_initial_final_histograms(
     ax=ax, p_samples=p_samples, q_samples=q_samples,
     loss_iter=minimizer.loss_iter[skip_first_iterations:minimizer.iteration],
-    title=f'Empirical KL Loss for {model_type.title()}',
+    title=f'Empirical KL Loss for {model_type}',
     q_samples_init=q_samples_init,
     number_of_bins=np.max(p_samples) + 2)
 #     number_of_bins=categories_n)
