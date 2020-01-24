@@ -17,9 +17,7 @@ class TestDistributions(unittest.TestCase):
         test_tolerance = 1.e-4
         batch_size, categories_n, sample_size, num_of_vars = 2, 3, 4, 5
         lam = tf.constant(0., shape=(batch_size, categories_n - 1, sample_size, num_of_vars))
-        psi_ans = np.zeros(shape=(batch_size, categories_n, sample_size, num_of_vars))
-        for i in range(categories_n):
-            psi_ans[:, i, :, :] = 1 / categories_n
+        psi_ans = compute_softmaxpp_for_all(lam=lam.numpy(), delta=0.1)
         psi = project_to_vertices_via_softmax_pp(lam).numpy()
         relative_diff = np.linalg.norm(psi - psi_ans) / np.linalg.norm(psi_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
@@ -137,6 +135,26 @@ class TestDistributions(unittest.TestCase):
 # ===========================================================================================================
 # Test Functions
 # ===========================================================================================================
+def compute_softmaxpp_for_all(lam, delta=1.):
+    batch_n, categories_n, sample_size, num_of_vars = lam.shape
+    psi = np.zeros(shape=(batch_n, categories_n + 1, sample_size, num_of_vars))
+    for b in range(batch_n):
+        for s in range(sample_size):
+            for v in range(num_of_vars):
+                psi[b, :, s, v] = compute_softmaxpp(lam[b, :, s, v], delta)
+    return psi
+
+
+def compute_softmaxpp(lam, delta=1.):
+    categories_n = lam.shape[0]
+    psi = np.zeros(shape=categories_n + 1)
+    exp_lam = np.exp(lam)
+    sum_exp_lam = np.sum(exp_lam)
+    psi[:categories_n] = exp_lam / (sum_exp_lam + delta)
+    psi[-1] = 1 - np.sum(psi)
+    return psi
+
+
 def calculate_log_exp_concrete_for_tensor(log_ψ, α, τ):
     batch_n, sample_size, num_of_vars = log_ψ.shape[0], log_ψ.shape[2], log_ψ.shape[3]
     log_exp_concrete = np.zeros(shape=(batch_n, sample_size, num_of_vars))
