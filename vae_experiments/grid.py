@@ -19,7 +19,7 @@ experiment = {
     3: {'dataset_name': 'fmnist', 'temp': 0.10},
     4: {'dataset_name': 'fmnist', 'temp': 0.50},
     5: {'dataset_name': 'celeb_a', 'temp': 0.10, 'architecture': 'conv_jointvae'},
-    6: {'dataset_name': 'celeb_a', 'temp': 0.10, 'architecture': 'conv_jointvae'},
+    6: {'dataset_name': 'celeb_a', 'temp': 0.50, 'architecture': 'conv_jointvae'},
 }
 
 for _, d in experiment.items():
