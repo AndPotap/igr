@@ -6,7 +6,8 @@ import numba
 from Utils.load_data import load_vae_dataset
 
 
-def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_file, model_type, run_with_sample=True):
+def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_file,
+                          model_type, run_with_sample=True):
     with open(file=path_to_results + hyper_file, mode='rb') as f:
         hyper = pickle.load(f)
 
@@ -14,11 +15,8 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
                             run_with_sample=run_with_sample, architecture=hyper['architecture'], hyper=hyper)
     train_dataset, test_dataset, np_test_images, hyper = data
 
-    # model = construct_networks(hyper=hyper)
-    # model.load_weights(filepath=path_to_results + weights_file)
     vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=model_type)
-    model = vae_opt.nets
-    model.load_weights(filepath=path_to_results + weights_file)
+    vae_opt.nets.load_weights(filepath=path_to_results + weights_file)
 
     samples_n, total_test_images, im_idx = 100, 10_000, 0
     shape = (total_test_images, samples_n, hyper['num_of_discrete_var'])
@@ -26,7 +24,8 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
 
     for test_image in test_dataset:
         z, x_logit, params = vae_opt.perform_fwd_pass(test_image)
-        dist = determine_distribution(model_type=model_type, params=params, temp=hyper['temp'], samples_n=samples_n)
+        dist = determine_distribution(model_type=model_type, params=params, temp=hyper['temp'],
+                                      samples_n=samples_n)
         dist.generate_sample()
         ψ = dist.psi.numpy()
         for i in range(ψ.shape[0]):
