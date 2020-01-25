@@ -186,10 +186,10 @@ def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dis
     chosen_dist.generate_sample()
     psi_mean = tf.reduce_mean(chosen_dist.psi, axis=[0, 2, 3])
     if run_kl:
-        loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs + 1.e-20))
+        loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required + 1] + 1.e-20))
         loss = tf.reduce_sum(loss)
     else:
-        loss = tf.reduce_sum((psi_mean - probs) ** 2)
+        loss = tf.reduce_sum((psi_mean - probs[:chosen_dist.n_required + 1]) ** 2)
     return loss, chosen_dist.n_required
 
 
