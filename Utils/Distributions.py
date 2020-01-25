@@ -213,7 +213,7 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 # ===========================================================================================================
 # Utils
 # ===========================================================================================================
-@tf.function
+# @tf.function
 def project_to_vertices_via_softmax_pp(lam):
     delta = tf.constant(0.1, dtype=tf.float32)
     one = tf.constant(1., dtype=tf.float32)
