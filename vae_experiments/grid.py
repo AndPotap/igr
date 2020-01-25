@@ -13,14 +13,14 @@ hyper.update({'model_type': model_type, 'temp': 0.10,
               'prior_file': './Results/mu_xi_unif_10_IGR_SB_Finite.pkl', 'num_of_discrete_param': 2,
               'run_closed_form_kl': True})
 
-experiment = {
-    1: {'dataset_name': 'mnist', 'temp': 0.10},
-    2: {'dataset_name': 'mnist', 'temp': 0.50},
-    3: {'dataset_name': 'fmnist', 'temp': 0.10},
-    4: {'dataset_name': 'fmnist', 'temp': 0.50},
-    5: {'dataset_name': 'celeb_a', 'temp': 0.10, 'architecture': 'conv_jointvae'},
-    6: {'dataset_name': 'celeb_a', 'temp': 0.50, 'architecture': 'conv_jointvae'},
-}
+datasets = ['mnist', 'fmnist']
+temps = [0.25, 0.4, 0.67, 0.85, 1.]
+i = 0
+experiment = {}
+for d in datasets:
+    for t in temps:
+        i += 1
+        experiment.update({i: {'dataset_name': d, 'temp': t}})
 
 for _, d in experiment.items():
     for key, value in d.items():
