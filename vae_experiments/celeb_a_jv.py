@@ -14,7 +14,7 @@ hyper = {'dataset_name': 'celeb_a', 'sample_size': 1, 'n_required': 9, 'num_of_d
          'cont_c_linspace': (0., 50., 100_000), 'disc_c_linspace': (0., 10., 100_000)}
 hyper.update({'latent_discrete_n': hyper['n_required'] + 1})
 
-if model_type in ['GS', 'GS_Dis', 'GSDis', 'ExpGSDis']:
+if model_type in ['GS', 'GS_Dis']:
     hyper.update({'model_type': model_type, 'temp': 0.25, 'num_of_discrete_param': 1,
                   'run_closed_form_kl': False, 'n_required': hyper['n_required'] + 1})
 
