@@ -263,7 +263,6 @@ class OptSBDis(OptIGRDis):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.prior_file = hyper['prior_file']
-        self.sb = IGR_SB_Finite(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
 
     def select_distribution(self, mu, xi):
         self.dist = IGR_SB_Finite(mu, xi, self.temp, self.sample_size)
@@ -291,10 +290,12 @@ class OptSB(OptIGR):
         self.max_categories = hyper['latent_discrete_n']
         self.threshold = hyper['threshold']
         self.truncation_option = hyper['truncation_option']
+        self.prior_file = hyper['prior_file']
         self.quantile = 70
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
+        self.load_prior_values()
         z_norm = sample_normal(mean=mean, log_var=log_var)
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
@@ -317,6 +318,20 @@ class OptSB(OptIGR):
         z_discrete = tf.concat([psi, zeros], axis=1)
         return z_discrete
 
+    def load_prior_values(self):
+        with open(file=self.prior_file, mode='rb') as f:
+            parameters = pickle.load(f)
+
+        mu_0 = tf.constant(parameters['mu'], dtype=tf.float32)
+        xi_0 = tf.constant(parameters['xi'], dtype=tf.float32)
+        categories_n = mu_0.shape[1]
+
+        self.mu_0 = shape_prior_to_sample_size_and_discrete_var_num(
+            prior_param=mu_0, batch_size=self.batch_size, categories_n=categories_n,
+            sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
+        self.xi_0 = shape_prior_to_sample_size_and_discrete_var_num(
+            prior_param=xi_0, batch_size=self.batch_size, categories_n=categories_n,
+            sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
 
 # ===========================================================================================================
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
