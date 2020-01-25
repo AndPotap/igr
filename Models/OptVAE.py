@@ -284,7 +284,7 @@ class OptSBDis(OptIGRDis):
             sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
 
 
-class OptSB(OptSBDis):
+class OptSB(OptIGR):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
@@ -292,20 +292,30 @@ class OptSB(OptSBDis):
         self.threshold = hyper['threshold']
         self.truncation_option = hyper['truncation_option']
         self.quantile = 70
-        self.sb = IGR_SB(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        self.sb = IGR_SB(mu, xi, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
-        self.sb.truncation_option = self.truncation_option
-        self.sb.quantile = self.quantile
-        self.sb.generate_sample()
-        self.n_required = self.sb.psi.shape[1]
-        z_discrete = self.complete_discrete_vector(psi=self.sb.psi)
+        self.select_distribution(mu, xi)
+        self.dist.generate_sample()
+        self.n_required = self.dist.psi.shape[1]
+        z_discrete = self.complete_discrete_vector(psi=self.dist.psi)
 
         z = [z_norm, z_discrete]
         return z
+
+    def select_distribution(self, mu, xi):
+        self.dist = IGR_SB(mu, xi, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
+        self.dist.truncation_option = self.truncation_option
+        self.dist.quantile = self.quantile
+
+    def complete_discrete_vector(self, psi):
+        batch_size, n_required = psi.shape[0], psi.shape[1]
+        missing = self.max_categories - n_required
+        zeros = tf.constant(value=0., dtype=tf.float32,
+                            shape=(batch_size, missing, self.sample_size, 1))
+        z_discrete = tf.concat([psi, zeros], axis=1)
+        return z_discrete
 
 
 # ===========================================================================================================
