@@ -75,6 +75,7 @@ def plot_grid_of_fixed_cont_traversal_along_all_disc_dim(model, fixed_cont_dim, 
             pointer += 1
             plt.axis('off')
     plt.savefig(plots_path + f'fixed_cont_{fixed_cont_dim:d}.png')
+    plt.close()
 
 
 def plot_grid_of_continuous_traversals_with_fixed_one_hot(model, fixed_cat, discrete_dim_n,
@@ -93,6 +94,7 @@ def plot_grid_of_continuous_traversals_with_fixed_one_hot(model, fixed_cat, disc
             pointer += 1
             plt.axis('off')
     plt.savefig(plots_path + f'grid_for_{fixed_cat:d}.png')
+    plt.close()
 
 
 def plot_grid_of_random_cont_samples_along_all_disc_dim(model, cont_dim_n, discrete_dim_n, samples_n,
@@ -111,6 +113,7 @@ def plot_grid_of_random_cont_samples_along_all_disc_dim(model, cont_dim_n, discr
             pointer += 1
             plt.axis('off')
     plt.savefig(plots_path + f'random_sample.png')
+    plt.close()
 
 
 def set_grid_specifications(nrows, ncols):
