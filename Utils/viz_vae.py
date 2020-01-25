@@ -36,6 +36,7 @@ def plot_reconstructions_samples_and_traversals(hyper, epoch, results_path, test
         plot_based_on_color_or_black(recon_image=recon_probs[i, :, :, 0])
         plt.axis('off')
     plt.savefig(results_path + f'/Reconstruction_{epoch}.png')
+    plt.close()
 
 
 def plot_originals(test_images, results_path):
@@ -45,6 +46,7 @@ def plot_originals(test_images, results_path):
         plot_based_on_color_or_black(recon_image=test_images[i, :, :])
         plt.axis('off')
     plt.savefig(results_path + f'/Reconstruction.png')
+    plt.close()
 
 
 def plot_based_on_color_or_black(recon_image, rgb_location=2):
