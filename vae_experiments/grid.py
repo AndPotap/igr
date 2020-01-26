@@ -2,10 +2,16 @@ import tensorflow as tf
 from collections import namedtuple
 from Models.train_vae import run_vae
 run_with_sample = True
-model_type = 'IGR_Planar_Dis'
 epochs = 50
+model_type = 'IGR_Planar_Dis'
 n_required = 9
 latent_discrete_n = n_required + 1
+# model_type = 'GS_Dis'
+# n_required = 10
+# latent_discrete_n = n_required
+
+temps = [0.1, 0.25, 0.5]
+# temps = [0.67, 0.85, 1.0]
 
 hyper = {'dataset_name': 'mnist', 'sample_size': 1, 'n_required': n_required, 'num_of_discrete_var': 30,
          'latent_norm_n': 0, 'num_of_norm_var': 0, 'num_of_norm_param': 0,
@@ -21,8 +27,6 @@ Case = namedtuple('Case', 'dataset arch')
 datasets = [Case(dataset='mnist', arch='dense'),
             Case(dataset='fmnist', arch='dense'),
             Case(dataset='celeb_a', arch='conv_jointvae')]
-temps = [0.1, 0.25, 0.5]
-# temps = [0.67, 0.85, 1.0]
 i = 0
 experiment = {}
 for d in datasets:
