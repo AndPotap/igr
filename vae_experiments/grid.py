@@ -40,8 +40,9 @@ for _, c in cases.items():
     for t in temps:
         i += 1
         c.update({'temp': t})
-        print(c)
-        experiment.update({i: c})
+        experiment.update({i: {}})
+        for key, value in c.items():
+            experiment[i][key] = value
 
 for _, d in experiment.items():
     for key, value in d.items():
