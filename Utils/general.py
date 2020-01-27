@@ -38,9 +38,9 @@ def add_std_lines(runs, color, offset, alpha=0.5):
 
 def make_np_of_var_from_log_files(variable_name: str, files_list: list, path_to_files: str):
     results_list = []
-    for file in files_list:
+    for f in files_list:
         variable_np = get_variable_np_array_from_log_file(variable_name=variable_name,
-                                                          path_to_file=path_to_files + file)
+                                                          path_to_file=path_to_files + f)
         results_list.append(variable_np)
     results_np = create_global_np_array_from_results(results_list=results_list)
     return results_np
