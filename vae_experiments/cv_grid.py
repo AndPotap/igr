@@ -7,10 +7,12 @@ model_type = 'IGR_Planar_Dis'
 n_required = 9
 latent_discrete_n = n_required + 1
 run_closed_form_kl = True
+num_of_discrete_param = 2
 # model_type = 'GS_Dis'
 # n_required = 10
 # latent_discrete_n = n_required
 # run_closed_form_kl = False
+# num_of_discrete_param = 1
 
 temps = [0.1, 0.25, 0.5]
 # temps = [0.67, 0.85, 1.0]
@@ -22,7 +24,8 @@ hyper = {'dataset_name': 'mnist', 'sample_size': 1, 'n_required': n_required, 'n
          'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
 hyper.update({'latent_discrete_n': latent_discrete_n})
 hyper.update({'model_type': model_type, 'temp': 0.10,
-              'prior_file': './Results/mu_xi_unif_10_IGR_SB_Finite.pkl', 'num_of_discrete_param': 2,
+              'prior_file': './Results/mu_xi_unif_10_IGR_SB_Finite.pkl',
+              'num_of_discrete_param': num_of_discrete_param,
               'run_closed_form_kl': run_closed_form_kl})
 
 Case = namedtuple('Case', 'dataset arch')
