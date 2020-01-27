@@ -2,9 +2,9 @@ import tensorflow as tf
 from Models.train_vae import run_vae
 run_with_sample = True
 epochs = 5
-model_type = 'IGR_Planar'
-n_required = 9
-# n_required = 49
+model_type = 'IGR_SB'
+# n_required = 9
+n_required = 49
 latent_discrete_n = n_required + 1
 run_closed_form_kl = True
 num_of_discrete_param = 2
@@ -23,7 +23,8 @@ hyper = {'model_type': model_type, 'architecture': 'conv_jointvae',
          'num_of_norm_param': 2, 'num_of_norm_var': 1,
          'epochs': epochs, 'learning_rate': 0.0005, 'batch_n': 64, 'sample_size': 1,
          'run_jv': True, 'run_closed_form_kl': run_closed_form_kl,
-         'prior_file': './Results/mu_xi_unif_49_IGR_SB_Finite.pkl'}
+         'prior_file': './Results/mu_xi_unif_50_IGR_SB_Finite.pkl', 'threshold': 0.99,
+         'truncation_option': 'quantile'}
 
 cases = {
     1: {'dataset_name': 'mnist', 'γ': tf.constant(30.), 'latent_norm_n': 10,
