@@ -116,8 +116,10 @@ class IGR_SB(IGR_I):
             self.n_required = int((np.percentile(larger_than_threshold[:, 1] + 1, q=self.quantile)))
         elif self.truncation_option == 'max':
             self.n_required = (tf.math.reduce_max(larger_than_threshold[:, 1]) + 1).numpy()
-        else:
+        elif self.truncation_option == 'mean':
             self.n_required = (tf.math.reduce_mean(larger_than_threshold[:, 1]) + 1).numpy()
+        else:
+            raise ValueError
 
 
 class IGR_SB_Finite(IGR_SB):
