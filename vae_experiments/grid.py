@@ -39,10 +39,9 @@ experiment = {}
 for _, c in cases.items():
     for t in temps:
         i += 1
-        c.update({'temp': t})
         experiment.update({i: {}})
-        for key, value in c.items():
-            experiment[i][key] = value
+        c.update({'temp': t})
+        experiment[i].update(c)
 
 for _, d in experiment.items():
     for key, value in d.items():
