@@ -291,7 +291,7 @@ class OptSB(OptIGR):
         self.threshold = hyper['threshold']
         self.truncation_option = hyper['truncation_option']
         self.prior_file = hyper['prior_file']
-        self.quantile = 70
+        self.quantile = 50
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
