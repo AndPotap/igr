@@ -27,7 +27,7 @@ models = {
 }
 for key, val in models.items():
     dirs = path + val['model'] + '/'
-    variable_name = 'TeELBOC' if val['model'].find('igr') > 0 else 'TeELBO'
+    variable_name = 'TeELBOC ' if val['model'].find('igr') > 0 else 'TeELBO '
     output = make_np_of_var_from_log_files(variable_name=variable_name,
                                            files_list=[file for file in listdir(path=dirs)],
                                            path_to_files=dirs)
@@ -54,7 +54,7 @@ for _, model in models.items():
 plt.xlabel('Epochs')
 plt.legend()
 # plt.savefig('./Results/Outputs/jv_comp.png')
-plt.savefig('./Results/Outputs/elbo.png')
+plt.savefig('./Results/Outputs/elbo.eps', format='eps')
 plt.tight_layout()
 plt.show()
 # ===========================================================================================================
