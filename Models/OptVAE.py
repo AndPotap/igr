@@ -133,7 +133,7 @@ class OptExpGS(OptVAE):
         z_norm = sample_normal(mean=mean, log_var=log_var)
         gs = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
         gs.generate_sample()
-        z_discrete = gs.psi
+        z_discrete = gs.log_psi
         self.log_psi = gs.log_psi
         self.n_required = z_discrete.shape[1]
         z = [z_norm, z_discrete]
@@ -156,7 +156,7 @@ class OptExpGSDis(OptExpGS):
         gs.generate_sample()
         self.log_psi = gs.log_psi
         self.n_required = gs.psi.shape[1]
-        z_discrete = [gs.psi]
+        z_discrete = [gs.log_psi]
         return z_discrete
 
     def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
