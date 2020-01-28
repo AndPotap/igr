@@ -1,6 +1,6 @@
 import pickle
 import numpy as np
-from Utils.Distributions import IGR_I, GS, IGR_SB_Finite
+from Utils.Distributions import IGR_I, GS, IGR_SB_Finite, IGR_Planar
 from Models.train_vae import construct_nets_and_optimizer
 import numba
 from Utils.load_data import load_vae_dataset
@@ -24,8 +24,12 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
 
     for test_image in test_dataset:
         z, x_logit, params = vae_opt.perform_fwd_pass(test_image)
-        dist = determine_distribution(model_type=model_type, params=params, temp=hyper['temp'],
-                                      samples_n=samples_n)
+        if model_type.find('Planar') > 0:
+            dist = determine_distribution(model_type=model_type, params=params, temp=hyper['temp'],
+                                          samples_n=samples_n, planar_flow=vae_opt.nets.planar_flow)
+        else:
+            dist = determine_distribution(model_type=model_type, params=params, temp=hyper['temp'],
+                                          samples_n=samples_n)
         dist.generate_sample()
         ψ = dist.psi.numpy()
         for i in range(ψ.shape[0]):
@@ -48,10 +52,13 @@ def calculate_distance_to_simplex(ψ, argmax_locs):
     return diffs
 
 
-def determine_distribution(model_type, params, temp, samples_n):
-    if model_type == 'GSMDis':
+def determine_distribution(model_type, params, temp, samples_n, planar_flow=None):
+    if model_type == 'IGR_I_Dis':
         dist = IGR_I(mu=params[0], xi=params[1], sample_size=samples_n, temp=temp)
-    elif model_type == 'ExpGSDis':
+    elif model_type == 'IGR_Planar_Dis':
+        dist = IGR_Planar(mu=params[0], xi=params[1], sample_size=samples_n, temp=temp,
+                          planar_flow=planar_flow)
+    elif model_type == 'GS_Dis':
         dist = GS(log_pi=params[0], sample_size=samples_n, temp=temp)
     elif model_type == 'IGR_SB_Dis':
         dist = IGR_SB_Finite(mu=params[0], xi=params[1], sample_size=samples_n, temp=temp)
