@@ -52,9 +52,10 @@ for _, model in models.items():
                            color=model['color'], linestyle=linestyle, offset=offset)
 
 plt.xlabel('Epochs')
-plt.legend()
+plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), prop={'size': 6})
+# plt.tight_layout(rect=(0, 0, 0.95, 1))
+plt.tight_layout()
 # plt.savefig('./Results/Outputs/jv_comp.png')
 plt.savefig('./Results/Outputs/elbo.eps', format='eps')
-plt.tight_layout()
 plt.show()
 # ===========================================================================================================
