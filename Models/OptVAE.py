@@ -115,7 +115,6 @@ class OptVAE:
             psi = self.reparameterize(params_broad=params)[0]
         gradients = tape.gradient(target=psi, sources=params[0])
         gradients_norm = tf.linalg.norm(gradients, axis=1)
-        gradients_norm
 
         return gradients_norm
 
