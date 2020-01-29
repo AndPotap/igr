@@ -112,7 +112,8 @@ class OptVAE:
         with tf.GradientTape() as tape:
             params = self.nets.encode(x)
             z = self.reparameterize(params_broad=params)
-            psi = tf.math.exp(z[-1])
+            # psi = tf.math.exp(z[-1])
+            psi = z[-1]
         gradients = tape.gradient(target=psi, sources=params)
         gradients_norm = tf.linalg.norm(gradients, axis=2)
 
