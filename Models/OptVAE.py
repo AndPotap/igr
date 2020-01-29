@@ -109,13 +109,13 @@ class OptVAE:
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
 
     def monitor_parameter_gradients_at_psi(self, x):
+        params = self.nets.encode(x)
         with tf.GradientTape() as tape:
-            params = self.nets.encode(x)
-            z = self.reparameterize(params_broad=params)
-            # psi = tf.math.exp(z[-1])
-            psi = z[-1]
-        gradients = tape.gradient(target=psi, sources=params)
-        gradients_norm = tf.linalg.norm(gradients, axis=2)
+            tape.watch(params[0])
+            psi = self.reparameterize(params_broad=params)[0]
+        gradients = tape.gradient(target=psi, sources=params[0])
+        gradients_norm = tf.linalg.norm(gradients, axis=1)
+        gradients_norm
 
         return gradients_norm
 
