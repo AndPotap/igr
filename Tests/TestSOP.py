@@ -54,6 +54,10 @@ class TestSBDist(unittest.TestCase):
         run_sop(hyper=hyper, results_path=results_path, data=data)
         hyper['model_type'] = 'IGR_Planar'
         run_sop(hyper=hyper, results_path=results_path, data=data)
+        hyper['model_type'] = 'IGR_I'
+        run_sop(hyper=hyper, results_path=results_path, data=data)
+        hyper['model_type'] = 'IGR_SB'
+        run_sop(hyper=hyper, results_path=results_path, data=data)
 
 
 def create_upper_and_lower(shape):
