@@ -1,4 +1,5 @@
 import tensorflow as tf
+from Utils.Distributions import IGR_I, IGR_SB_Finite, IGR_Planar
 
 
 class SOP(tf.keras.Model):
@@ -38,7 +39,7 @@ class SOP(tf.keras.Model):
     def sample_bernoulli(self, params, discretized):
         if self.model_type == 'GS':
             psi = sample_gs_bernoulli(params=params, temp=self.temp, discretized=discretized)
-        elif self.model_type == 'IGR':
+        elif self.model_type == 'IGR_I':
             psi = sample_igr_bernoulli(params=params, temp=self.temp, discretized=discretized)
         else:
             raise RuntimeError
@@ -55,11 +56,13 @@ def sample_gs_bernoulli(params, temp, discretized):
 
 
 def sample_igr_bernoulli(params, temp, discretized):
-    mu_broad, xi_broad = params
-    epsilon = tf.random.normal(shape=mu_broad.shape)
-    sigma = tf.math.exp(xi_broad)
-    lam = (mu_broad + sigma * epsilon) / temp
-    psi = project_to_vertices(lam=lam, discretized=discretized)
+    mu, xi = params
+    batch_n, num_of_vars = mu.shape
+    mu_broad = tf.reshape(mu, shape=(batch_n, 1, 1, num_of_vars))
+    xi_broad = tf.reshape(xi, shape=(batch_n, 1, 1, num_of_vars))
+    dist = IGR_I(mu=mu_broad, xi=xi_broad, temp=temp)
+    dist.generate_sample()
+    psi = project_to_vertices(lam=dist.lam[:, 0, 0, :] / temp, discretized=discretized)
     return psi
 
 
