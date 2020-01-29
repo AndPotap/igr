@@ -21,6 +21,8 @@ class SOP(tf.keras.Model):
         self.layer4 = tf.keras.layers.Reshape(self.half_image_w_h)
         if self.model_type == 'IGR_Planar':
             self.planar_flow = generate_planar_flow(disc_latent_in=1, disc_var_num=self.units_per_layer)
+        else:
+            self.planar_flow = None
 
     def call(self, x_upper, sample_size=1, discretized=False):
         batch_n, width, height, rgb = x_upper.shape
