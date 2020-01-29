@@ -9,13 +9,12 @@ def count_zeros_in_gradient(grad_dict):
     grad_np = np.zeros(shape=100)
     i = 0
     for k, v in grad_dict.items():
-        # z = np.mean(np.mean(v[0, :, 0, :], axis=1))
-        # z = np.mean(np.mean(v[0, :, 0, :], axis=0))
-        # z = np.mean(np.var(v[0, :, 0, :], axis=0))
-        # z = np.mean(v[0, :, 0, 10])
+        # z = np.mean(np.mean(v[:, 0, :], axis=0))
+        # z = np.mean(np.var(v[:, 0, :], axis=0))
         # grad_np[i] = z
         v = v.flatten()
-        z = v == 0.
+        # z = v == 0.
+        z = np.abs(v) <= 1.e-10
         grad_np[i] = np.mean(z)
         i += 1
     return grad_np
