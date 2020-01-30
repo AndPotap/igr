@@ -144,9 +144,9 @@ class GS(Distributions):
         log_pi_broad = self.broadcast_params_to_sample_size(params=[self.log_pi])[0]
         uniform = tf.random.uniform(shape=log_pi_broad.shape)
         gumbel_sample = -tf.math.log(-tf.math.log(uniform + ς) + ς)
-        y = (log_pi_broad + gumbel_sample) / self.temp
-        self.log_psi = y - tf.math.reduce_logsumexp(y, axis=1, keepdims=True)
-        self.psi = tf.math.softmax(logits=y, axis=1)
+        self.lam = (log_pi_broad + gumbel_sample) / self.temp
+        self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
+        self.psi = tf.math.softmax(logits=self.lam, axis=1)
 
 
 # ===========================================================================================================
