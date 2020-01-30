@@ -81,7 +81,8 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, monitor_
 def start_all_logging_instruments(hyper, test_images):
     results_path = determine_path_to_save_results(model_type=hyper['model_type'],
                                                   dataset_name=hyper['dataset_name'])
-    os.mkdir(results_path)
+    if not os.path.exists(results_path):
+        os.mkdir(results_path)
     logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=results_path + '/loss.log',
                                                                  termination='.log'),
                           logger_name=append_timestamp_to_file('logger', termination=''))
@@ -130,19 +131,9 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     train_loss_mean(loss)
-    append_train_summaries(tracking_losses=output, iteration_counter=iteration_counter)
     update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
                                    disc_c_linspace=disc_c_linspace, cont_c_linspace=cont_c_linspace)
     return vae_opt, iteration_counter
-
-
-def append_train_summaries(tracking_losses, iteration_counter):
-    gradients, loss, log_px_z, kl, kl_n, kl_d = tracking_losses
-    tf.summary.scalar(name='Train ELBO', data=-loss, step=iteration_counter)
-    tf.summary.scalar(name='Train Recon', data=log_px_z, step=iteration_counter)
-    tf.summary.scalar(name='Train KL', data=kl, step=iteration_counter)
-    tf.summary.scalar(name='Train KL Norm', data=kl_n, step=iteration_counter)
-    tf.summary.scalar(name='Train KL Dis', data=kl_d, step=iteration_counter)
 
 
 def update_regularization_channels(vae_opt, iteration_counter, disc_c_linspace, cont_c_linspace):
@@ -201,8 +192,8 @@ def log_test_progress(logger, test_progress, epoch, time_taken, iteration_counte
     tf.summary.scalar(name='Temp', data=temp, step=epoch)
 
 
-def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path):
-    if epoch % 10 == 0:
+def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path, save_every=25):
+    if epoch % save_every == 0:
         vae_opt.nets.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
         plot_reconstructions_samples_and_traversals(hyper=hyper, epoch=epoch, results_path=results_path,
                                                     test_images=test_images, vae_opt=vae_opt)
