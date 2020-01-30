@@ -1,4 +1,5 @@
 import time
+import os
 import pickle
 import tensorflow as tf
 from Utils.load_data import load_vae_dataset
@@ -52,42 +53,41 @@ def construct_nets_and_optimizer(hyper, model_type):
 
 
 def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, monitor_gradients=True):
-    writer, logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
+    logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     init_vars = run_initialization_procedure(hyper, test_images, results_path)
     (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
      grad_norm) = init_vars
 
-    with writer.as_default():
-        initial_time = time.time()
-        for epoch in range(1, hyper['epochs'] + 1):
-            t0 = time.time()
-            train_loss_mean = tf.keras.metrics.Mean()
-            for x_train in train_dataset.take(hyper['iter_per_epoch']):
-                vae_opt, iteration_counter = perform_train_step(x_train, vae_opt, train_loss_mean,
-                                                                iteration_counter, disc_c_linspace, cont_c_linspace)
-            t1 = time.time()
-            monitor_vanishing_grads(monitor_gradients, x_train, vae_opt,
-                                    iteration_counter, grad_monitor_dict, epoch)
+    initial_time = time.time()
+    for epoch in range(1, hyper['epochs'] + 1):
+        t0 = time.time()
+        train_loss_mean = tf.keras.metrics.Mean()
+        for x_train in train_dataset.take(hyper['iter_per_epoch']):
+            vae_opt, iteration_counter = perform_train_step(x_train, vae_opt, train_loss_mean,
+                                                            iteration_counter, disc_c_linspace, cont_c_linspace)
+        t1 = time.time()
+        monitor_vanishing_grads(monitor_gradients, x_train, vae_opt,
+                                iteration_counter, grad_monitor_dict, epoch)
 
-            evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
-                                          hyper=hyper, logger=logger, iteration_counter=iteration_counter,
-                                          train_loss_mean=train_loss_mean, time_taken=t1 - t0)
+        evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
+                                      hyper=hyper, logger=logger, iteration_counter=iteration_counter,
+                                      train_loss_mean=train_loss_mean, time_taken=t1 - t0)
 
-            save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path, writer)
+        save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path)
 
-        save_final_results(vae_opt.nets, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
+    save_final_results(vae_opt.nets, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
 
 
 def start_all_logging_instruments(hyper, test_images):
     results_path = determine_path_to_save_results(model_type=hyper['model_type'],
                                                   dataset_name=hyper['dataset_name'])
-    writer = tf.summary.create_file_writer(logdir=results_path)
+    os.mkdir(results_path)
     logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=results_path + '/loss.log',
                                                                  termination='.log'),
                           logger_name=append_timestamp_to_file('logger', termination=''))
     log_all_hyperparameters(hyper=hyper, logger=logger)
     plot_originals(test_images=test_images, results_path=results_path)
-    return writer, logger, results_path
+    return logger, results_path
 
 
 def log_all_hyperparameters(hyper, logger):
@@ -201,12 +201,11 @@ def log_test_progress(logger, test_progress, epoch, time_taken, iteration_counte
     tf.summary.scalar(name='Temp', data=temp, step=epoch)
 
 
-def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path, writer):
+def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path):
     if epoch % 10 == 0:
         vae_opt.nets.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
         plot_reconstructions_samples_and_traversals(hyper=hyper, epoch=epoch, results_path=results_path,
                                                     test_images=test_images, vae_opt=vae_opt)
-    writer.flush()
 
 
 def save_final_results(nets, logger, results_file, initial_time, temp):
