@@ -1,10 +1,6 @@
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ===========================================================================================================
-# Load Imports and  data
-# ===========================================================================================================
 import tensorflow as tf
 from Models.train_vae import run_vae
-run_with_sample = True
+run_with_sample = False
 # model_type = 'GS_Dis'
 model_type = 'IGR_I_Dis'
 # model_type = 'IGR_SB_Dis'
@@ -28,4 +24,3 @@ elif model_type in ['IGR_I_Dis', 'IGR_SB_Dis', 'IGR_Planar_Dis']:
 else:
     raise RuntimeError
 run_vae(hyper=hyper, run_with_sample=run_with_sample)
-# ===========================================================================================================
