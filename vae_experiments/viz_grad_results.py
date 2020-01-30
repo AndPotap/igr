@@ -5,9 +5,9 @@ from Utils.general import count_zeros_in_gradient
 path = './Results/grads/'
 models = {
     # 1: {'model': 'igr_planar_cv', 'label': 'IGR_Planar(0.85)', 'color': '#e41a1c'},
-    # 2: {'model': 'igr_planar_20', 'label': 'IGR_Planar(0.1)', 'color': '#e41a1c'},
+    2: {'model': 'igr_planar_20', 'label': 'IGR_Planar(0.1)', 'color': '#e41a1c'},
     # 3: {'model': 'igr_sb_cv', 'label': 'IGR_SB(0.1)', 'color': '#377eb8'},
-    # 4: {'model': 'igr_sb_20', 'label': 'IGR_SB(0.03)', 'color': '#377eb8'},
+    4: {'model': 'igr_sb_20', 'label': 'IGR_SB(0.03)', 'color': '#377eb8'},
     # 5: {'model': 'igr_i_cv', 'label': 'IGR_I(1.0)', 'color': '#4daf4a'},
     6: {'model': 'igr_i_20', 'label': 'IGR_I(0.1)', 'color': '#4daf4a'},
     # 7: {'model': 'gs_cv', 'label': 'GS(1.0)', 'color': '#984ea3'},
@@ -17,7 +17,7 @@ for key, val in models.items():
     dirs = path + val['model'] + '/gradients_100.pkl'
     with open(file=dirs, mode='rb') as f:
         output = pickle.load(f)
-        models[key]['grads'] = count_zeros_in_gradient(grad_dict=output)
+        models[key]['grads'] = count_zeros_in_gradient(grad_dict=output) * 100
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ===========================================================================================================
