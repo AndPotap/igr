@@ -23,7 +23,7 @@ def run_vae(hyper, run_with_sample):
     vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=hyper['model_type'])
 
     train_vae(vae_opt=vae_opt, hyper=hyper, train_dataset=train_dataset,
-              test_dataset=test_dataset, test_images=test_images)
+              test_dataset=test_dataset, test_images=test_images, check_every=hyper['check_every'])
 
 
 def construct_nets_and_optimizer(hyper, model_type):
@@ -52,7 +52,7 @@ def construct_nets_and_optimizer(hyper, model_type):
     return vae_opt
 
 
-def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, monitor_gradients=True):
+def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every, monitor_gradients=True):
     logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     init_vars = run_initialization_procedure(hyper, test_images, results_path)
     (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
@@ -71,7 +71,8 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, monitor_
 
         evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
                                       hyper=hyper, logger=logger, iteration_counter=iteration_counter,
-                                      train_loss_mean=train_loss_mean, time_taken=t1 - t0)
+                                      train_loss_mean=train_loss_mean, time_taken=t1 - t0,
+                                      check_every=check_every)
 
         save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path)
 
@@ -151,11 +152,12 @@ def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_count
 
 
 def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, iteration_counter,
-                                  time_taken, train_loss_mean):
-    test_progress = create_test_progress_tracker()
-    for x_test in test_dataset.take(hyper['iter_per_epoch']):
-        test_progress = update_test_progress(x_test, vae_opt, test_progress)
-    log_test_progress(logger, test_progress, epoch, time_taken, iteration_counter, train_loss_mean, vae_opt.temp)
+                                  time_taken, train_loss_mean, check_every=10):
+    if epoch % check_every == 0:
+        test_progress = create_test_progress_tracker()
+        for x_test in test_dataset.take(hyper['iter_per_epoch']):
+            test_progress = update_test_progress(x_test, vae_opt, test_progress)
+        log_test_progress(logger, test_progress, epoch, time_taken, iteration_counter, train_loss_mean, vae_opt.temp)
 
 
 def create_test_progress_tracker():
