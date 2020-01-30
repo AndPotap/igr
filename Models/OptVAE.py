@@ -127,16 +127,14 @@ class OptExpGS(OptVAE):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
-        self.log_psi = tf.constant(value=0., dtype=tf.float32)
+        self.dist = GS(log_pi=tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1)), temp=self.temp)
 
     def reparameterize(self, params_broad):
         mean, log_var, logits = params_broad
         z_norm = sample_normal(mean=mean, log_var=log_var)
-        gs = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
-        gs.generate_sample()
-        # z_discrete = gs.log_psi
-        z_discrete = gs.psi
-        self.log_psi = gs.log_psi
+        self.dist = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
+        self.dist.generate_sample()
+        z_discrete = self.dist.psi
         self.n_required = z_discrete.shape[1]
         z = [z_norm, z_discrete]
         return z
@@ -154,11 +152,11 @@ class OptExpGSDis(OptExpGS):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
 
     def reparameterize(self, params_broad):
-        gs = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
-        gs.generate_sample()
-        self.log_psi = gs.log_psi
-        self.n_required = gs.psi.shape[1]
-        z_discrete = [gs.psi]
+        self.dist = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
+        self.dist.generate_sample()
+        self.log_psi = self.dist.log_psi
+        self.n_required = self.dist.psi.shape[1]
+        z_discrete = [self.dist.psi]
         # z_discrete = [gs.log_psi]
         return z_discrete
 
