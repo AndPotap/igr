@@ -56,7 +56,7 @@ def construct_nets_and_optimizer(hyper, model_type):
     return vae_opt
 
 
-def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every, monitor_gradients=True):
+def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every, monitor_gradients=False):
     logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     init_vars = run_initialization_procedure(hyper, test_images, results_path)
     (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
