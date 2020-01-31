@@ -12,10 +12,11 @@ class OptVAE:
     def __init__(self, nets, optimizer, hyper):
         self.nets = nets
         self.optimizer = optimizer
-        self.n_required = hyper['n_required']
         self.run_closed_form_kl = hyper['run_closed_form_kl']
-        self.sample_size = hyper['sample_size']
         self.batch_size = hyper['sample_size']
+        self.n_required = hyper['n_required']
+        self.sample_size = hyper['sample_size']
+        self.num_of_vars = hyper['num_of_vars']
         self.dataset_name = hyper['dataset_name']
 
         self.run_jv = hyper['run_jv']
@@ -315,7 +316,7 @@ class OptSB(OptIGR):
         batch_size, n_required = psi.shape[0], psi.shape[1]
         missing = self.max_categories - n_required
         zeros = tf.constant(value=0., dtype=tf.float32,
-                            shape=(batch_size, missing, self.sample_size, 1))
+                            shape=(batch_size, missing, self.sample_size, self.num_of_vars))
         z_discrete = tf.concat([psi, zeros], axis=1)
         return z_discrete
 
