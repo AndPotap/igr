@@ -4,7 +4,7 @@ import pickle
 import tensorflow as tf
 from Utils.load_data import load_vae_dataset
 from Models.VAENet import construct_networks, determine_path_to_save_results
-from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBDis, OptExpGS
+from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBFinite, OptExpGS
 from Models.OptVAE import OptIGRDis, OptExpGSDis, OptPlanarNFDis, OptPlanarNF
 from Utils.viz_vae import plot_originals, plot_reconstructions_samples_and_traversals
 from Utils.general import setup_logger, append_timestamp_to_file
@@ -40,9 +40,13 @@ def construct_nets_and_optimizer(hyper, model_type):
     elif model_type == 'IGR_I_Dis':
         vae_opt = OptIGRDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_SB':
-        vae_opt = OptSB(nets=nets, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptSB(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=True)
+    elif model_type == 'IGR_SB_Finite':
+        vae_opt = OptSBFinite(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=True)
     elif model_type == 'IGR_SB_Dis':
-        vae_opt = OptSBDis(nets=nets, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptSB(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=False)
+    elif model_type == 'IGR_SB_Finite_Dis':
+        vae_opt = OptSBFinite(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=False)
     elif model_type == 'IGR_Planar_Dis':
         vae_opt = OptPlanarNFDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_Planar':
