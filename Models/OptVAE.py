@@ -16,7 +16,7 @@ class OptVAE:
         self.batch_size = hyper['sample_size']
         self.n_required = hyper['n_required']
         self.sample_size = hyper['sample_size']
-        self.num_of_vars = hyper['num_of_vars']
+        self.num_of_vars = hyper['num_of_discrete_var']
         self.dataset_name = hyper['dataset_name']
 
         self.run_jv = hyper['run_jv']
@@ -190,7 +190,7 @@ class OptIGR(OptVAE):
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.dist = IGR_I(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
-        self.compute_kl_norm = True
+        self.use_continuous = True
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
@@ -206,7 +206,7 @@ class OptIGR(OptVAE):
         self.dist = IGR_I(mu=mu, xi=xi, temp=self.temp)
 
     def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
-        if self.compute_kl_norm:
+        if self.use_continuous:
             mean, log_var, mu_disc, xi_disc = params_broad
             kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
@@ -260,11 +260,29 @@ class OptPlanarNFDis(OptIGRDis):
                                temp=self.temp, sample_size=self.sample_size)
 
 
-class OptSBDis(OptIGRDis):
+class OptSBFinite(OptIGRDis):
 
-    def __init__(self, nets, optimizer, hyper):
+    def __init__(self, nets, optimizer, hyper, use_continuous):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.prior_file = hyper['prior_file']
+        self.use_continuous = use_continuous
+
+    def reparameterize(self, params_broad):
+        z = []
+        self.load_prior_values()
+        if self.use_continuous:
+            mean, log_var, mu, xi = params_broad
+            z_norm = sample_normal(mean=mean, log_var=log_var)
+            z.append(z_norm)
+        else:
+            mu, xi = params_broad
+        self.select_distribution(mu, xi)
+        self.dist.generate_sample()
+        self.n_required = self.dist.psi.shape[1]
+        z_discrete = self.dist.psi
+
+        z.append(z_discrete)
+        return z
 
     def select_distribution(self, mu, xi):
         self.dist = IGR_SB_Finite(mu, xi, self.temp, self.sample_size)
@@ -287,24 +305,30 @@ class OptSBDis(OptIGRDis):
 
 class OptSB(OptIGR):
 
-    def __init__(self, nets, optimizer, hyper):
+    def __init__(self, nets, optimizer, hyper, use_continuous):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.max_categories = hyper['latent_discrete_n']
         self.threshold = hyper['threshold']
         self.truncation_option = hyper['truncation_option']
         self.prior_file = hyper['prior_file']
         self.quantile = 50
+        self.use_continuous = use_continuous
 
     def reparameterize(self, params_broad):
-        mean, log_var, mu, xi = params_broad
+        z = []
         self.load_prior_values()
-        z_norm = sample_normal(mean=mean, log_var=log_var)
+        if self.use_continuous:
+            mean, log_var, mu, xi = params_broad
+            z_norm = sample_normal(mean=mean, log_var=log_var)
+            z.append(z_norm)
+        else:
+            mu, xi = params_broad
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
         self.n_required = self.dist.psi.shape[1]
         z_discrete = self.complete_discrete_vector(psi=self.dist.psi)
 
-        z = [z_norm, z_discrete]
+        z.append(z_discrete)
         return z
 
     def select_distribution(self, mu, xi):
