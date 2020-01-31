@@ -229,7 +229,7 @@ class OptIGRDis(OptIGR):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.compute_kl_norm = False
+        self.use_continuous = False
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
