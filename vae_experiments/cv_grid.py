@@ -4,8 +4,8 @@ from Models.train_vae import run_vae
 run_with_sample = True
 num_of_repetitions = 1
 # temps = [0.1]
-temps = [0.1, 0.25, 0.5]
-# temps = [0.67, 0.85, 1.0]
+temps = [0.02, 0.10, 0.16, 0.30, 0.40,
+         0.67, 0.85, 1.00, 1.11, 1.25]
 model_cases = {
     1: {'model_type': 'IGR_I_Dis', 'n_required': 9},
     # 2: {'model_type': 'IGR_Planar_Dis', 'n_required': 9},
