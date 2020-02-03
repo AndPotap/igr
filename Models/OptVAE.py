@@ -129,6 +129,7 @@ class OptExpGS(OptVAE):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.dist = GS(log_pi=tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1)), temp=self.temp)
+        self.log_psi = tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1))
 
     def reparameterize(self, params_broad):
         mean, log_var, logits = params_broad
@@ -136,6 +137,7 @@ class OptExpGS(OptVAE):
         self.dist = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
         self.dist.generate_sample()
         z_discrete = self.dist.psi
+        self.log_psi = self.dist.log_psi
         self.n_required = z_discrete.shape[1]
         z = [z_norm, z_discrete]
         return z
