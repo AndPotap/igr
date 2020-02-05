@@ -14,6 +14,7 @@ from Utils.general import make_np_of_var_from_log_files, add_mean_std_plot_line
 # gs = make_np_of_var_from_log_files(variable_name='TeJV ',
 #                                    files_list=[file for file in listdir(path = path_to_files)],
 #                                    path_to_files=path_to_files)
+scale = 100
 path = './Results/elbo/mnist/'
 models = {
     1: {'model': 'igr_planar_cv', 'label': 'IGR-Planar(0.85)', 'color': '#e41a1c'},
@@ -31,7 +32,7 @@ for key, val in models.items():
     output = make_np_of_var_from_log_files(variable_name=variable_name,
                                            files_list=[file for file in listdir(path=dirs)],
                                            path_to_files=dirs)
-    models[key]['results'] = output
+    models[key]['results'] = output / scale
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ===========================================================================================================
 # Plots
@@ -45,7 +46,7 @@ offset = 5
 # add_mean_std_plot_line(runs=-sb, label='SB(0.1)', color='orange', offset=offset)
 # plt.ylabel('Test Joint VAE loss')
 
-plt.ylabel('Test ELBO')
+plt.ylabel('Test ELBO (1.e+2)')
 for _, model in models.items():
     linestyle = '-' if model['model'].find('cv') > 0 else '--'
     add_mean_std_plot_line(runs=model['results'], label=model['label'],
