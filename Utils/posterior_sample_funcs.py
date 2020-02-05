@@ -19,7 +19,7 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
     vae_opt.nets.load_weights(filepath=path_to_results + weights_file)
 
     # samples_n, total_test_images, im_idx = 100, 10_000, 0
-    samples_n, total_test_images, im_idx = 100, 19962, 0
+    samples_n, total_test_images, im_idx = 100, 19_962, 0
     shape = (total_test_images, samples_n, hyper['num_of_discrete_var'])
     diff = np.zeros(shape=shape)
 
@@ -61,7 +61,7 @@ def determine_distribution(model_type, params, temp, samples_n, planar_flow=None
                           planar_flow=planar_flow)
     elif model_type == 'GS_Dis':
         dist = GS(log_pi=params[0], sample_size=samples_n, temp=temp)
-    elif model_type == 'IGR_SB_Dis':
+    elif model_type == 'IGR_SB_Finite_Dis':
         dist = IGR_SB_Finite(mu=params[0], xi=params[1], sample_size=samples_n, temp=temp)
     else:
         raise RuntimeError
