@@ -18,12 +18,14 @@ total_iterations = 3 * int(1.e2)
 learning_rate = 1.e-2
 
 # Global parameters
-samples_plot_n = int(1.e3)
+samples_plot_n = int(1.e4)
 batch_n = 1
 np.random.RandomState(seed=21)
-temp = 0.1
+temp = 0.01
 threshold = 0.99
-categories_n = 10
+# categories_n = 10
+# categories_n = 200
+categories_n = 80
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
 # model_type = 'IGR_I'
@@ -34,8 +36,9 @@ skip_first_iterations = 10
 tolerance = 1.e-2
 uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 
-run_against = 'uniform'
-save_parameters = True
+# run_against = 'uniform'
+run_against = 'poisson'
+save_parameters = False
 
 if run_against == 'uniform':
     uniform_cats = categories_n
@@ -100,6 +103,7 @@ params, params_init = get_initial_params_for_model_type(model_type=model_type, s
 minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp=temp, sample_size=sample_size,
                                   tolerance=tolerance, run_kl=True, params=params,
                                   max_iterations=total_iterations, model_type=model_type, threshold=threshold)
+minimizer.run_iteratively = True
 minimizer.optimize_model(mean_p=mean_p, var_p=var_p, probs=probs, p_samples=p_samples)
 
 if save_parameters:
