@@ -18,8 +18,8 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
     vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=model_type)
     vae_opt.nets.load_weights(filepath=path_to_results + weights_file)
 
-    # samples_n, total_test_images, im_idx = 100, 10_000, 0
-    samples_n, total_test_images, im_idx = 100, 19_962, 0
+    samples_n, total_test_images, im_idx = 100, 10_000, 0
+    # samples_n, total_test_images, im_idx = 100, 19_962, 0
     shape = (total_test_images, samples_n, hyper['num_of_discrete_var'])
     diff = np.zeros(shape=shape)
 
