@@ -74,10 +74,10 @@ def plot_experiment_results(gs, sb, poisson_means, categories, y_label, analysis
 def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, q_samples_init,
                                            title: str, number_of_bins: int = 15):
     total_iterations = loss_iter.shape[0]
-    # hist_color = '#377eb8'
-    # label = 'IGR-SB'
-    hist_color = '#984ea3'
-    label = 'GS with K = 12'
+    hist_color = '#377eb8'
+    label = 'IGR-SB'
+    # hist_color = '#984ea3'
+    # label = 'GS with K = 12'
     ylim = 0.3
     xlim = 12
     ax[0].set_title(title)
