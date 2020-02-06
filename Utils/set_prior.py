@@ -25,9 +25,10 @@ temp = 0.01
 threshold = 0.99
 # categories_n = 10
 # categories_n = 200
-categories_n = 80
+categories_n = 12
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
+# model_type = 'GS'
 # model_type = 'IGR_I'
 # model_type = 'IGR_SB'
 model_type = 'IGR_SB_Finite'
@@ -36,8 +37,7 @@ skip_first_iterations = 10
 tolerance = 1.e-2
 uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 
-# run_against = 'uniform'
-run_against = 'poisson'
+run_against = 'uniform'
 save_parameters = False
 
 if run_against == 'uniform':
