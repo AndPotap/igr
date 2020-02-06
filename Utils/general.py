@@ -27,16 +27,18 @@ def add_mean_std_plot_line(runs, color, label, offset=5, linestyle='-'):
 
 
 def add_mean_lines(runs, color, offset, label, linestyle):
+    run_axis = 0
     runs_num = np.arange(runs.shape[1]) + offset
-    run_mean = np.mean(runs, axis=0)
+    run_mean = np.mean(runs, axis=run_axis)
     plt.plot(runs_num, run_mean, label=label, color=color, linestyle=linestyle)
 
 
 def add_std_lines(runs, color, offset, alpha=0.5):
+    run_axis = 0
     runs_num = np.arange(runs.shape[1]) + offset
-    run_mean = np.mean(runs, axis=0)
-    total_runs = runs.shape[0]
-    run_std = np.std(runs, axis=0) / total_runs
+    run_mean = np.mean(runs, axis=run_axis)
+    total_runs = runs.shape[run_axis]
+    run_std = np.std(runs, axis=run_axis) / total_runs
     plt.vlines(runs_num, ymin=run_mean - run_std, ymax=run_mean + run_std, color=color, alpha=alpha)
 
 
