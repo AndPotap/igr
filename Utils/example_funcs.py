@@ -74,9 +74,12 @@ def plot_experiment_results(gs, sb, poisson_means, categories, y_label, analysis
 def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, q_samples_init,
                                            title: str, number_of_bins: int = 15):
     total_iterations = loss_iter.shape[0]
-    hist_color = '#377eb8'
-    ylim = 0.1
-    xlim = 80
+    # hist_color = '#377eb8'
+    # label = 'IGR-SB'
+    hist_color = '#984ea3'
+    label = 'GS with K = 12'
+    ylim = 0.3
+    xlim = 12
     ax[0].set_title(title)
     ax[0].set_xlabel('Iterations')
     ax[0].set_ylabel('Loss')
@@ -88,17 +91,17 @@ def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, 
 
     ax[1].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p', density=True)
     ax[1].hist(q_samples_init, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5,
-               label='IGR-SB', density=True)
+               label=label, density=True)
     ax[1].set_ylim([0, ylim])
     ax[1].set_xlim([0, xlim])
     ax[1].set_title('Initial distribution')
     ax[1].legend()
 
     ax[2].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p', density=True)
-    ax[2].hist(q_samples, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5, label='IGR-SB', density=True)
+    ax[2].hist(q_samples, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5, label=label, density=True)
     ax[2].set_title('Final distribution')
     ax[2].set_ylim([0, ylim])
-    ax[1].set_xlim([0, xlim])
+    ax[2].set_xlim([0, xlim])
     ax[2].legend()
 
 
@@ -107,8 +110,8 @@ def plot_histograms_of_gs(ax, p_samples, q_samples_list, q_samples_init_list, nu
     k = [20, 40, 100]
     # y_lim = 0.35
     # k = [10]
-    y_lim = 0.1
-    x_lim = 80
+    y_lim = 0.2
+    x_lim = 70
     ax[0].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p',
                density=True)
     for i in range(len(q_samples_init_list)):
