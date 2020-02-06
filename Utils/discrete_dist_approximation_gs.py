@@ -34,16 +34,14 @@ categories_n = 100
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
 model_type = 'GS'
-# model_type = 'sb'
-# model_type = 'GauSoftMax'
 
 skip_first_iterations = 10
 tolerance = 1.e-5
 
 uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 
-run_against = 'poisson'
-# run_against = 'negative_binomial'
+# run_against = 'poisson'
+run_against = 'negative_binomial'
 # run_against = 'discrete'
 # run_against = 'binomial'
 
