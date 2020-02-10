@@ -114,7 +114,8 @@ class IGR_SB(IGR_I):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
         # less_than_threshold = tf.where(condition=vector_cumsum <= self.threshold)
         res = self.get_arrays_that_make_it(vector_cumsum)
-        self.n_required = int(np.mean(res))
+        # self.n_required = int(np.mean(res))
+        self.n_required = int(np.percentile(res, q=self.quantile))
 
     def get_arrays_that_make_it(self, vector_cumsum):
         v = tf.where(condition=vector_cumsum[0, :, :, 0] <= self.threshold)
@@ -122,7 +123,7 @@ class IGR_SB(IGR_I):
         res = np.zeros(sample_size)
         for s in range(sample_size):
             mask = v[:, 1] == s
-            res[s] = v[mask][-1, 0]
+            res[s] = v[mask][-1, 0] + 1
         return res
 
 
