@@ -12,32 +12,33 @@ from Utils.Distributions import generate_sample
 from Utils.example_funcs import plot_loss_and_initial_final_histograms
 from Utils.initializations import get_uniform_mix_probs, sample_from_uniform_mix
 
-sample_size = 1000
-total_iterations = 3 * int(1.e2)
+sample_size = 100
+total_iterations = 2 * int(1.e2)
 # total_iterations = 1 * int(1.e2)
 learning_rate = 1.e-2
 
 # Global parameters
-samples_plot_n = int(1.e4)
+samples_plot_n = int(1.e3)
 batch_n = 1
 np.random.RandomState(seed=21)
 temp = 0.01
-threshold = 0.99
+threshold = 0.9
 # categories_n = 10
-# categories_n = 200
-categories_n = 12
+categories_n = 200
+# categories_n = 12
 shape = (batch_n, categories_n, 1, 1)
 type_temp_schedule = 'constant'
 # model_type = 'GS'
 # model_type = 'IGR_I'
-# model_type = 'IGR_SB'
-model_type = 'IGR_SB_Finite'
+model_type = 'IGR_SB'
+# model_type = 'IGR_SB_Finite'
 
 skip_first_iterations = 10
 tolerance = 1.e-2
 uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 
-run_against = 'uniform'
+# run_against = 'uniform'
+run_against = 'poisson'
 save_parameters = False
 
 if run_against == 'uniform':
