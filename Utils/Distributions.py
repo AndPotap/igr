@@ -112,15 +112,18 @@ class IGR_SB(IGR_I):
 
     def perform_truncation_via_threshold(self, vector):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
-        larger_than_threshold = tf.where(condition=vector_cumsum <= self.threshold)
-        if self.truncation_option == 'quantile':
-            self.n_required = int((np.percentile(larger_than_threshold[:, 1] + 1, q=self.quantile)))
-        elif self.truncation_option == 'max':
-            self.n_required = (tf.math.reduce_max(larger_than_threshold[:, 1]) + 1).numpy()
-        elif self.truncation_option == 'mean':
-            self.n_required = (tf.math.reduce_mean(larger_than_threshold[:, 1]) + 1).numpy()
-        else:
-            raise ValueError
+        # less_than_threshold = tf.where(condition=vector_cumsum <= self.threshold)
+        res = self.get_arrays_that_make_it(vector_cumsum)
+        self.n_required = int(np.mean(res))
+
+    def get_arrays_that_make_it(self, vector_cumsum):
+        v = tf.where(condition=vector_cumsum[0, :, :, 0] <= self.threshold)
+        categories_n, sample_size = vector_cumsum[0, :, :, 0].shape
+        res = np.zeros(sample_size)
+        for s in range(sample_size):
+            mask = v[:, 1] == s
+            res[s] = v[mask][-1, 0]
+        return res
 
 
 class IGR_SB_Finite(IGR_SB):
