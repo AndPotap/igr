@@ -79,7 +79,8 @@ def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, 
     # hist_color = '#984ea3'
     # label = 'GS with K = 12'
     ylim = 0.3
-    xlim = 12
+    # xlim = 12
+    xlim = 70
     ax[0].set_title(title)
     ax[0].set_xlabel('Iterations')
     ax[0].set_ylabel('Loss')
