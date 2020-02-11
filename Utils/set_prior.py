@@ -12,8 +12,8 @@ from Utils.Distributions import generate_sample
 from Utils.example_funcs import plot_loss_and_initial_final_histograms
 from Utils.initializations import get_uniform_mix_probs, sample_from_uniform_mix
 
-sample_size = 100
-total_iterations = 2 * int(1.e2)
+sample_size = 1000
+total_iterations = 1 * int(1.e2)
 # total_iterations = 1 * int(1.e2)
 learning_rate = 1.e-2
 
@@ -22,7 +22,7 @@ samples_plot_n = int(1.e3)
 batch_n = 1
 np.random.RandomState(seed=21)
 temp = 0.01
-threshold = 0.9
+threshold = 0.95
 # categories_n = 10
 categories_n = 200
 # categories_n = 12
@@ -34,7 +34,7 @@ model_type = 'IGR_SB'
 # model_type = 'IGR_SB_Finite'
 
 skip_first_iterations = 10
-tolerance = 1.e-2
+tolerance = 1.e-4
 uniform_probs = np.array([1 / categories_n for _ in range(categories_n)])
 
 # run_against = 'uniform'
@@ -102,10 +102,10 @@ min_p, max_p = np.min(p_samples), np.max(p_samples)
 params, params_init = get_initial_params_for_model_type(model_type=model_type, shape=shape)
 
 minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp=temp, sample_size=sample_size,
-                                  tolerance=tolerance, run_kl=True, params=params,
+                                  tolerance=tolerance, run_kl=False, params=params,
                                   max_iterations=total_iterations, model_type=model_type, threshold=threshold)
-# minimizer.run_iteratively = True
-minimizer.run_iteratively = False
+minimizer.run_iteratively = True
+# minimizer.run_iteratively = False
 minimizer.optimize_model(mean_p=mean_p, var_p=var_p, probs=probs, p_samples=p_samples)
 
 if save_parameters:
