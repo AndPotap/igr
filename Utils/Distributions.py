@@ -112,21 +112,8 @@ class IGR_SB(IGR_I):
 
     def perform_truncation_via_threshold(self, vector):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
-        res = self.get_arrays_that_make_it(vector_cumsum)
+        res = get_arrays_that_make_it(vector_cumsum, tf.constant(self.threshold))
         self.n_required = int(np.percentile(res, q=self.quantile))
-
-    def get_arrays_that_make_it(self, vector_cumsum):
-        batch_n, categories_n, sample_size, _ = vector_cumsum.shape
-        breakpoint()
-        result = tf.TensorArray(tf.int64, size=batch_n * sample_size)
-        i = tf.constant(0)
-        for b in tf.range(batch_n):
-            for s in tf.range(sample_size):
-                thres = tf.where(vector_cumsum[b, :, s, 0] <= self.threshold)
-                max_val = tf.math.reduce_max(thres, axis=0)[0]
-                result = result.write(i, max_val)
-                i += 1
-        return result.stack()
 
 
 class IGR_SB_Finite(IGR_SB):
@@ -239,6 +226,20 @@ def project_to_vertices_via_softmax_pp(lam):
     psi = tf.concat(values=[psi, extra_cat], axis=1)
 
     return psi
+
+
+@tf.function
+def get_arrays_that_make_it(vector_cumsum, threshold):
+    batch_n, categories_n, sample_size, _ = vector_cumsum.shape
+    result = tf.TensorArray(tf.int64, size=batch_n * sample_size)
+    i = tf.constant(0)
+    for b in tf.range(batch_n):
+        for s in tf.range(sample_size):
+            thres = tf.where(vector_cumsum[b, :, s, 0] <= threshold)
+            max_val = tf.math.reduce_max(thres, axis=0)[0]
+            result = result.write(i, max_val)
+            i += 1
+    return result.stack()
 
 
 def accumulate_one_minus_kappa_prods(kappa, lower, upper):
