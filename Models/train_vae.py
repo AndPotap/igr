@@ -212,4 +212,33 @@ def save_final_results(nets, logger, results_file, initial_time, temp):
     results_file = append_timestamp_to_file(file_name=results_file, termination='.h5')
     nets.save_weights(filepath=results_file)
 
-# ===========================================================================================================
+
+def run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, num_of_repetitions, run_with_sample):
+    for _, mod in model_cases.items():
+        hyper_copy = dict(hyper)
+        i = 0
+        experiment = {}
+        for k, v in mod.items():
+            hyper_copy[k] = v
+
+        hyper_copy['latent_discrete_n'] = hyper_copy['n_required']
+        if hyper_copy['model_type'].find('GS') >= 0:
+            hyper_copy['run_closed_form_kl'] = False
+            hyper_copy['num_of_discrete_param'] = 1
+        else:
+            hyper_copy['latent_discrete_n'] += 1
+            hyper_copy['run_closed_form_kl'] = True
+            hyper_copy['num_of_discrete_param'] = 2
+        for _, c in dataset_cases.items():
+            for t in temps:
+                i += 1
+                experiment.update({i: {}})
+                c.update({'temp': t})
+                for key, val in c.items():
+                    experiment[i][key] = val
+
+        for _, d in experiment.items():
+            for key, value in d.items():
+                hyper_copy[key] = value
+            for rep in range(num_of_repetitions):
+                run_vae(hyper=hyper_copy, run_with_sample=run_with_sample)
