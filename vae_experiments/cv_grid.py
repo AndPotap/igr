@@ -25,7 +25,7 @@ for _, mod in model_cases.items():
     hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
              'num_of_discrete_var': 30,
              'learning_rate': 0.001, 'batch_n': 64, 'epochs': 100, 'sample_size': 1,
-             'run_jv': False, 'γ': tf.constant(30.), 'check_every': 10,
+             'run_jv': False, 'gamma': tf.constant(30.), 'check_every': 10,
              'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
     i = 0
     experiment = {}

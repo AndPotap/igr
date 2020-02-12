@@ -17,11 +17,11 @@ model_cases = {
     # 5: {'model_type': 'GS', 'n_required': 10},
 }
 dataset_cases = {
-    1: {'dataset_name': 'mnist', 'γ': tf.constant(30.), 'latent_norm_n': 10,
+    1: {'dataset_name': 'mnist', 'gamma': tf.constant(30.), 'latent_norm_n': 10,
         'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)},
-    2: {'dataset_name': 'fmnist', 'γ': tf.constant(30.), 'latent_norm_n': 10,
+    2: {'dataset_name': 'fmnist', 'gamma': tf.constant(30.), 'latent_norm_n': 10,
         'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)},
-    # 3: {'dataset_name': 'celeb_a', 'γ': tf.constant(100.), 'latent_norm_n': 32,
+    # 3: {'dataset_name': 'celeb_a', 'gamma': tf.constant(100.), 'latent_norm_n': 32,
     #     'cont_c_linspace': (0., 50., 100_000), 'disc_c_linspace': (0., 10., 100_000)}
 }
 for _, mod in model_cases.items():
