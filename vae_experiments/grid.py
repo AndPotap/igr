@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Models.train_vae import run_vae
+from Models.train_vae import run_vae_for_all_cases
 
 run_with_sample = True
 num_of_repetitions = 3
@@ -24,33 +24,8 @@ dataset_cases = {
     # 3: {'dataset_name': 'celeb_a', 'gamma': tf.constant(100.), 'latent_norm_n': 32,
     #     'cont_c_linspace': (0., 50., 100_000), 'disc_c_linspace': (0., 10., 100_000)}
 }
-for _, mod in model_cases.items():
-    hyper = {'num_of_norm_param': 2, 'num_of_norm_var': 1, 'num_of_discrete_var': 1,
-             'learning_rate': 0.001, 'batch_n': 64, 'epochs': 50, 'sample_size': 1,
-             'run_jv': True, 'architecture': 'conv_jointvae', 'check_every': 10}
-    i = 0
-    experiment = {}
-    for k, v in mod.items():
-        hyper[k] = v
+hyper = {'num_of_norm_param': 2, 'num_of_norm_var': 1, 'num_of_discrete_var': 1,
+         'learning_rate': 0.001, 'batch_n': 64, 'epochs': 50, 'sample_size': 1,
+         'run_jv': True, 'architecture': 'conv_jointvae', 'check_every': 10}
 
-    hyper['latent_discrete_n'] = hyper['n_required']
-    if hyper['model_type'].find('GS') >= 0:
-        hyper['run_closed_form_kl'] = False
-        hyper['num_of_discrete_param'] = 1
-    else:
-        hyper['latent_discrete_n'] += 1
-        hyper['run_closed_form_kl'] = True
-        hyper['num_of_discrete_param'] = 2
-    for _, c in dataset_cases.items():
-        for t in temps:
-            i += 1
-            experiment.update({i: {}})
-            c.update({'temp': t})
-            for key, val in c.items():
-                experiment[i][key] = val
-
-    for _, d in experiment.items():
-        for key, value in d.items():
-            hyper[key] = value
-        for rep in range(num_of_repetitions):
-            run_vae(hyper=hyper, run_with_sample=run_with_sample)
+run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, num_of_repetitions, run_with_sample)
