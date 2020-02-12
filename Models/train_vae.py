@@ -214,31 +214,44 @@ def save_final_results(nets, logger, results_file, initial_time, temp):
 
 
 def run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, num_of_repetitions, run_with_sample):
-    for _, mod in model_cases.items():
+    for _, model in model_cases.items():
         hyper_copy = dict(hyper)
-        i = 0
-        experiment = {}
-        for k, v in mod.items():
-            hyper_copy[k] = v
+        hyper_copy = fill_in_dict(hyper_copy, model)
+        hyper_copy = fill_model_depending_settings(hyper_copy)
+        data_and_temps = add_data_and_temp_cases(dataset_cases, temps)
 
-        hyper_copy['latent_discrete_n'] = hyper_copy['n_required']
-        if hyper_copy['model_type'].find('GS') >= 0:
-            hyper_copy['run_closed_form_kl'] = False
-            hyper_copy['num_of_discrete_param'] = 1
-        else:
-            hyper_copy['latent_discrete_n'] += 1
-            hyper_copy['run_closed_form_kl'] = True
-            hyper_copy['num_of_discrete_param'] = 2
-        for _, c in dataset_cases.items():
-            for t in temps:
-                i += 1
-                experiment.update({i: {}})
-                c.update({'temp': t})
-                for key, val in c.items():
-                    experiment[i][key] = val
-
-        for _, d in experiment.items():
-            for key, value in d.items():
-                hyper_copy[key] = value
+        for _, d_and_t in data_and_temps.items():
+            hyper_copy = fill_in_dict(hyper_copy, d_and_t)
             for rep in range(num_of_repetitions):
                 run_vae(hyper=hyper_copy, run_with_sample=run_with_sample)
+
+
+def fill_in_dict(hyper, cases):
+    for k, v in cases.items():
+        hyper[k] = v
+    return hyper
+
+
+def fill_model_depending_settings(hyper_copy):
+    hyper_copy['latent_discrete_n'] = hyper_copy['n_required']
+    if hyper_copy['model_type'].find('GS') >= 0:
+        hyper_copy['run_closed_form_kl'] = False
+        hyper_copy['num_of_discrete_param'] = 1
+    else:
+        hyper_copy['latent_discrete_n'] += 1
+        hyper_copy['run_closed_form_kl'] = True
+        hyper_copy['num_of_discrete_param'] = 2
+    return hyper_copy
+
+
+def add_data_and_temp_cases(dataset_cases, temps):
+    data_and_temp = {}
+    i = 0
+    for _, c in dataset_cases.items():
+        for t in temps:
+            i += 1
+            data_and_temp.update({i: {}})
+            c.update({'temp': t})
+            for key, val in c.items():
+                data_and_temp[i][key] = val
+    return data_and_temp
