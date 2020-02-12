@@ -20,7 +20,7 @@ class OptVAE:
         self.dataset_name = hyper['dataset_name']
 
         self.run_jv = hyper['run_jv']
-        self.γ = hyper['γ']
+        self.gamma = hyper['gamma']
         self.discrete_c = tf.constant(0.)
         self.continuous_c = tf.constant(0.)
 
@@ -84,7 +84,7 @@ class OptVAE:
                                                    run_closed_form_kl=run_closed_form_kl)
         kl = kl_norm + kl_dis
         loss = compute_loss(log_px_z=log_px_z, kl_norm=kl_norm, kl_dis=kl_dis,
-                            run_jv=run_jv, γ=self.γ,
+                            run_jv=run_jv, gamma=self.gamma,
                             discrete_c=self.discrete_c, continuous_c=self.continuous_c)
         output = (loss, tf.reduce_mean(log_px_z), tf.reduce_mean(kl),
                   tf.reduce_mean(kl_norm), tf.reduce_mean(kl_dis))
@@ -361,16 +361,17 @@ class OptSB(OptIGR):
             prior_param=xi_0, batch_size=self.batch_size, categories_n=categories_n,
             sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
 
+
 # ===========================================================================================================
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ===========================================================================================================
 # Additional functions
 # ===========================================================================================================
 def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
-                 γ=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
+                 gamma=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
     if run_jv:
-        loss = -tf.reduce_mean(log_px_z - γ * tf.math.abs(kl_norm - continuous_c)
-                               - γ * tf.math.abs(kl_dis - discrete_c))
+        loss = -tf.reduce_mean(log_px_z - gamma * tf.math.abs(kl_norm - continuous_c)
+                               - gamma * tf.math.abs(kl_dis - discrete_c))
     else:
         kl = kl_norm + kl_dis
         elbo = tf.reduce_mean(log_px_z - kl)
