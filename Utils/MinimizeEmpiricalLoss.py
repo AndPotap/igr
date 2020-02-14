@@ -32,7 +32,7 @@ class MinimizeEmpiricalLoss:
         self.n_required_iter = np.zeros(shape=max_iterations)
         self.run_iteratively = False
 
-    def optimize_model(self, mean_p, var_p, probs, p_samples):
+    def optimize_model(self, probs):
         optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         continue_training = True
         t0 = time.time()
