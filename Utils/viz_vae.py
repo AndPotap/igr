@@ -25,7 +25,6 @@ def plot_reconstructions_samples_and_traversals(hyper, epoch, results_path, test
     _, x_logit, *_ = vae_opt.perform_fwd_pass(x=test_images.astype(np.float32))
     if hyper['dataset_name'] == 'celeb_a' or hyper['dataset_name'] == 'fmnist':
         recon_probs = tf.math.sigmoid(x_logit[0])
-        # recon_probs = tf.math.sigmoid(x_logit)
     else:
         recon_probs = tf.math.sigmoid(x_logit)
     plt.figure(figsize=(5, 4), dpi=100)
@@ -62,16 +61,23 @@ def plot_grid_of_fixed_cont_traversal_along_all_disc_dim(model, fixed_cont_dim, 
         fixed_cont_dim=fixed_cont_dim, cont_dim_n=cont_dim_n, discrete_dim_n=discrete_dim_n,
         traversal_n=traversal_n, total_discrete_n_to_traverse=total_discrete_n_to_traverse)
     images = get_images_from_samples(model, samples=all_latent_samples)
+    nrows = total_discrete_n_to_traverse
+    ncols = traversal_n
+    naming = f'fixed_cont_{fixed_cont_dim:d}.png'
+    plot_images_from_samples(images, nrows, ncols, plots_path, naming)
+
+
+def plot_images_from_samples(images, nrows, ncols, plots_path, naming):
     pointer = 0
     plt.figure(figsize=(5, 4))
-    gs = set_grid_specifications(nrows=total_discrete_n_to_traverse, ncols=traversal_n)
-    for i in range(total_discrete_n_to_traverse):
-        for j in range(traversal_n):
+    gs = set_grid_specifications(nrows=nrows, ncols=ncols)
+    for i in range(nrows):
+        for j in range(ncols):
             plt.subplot(gs[i, j])
             plot_based_on_color_or_black(recon_image=images[pointer, :, :, :])
             pointer += 1
             plt.axis('off')
-    plt.savefig(plots_path + f'fixed_cont_{fixed_cont_dim:d}.png')
+    plt.savefig(plots_path + naming)
     plt.close()
 
 
@@ -81,17 +87,8 @@ def plot_grid_of_random_cont_samples_along_all_disc_dim(model, cont_dim_n, discr
         samples_per_cat=samples_n, discrete_dim_n=discrete_dim_n, cont_dim_n=cont_dim_n,
         total_discrete_n_to_traverse=total_discrete_n_to_traverse)
     images = get_images_from_samples(model, samples=all_random_samples)
-    pointer = 0
-    plt.figure(figsize=(5, 4))
-    gs = set_grid_specifications(nrows=total_discrete_n_to_traverse, ncols=samples_n)
-    for i in range(total_discrete_n_to_traverse):
-        for j in range(samples_n):
-            plt.subplot(gs[i, j])
-            plot_based_on_color_or_black(recon_image=images[pointer, :, :, :])
-            pointer += 1
-            plt.axis('off')
-    plt.savefig(plots_path + f'random_sample.png')
-    plt.close()
+    naming = f'random_sample.png'
+    plot_images_from_samples(images, total_discrete_n_to_traverse, samples_n, plots_path, naming)
 
 
 def set_grid_specifications(nrows, ncols):
@@ -104,7 +101,6 @@ def set_grid_specifications(nrows, ncols):
 def get_images_from_samples(model, samples):
     samples = tf.concat(samples, axis=0)
     images_logits = model.decode(samples)[0]
-    # images_logits = model.decode(samples)
     images = tf.math.sigmoid(images_logits)
     return images
 
