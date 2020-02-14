@@ -49,7 +49,7 @@ class TestSBDist(unittest.TestCase):
                  'batch_size': batch_n, 'learning_rate': 0.001,
                  'epochs': epochs, 'iter_per_epoch': 10, 'temp': tf.constant(0.1)}
         results_path = './Log/'
-        data = load_mnist_sop_data(batch_n=batch_n, epochs=epochs, run_with_sample=True)
+        data = load_mnist_sop_data(batch_n=batch_n, run_with_sample=True)
         train_dataset, test_dataset = data
         run_sop(hyper=hyper, results_path=results_path, data=data)
         hyper['model_type'] = 'IGR_Planar'
