@@ -5,14 +5,9 @@
 import numpy as np
 import tensorflow as tf
 from matplotlib import pyplot as plt
-from multiprocessing import Pool
-from scipy.stats import poisson
-from scipy.stats import binom
-from scipy.stats import geom
-from scipy.stats import nbinom
+from scipy.stats import poisson, binom, geom, nbinom
 from Utils.MinimizeEmpiricalLoss import MinimizeEmpiricalLoss, get_initial_params_for_model_type
 from Utils.Distributions import generate_sample
-# from Utils.example_funcs import plot_loss_and_initial_final_histograms
 from Utils.example_funcs import plot_histograms_of_gs
 from Utils.initializations import get_uniform_mix_probs, sample_from_uniform_mix
 
@@ -24,7 +19,6 @@ learning_rate = 1.e-2
 samples_plot_n = int(1.e4)
 batch_n = 1
 np.random.RandomState(seed=21)
-pool = Pool()
 temp = 0.1
 threshold = 0.99
 # categories_n = 10
