@@ -135,13 +135,12 @@ def run_simulation(samples, τ_grid, models, threshold, stats2run):
     tic = time.time()
     for model, params in models.items():
         results[model].update({'sample': np.zeros(shape=(τ_grid.shape[0], samples))})
-        results[model].update({'sample_var': np.zeros(shape=(τ_grid.shape[0], params[0].shape[1]))})
+        categories_n = params[0].shape[1] if model == 'GS' else params[0].shape[1] + 1
+        results[model].update({'sample_var': np.zeros(shape=(τ_grid.shape[0], categories_n))})
         for i in range(τ_grid.shape[0]):
             τ = tf.constant(τ_grid[i], dtype=tf.float32)
             ψ = generate_sample(sample_size=samples, params=params, dist_type=model, temp=τ,
                                 threshold=threshold, output_one_hot=True)[0, :, :, 0]
-            # ψ = generate_sample(sample_size=samples * 100, params=params, dist_type=model, temp=τ,
-            #                     threshold=threshold, output_one_hot=True)[0, :, :, 0]
             diff = calculate_distance_to_simplex(ψ=ψ, argmax_locs=np.argmax(ψ, axis=0))
             results[model]['sample_var'][i, :] = tf.math.reduce_variance(ψ, axis=1)
             results[model]['sample'][i, :] = diff[np.argsort(diff)][:samples]
