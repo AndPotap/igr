@@ -8,12 +8,12 @@ import pandas as pd
 from sklearn.kernel_ridge import KernelRidge
 import numpy as np
 import tensorflow as tf
-from Utils.Distributions import generate_sample
 import pickle
-from Utils.Distributions import IGR_I, GS, IGR_SB_Finite, IGR_Planar
-from Models.train_vae import construct_nets_and_optimizer
-from Utils.load_data import load_vae_dataset
 from typing import Tuple
+from Utils.Distributions import IGR_I, GS, IGR_SB_Finite, IGR_Planar
+from Utils.Distributions import generate_sample
+from Utils.load_data import load_vae_dataset
+from Models.train_vae import construct_nets_and_optimizer
 from os import environ as os_env
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
