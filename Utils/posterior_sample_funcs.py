@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 from Utils.Distributions import IGR_I, GS, IGR_SB_Finite, IGR_Planar
 from Models.train_vae import construct_nets_and_optimizer
-import numba
+from Utils.simplex_proximity_funcs import calculate_distance_to_simplex
 from Utils.load_data import load_vae_dataset
 
 
@@ -39,18 +39,6 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
                     psi=psi[i, :, :, k], argmax_locs=np.argmax(psi[i, :, :, k], axis=0))
             im_idx += 1
     return diff
-
-
-@numba.jit(nopython=True, parallel=True)
-def calculate_distance_to_simplex(psi, argmax_locs):
-    samples_n = psi.shape[1]
-    categories_n = psi.shape[0]
-    diffs = np.zeros(shape=samples_n)
-    for s in numba.prange(samples_n):
-        zeros = np.zeros(shape=categories_n)
-        zeros[argmax_locs[s]] = 1
-        diffs[s] = np.sqrt(np.sum((zeros - psi[:, s]) ** 2))
-    return diffs
 
 
 def determine_distribution(model_type, params, temp, samples_n, planar_flow=None):
