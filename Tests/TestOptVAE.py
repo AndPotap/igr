@@ -50,7 +50,7 @@ class TestSBDist(unittest.TestCase):
         self.assertTrue(expr=relative_diff < test_tolerance)
 
     def test_calculate_kl_norm_via_general_analytical_formula(self):
-        test_tolerance = 1.e-15
+        test_tolerance = 1.e-10
         samples_n = 1
         num_of_vars = 2
         mean_0 = broadcast_to_shape(np.array([[1., -1., 0.15, 0.45, -0.3],
