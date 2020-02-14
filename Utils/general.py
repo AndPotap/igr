@@ -65,7 +65,6 @@ def plot_histograms_of_gs(ax, p_samples, q_samples_list, q_samples_init_list, nu
     ax[0].set_ylim([0, y_lim])
     ax[0].set_xlim([0, x_lim])
     ax[0].set_title('Initial distribution')
-    # ax[0].set_ylabel('Normalized Counts')
     ax[0].legend()
 
     ax[1].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p',
@@ -76,7 +75,6 @@ def plot_histograms_of_gs(ax, p_samples, q_samples_list, q_samples_init_list, nu
     ax[1].set_title('Final distribution')
     ax[1].set_ylim([0, y_lim])
     ax[1].set_xlim([0, x_lim])
-    # ax[1].set_ylabel('Normalized Counts')
     ax[1].legend()
 
 
@@ -84,11 +82,7 @@ def count_zeros_in_gradient(grad_dict):
     grad_np = np.zeros(shape=100)
     i = 0
     for k, v in grad_dict.items():
-        # z = np.mean(np.mean(v[:, 0, :], axis=0))
-        # z = np.mean(np.var(v[:, 0, :], axis=0))
-        # grad_np[i] = z
         v = v.flatten()
-        # z = v == 0.
         z = np.abs(v) <= 1.e-10
         grad_np[i] = np.mean(z)
         i += 1
@@ -210,6 +204,7 @@ def get_ending_with_timestamp(termination: str = '.pkl') -> str:
 
 
 #  Simplex Proximity Functions
+#  ====================================================================================================================
 def load_parameter_values(prior_file):
     with open(file=prior_file, mode='rb') as f:
         parameters = pickle.load(f)
@@ -316,6 +311,7 @@ def create_placeholders_for_statistical_results(stats, models, samples_per_stat)
 
 
 # Posterior Sampling Funcs
+#  ====================================================================================================================
 def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_file,
                           model_type, run_with_sample=True):
     with open(file=path_to_results + hyper_file, mode='rb') as f:
