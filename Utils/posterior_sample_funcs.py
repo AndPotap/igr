@@ -32,24 +32,24 @@ def sample_from_posterior(path_to_results, hyper_file, dataset_name, weights_fil
             dist = determine_distribution(model_type=model_type, params=params, temp=hyper['temp'],
                                           samples_n=samples_n)
         dist.generate_sample()
-        ψ = dist.psi.numpy()
-        for i in range(ψ.shape[0]):
-            for k in range(ψ.shape[3]):
+        psi = dist.psi.numpy()
+        for i in range(psi.shape[0]):
+            for k in range(psi.shape[3]):
                 diff[im_idx, :, k] = calculate_distance_to_simplex(
-                    ψ=ψ[i, :, :, k], argmax_locs=np.argmax(ψ[i, :, :, k], axis=0))
+                    psi=psi[i, :, :, k], argmax_locs=np.argmax(psi[i, :, :, k], axis=0))
             im_idx += 1
     return diff
 
 
 @numba.jit(nopython=True, parallel=True)
-def calculate_distance_to_simplex(ψ, argmax_locs):
-    samples_n = ψ.shape[1]
-    categories_n = ψ.shape[0]
+def calculate_distance_to_simplex(psi, argmax_locs):
+    samples_n = psi.shape[1]
+    categories_n = psi.shape[0]
     diffs = np.zeros(shape=samples_n)
     for s in numba.prange(samples_n):
         zeros = np.zeros(shape=categories_n)
         zeros[argmax_locs[s]] = 1
-        diffs[s] = np.sqrt(np.sum((zeros - ψ[:, s]) ** 2))
+        diffs[s] = np.sqrt(np.sum((zeros - psi[:, s]) ** 2))
     return diffs
 
 
