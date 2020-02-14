@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 from Utils.Distributions import IGR_I, GS, IGR_SB_Finite, IGR_Planar
 from Models.train_vae import construct_nets_and_optimizer
-from Utils.simplex_proximity_funcs import calculate_distance_to_simplex
+from Utils.general import calculate_distance_to_simplex
 from Utils.load_data import load_vae_dataset
 
 
