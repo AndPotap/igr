@@ -307,13 +307,14 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
                     output_one_hot=False):
     chosen_dist = select_chosen_distribution(dist_type=dist_type, threshold=threshold,
                                              params=params, temp=temp, sample_size=sample_size)
-    categories_n = params[0].shape[1]
+    # categories_n = params[0].shape[1]
     chosen_dist.generate_sample()
     if output_one_hot:
-        vector = np.zeros(shape=(1, categories_n, sample_size, 1))
-        n_required = chosen_dist.psi.shape[1]
-        vector[:, :n_required, :, :] = chosen_dist.psi.numpy()
-        return vector
+        # vector = np.zeros(shape=(1, categories_n, sample_size, 1))
+        # n_required = chosen_dist.psi.shape[1]
+        # vector[:, :n_required, :, :] = chosen_dist.psi.numpy()
+        # return vector
+        return chosen_dist.psi.numpy()
     else:
         sample = np.argmax(chosen_dist.psi.numpy(), axis=1)[0, 0, 0]
         return sample
