@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from scipy.stats import poisson, binom, geom, nbinom
 from Utils.MinimizeEmpiricalLoss import MinimizeEmpiricalLoss, get_initial_params_for_model_type
 from Utils.Distributions import generate_sample
-from Utils.example_funcs import plot_histograms_of_gs
+from Utils.general import plot_histograms_of_gs
 from Utils.initializations import get_uniform_mix_probs, sample_from_uniform_mix
 
 sample_size = 1000
