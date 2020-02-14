@@ -1,14 +1,9 @@
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ===========================================================================================================
-# Imports
-# ===========================================================================================================
 import unittest
 import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
 from Utils.Distributions import IGR_SB, IGR_SB_Finite
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
-# ===========================================================================================================
 
 
 class TestDistributions(unittest.TestCase):
@@ -25,26 +20,26 @@ class TestDistributions(unittest.TestCase):
     def test_compute_log_exp_gs_dist(self):
         test_tolerance = 1.e-4
         batch_n, categories_n, sample_size, num_of_vars = 2, 10, 1, 3
-        τ = tf.constant(value=0.6, dtype=tf.float32)
-        log_π = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
+        temp = tf.constant(value=0.6, dtype=tf.float32)
+        log_pi = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
 
-        uniform_sample = np.random.uniform(size=log_π.shape)
+        uniform_sample = np.random.uniform(size=log_pi.shape)
         gumbel_sample = tf.constant(-np.log(-np.log(uniform_sample)), dtype=tf.float32)
-        y = (log_π + gumbel_sample) / τ
-        log_ψ = y.numpy() - logsumexp(y.numpy(), keepdims=True)
-        log_exp_gs_ans = calculate_log_exp_concrete_for_tensor(log_ψ=log_ψ, α=tf.math.exp(log_π), τ=τ)
-        log_exp_gs = compute_log_exp_gs_dist(log_psi=log_ψ, logits=log_π, temp=τ)
+        y = (log_pi + gumbel_sample) / temp
+        log_psi = y.numpy() - logsumexp(y.numpy(), keepdims=True)
+        log_exp_gs_ans = calculate_log_exp_concrete_for_tensor(log_psi=log_psi, alpha=tf.math.exp(log_pi), temp=temp)
+        log_exp_gs = compute_log_exp_gs_dist(log_psi=log_psi, logits=log_pi, temp=temp)
 
         relative_diff = tf.linalg.norm(log_exp_gs.numpy() - log_exp_gs_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
-        π = tf.constant(np.random.dirichlet(alpha=np.array([i + 1 for i in range(categories_n)]),
-                                            size=(batch_n, sample_size, num_of_vars)), dtype=tf.float32)
-        π = tf.transpose(π, perm=[0, 3, 1, 2])
-        y = (tf.math.log(π) + gumbel_sample) / τ
-        log_ψ = y.numpy() - logsumexp(y.numpy(), keepdims=True)
-        log_exp_gs_ans = calculate_log_exp_concrete_for_tensor(log_ψ=log_ψ, α=π, τ=τ)
-        log_exp_gs = compute_log_exp_gs_dist(log_psi=log_ψ, logits=tf.math.log(π), temp=τ)
+        pi = tf.constant(np.random.dirichlet(alpha=np.array([i + 1 for i in range(categories_n)]),
+                                             size=(batch_n, sample_size, num_of_vars)), dtype=tf.float32)
+        pi = tf.transpose(pi, perm=[0, 3, 1, 2])
+        y = (tf.math.log(pi) + gumbel_sample) / temp
+        log_psi = y.numpy() - logsumexp(y.numpy(), keepdims=True)
+        log_exp_gs_ans = calculate_log_exp_concrete_for_tensor(log_psi=log_psi, alpha=pi, temp=temp)
+        log_exp_gs = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(pi), temp=temp)
         relative_diff = tf.linalg.norm(log_exp_gs.numpy() - log_exp_gs_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
@@ -155,22 +150,22 @@ def compute_softmaxpp(lam, delta=1.):
     return psi
 
 
-def calculate_log_exp_concrete_for_tensor(log_ψ, α, τ):
-    batch_n, sample_size, num_of_vars = log_ψ.shape[0], log_ψ.shape[2], log_ψ.shape[3]
+def calculate_log_exp_concrete_for_tensor(log_psi, alpha, temp):
+    batch_n, sample_size, num_of_vars = log_psi.shape[0], log_psi.shape[2], log_psi.shape[3]
     log_exp_concrete = np.zeros(shape=(batch_n, sample_size, num_of_vars))
     for b in range(batch_n):
         for s in range(sample_size):
             for v in range(num_of_vars):
-                log_exp_concrete[b, s, v] = calculate_log_exp_concrete(log_ψ=log_ψ[b, :, s, v],
-                                                                       α=α[b, :, s, v],
-                                                                       τ=τ)
+                log_exp_concrete[b, s, v] = calculate_log_exp_concrete(log_psi=log_psi[b, :, s, v],
+                                                                       alpha=alpha[b, :, s, v],
+                                                                       temp=temp)
     return log_exp_concrete
 
 
-def calculate_log_exp_concrete(log_ψ, α, τ):
-    categories_n = log_ψ.shape[0]
-    log_const = loggamma(categories_n) + (categories_n - 1) * np.log(τ)
-    aux = np.log(α) - τ * log_ψ
+def calculate_log_exp_concrete(log_psi, alpha, temp):
+    categories_n = log_psi.shape[0]
+    log_const = loggamma(categories_n) + (categories_n - 1) * np.log(temp)
+    aux = np.log(alpha) - temp * log_psi
     log_sum = np.sum(aux) - categories_n * logsumexp(aux)
     return log_const + log_sum
 
@@ -198,7 +193,7 @@ def broadcast_to_batch_and_sample_size(a, batch_n, sample_size):
     shape = a.shape
     a = np.reshape(a, newshape=(1,) + shape)
     a = np.broadcast_to(a, shape=(batch_n,) + shape)
-    a = broadcast_sample_and_num(a=a, shape=a.shape, sample_size=sample_size)
+    a = broadcast_sample_and_num(a=a, shape=a.shape, sample_size=sample_size, num_of_vars=1)
     return a
 
 
