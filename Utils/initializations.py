@@ -1,17 +1,8 @@
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ===========================================================================================================
-# Imports
-# ===========================================================================================================
 import numpy as np
 import tensorflow as tf
 from typing import Tuple
 from os import environ as os_env
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
-# ===========================================================================================================
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ===========================================================================================================
-# Initialization functions
-# ===========================================================================================================
 
 
 def get_uniform_mix_probs(initial_point: int, middle_point: int, final_point: int, mass_in_beginning,
@@ -62,19 +53,3 @@ def initialize_mu_and_xi_for_logistic(shape, seed: int = 21) -> Tuple[tf.Variabl
     mu = tf.Variable(initial_value=mu, dtype=tf.float32)
     xi = tf.Variable(initial_value=xi, dtype=tf.float32)
     return mu, xi
-
-
-def get_initial_analytical_mus(probs: np.ndarray, initialization_type: str = 'stick-break') -> tf.Tensor:
-    mu, cumsum = np.zeros(shape=probs.shape[0]), 0
-
-    if initialization_type == 'stick-break':
-        for i in range(probs.shape[0]):
-            mu[i] = np.log(probs[i] / (1. - cumsum))
-            cumsum += probs[i]
-
-    elif initialization_type == 'sigmoid':
-        for i in range(probs.shape[0]):
-            mu[i] = np.log(probs[i] / (1. - probs[i]))
-
-    return tf.reshape(tf.constant(value=mu, dtype=tf.float32), shape=(probs.shape[0], 1))
-# ===========================================================================================================
