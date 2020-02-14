@@ -9,8 +9,8 @@ class TestSBDist(unittest.TestCase):
 
     def test_calculate_kl_norm_via_analytical_formula(self):
         test_tolerance = 1.e-5
-        samples_n = 1
-        num_of_vars = 2
+        cases = []
+        samples_n, num_of_vars = 1, 2
         mu = broadcast_to_shape(np.array([[1., -1., 0.15, 0.45, -0.3],
                                           [-0.1, 0.98, 0.02, -1.4, 0.35],
                                           [0., 0., 2., 2., 0.]]), samples_n=samples_n, num_of_vars=num_of_vars)
@@ -18,24 +18,21 @@ class TestSBDist(unittest.TestCase):
             [[-1.7261764, 0.1970883, -0.05951275, 0.43101027, 1.00751897],
              [-1.55425, -0.0337, 1.22609, -0.19088, 0.9577],
              [0., 0., 0., 0., 0.]]), samples_n=samples_n, num_of_vars=num_of_vars)
-        kl_norm_ans = calculate_kl_norm(mu=mu, sigma2=np.exp(log_sigma2))
-        kl_norm = calculate_simple_closed_gauss_kl(mean=tf.constant(mu, dtype=tf.float32),
-                                                   log_var=tf.constant(log_sigma2, dtype=tf.float32))
-        relative_diff = np.linalg.norm((kl_norm.numpy() - kl_norm_ans) / kl_norm_ans)
-        self.assertTrue(expr=relative_diff < test_tolerance)
+        cases.append((mu, log_sigma2))
 
-        samples_n = 2
-        batch_n = 68
-        categories_n = 15
+        samples_n, batch_n, categories_n = 2, 68, 15
         mu = broadcast_to_shape(np.random.normal(size=(batch_n, categories_n)),
                                 samples_n=samples_n, num_of_vars=num_of_vars)
         log_sigma2 = broadcast_to_shape(np.random.lognormal(size=(batch_n, categories_n)),
                                         samples_n=samples_n, num_of_vars=num_of_vars)
-        kl_norm_ans = calculate_kl_norm(mu=mu, sigma2=np.exp(log_sigma2))
-        kl_norm = calculate_simple_closed_gauss_kl(mean=tf.constant(mu, dtype=tf.float32),
-                                                   log_var=tf.constant(log_sigma2, dtype=tf.float32))
-        relative_diff = np.linalg.norm((kl_norm.numpy() - kl_norm_ans) / kl_norm_ans)
-        self.assertTrue(expr=relative_diff < test_tolerance)
+        cases.append((mu, log_sigma2))
+
+        for mu, log_sigma2 in cases:
+            kl_norm_ans = calculate_kl_norm(mu=mu, sigma2=np.exp(log_sigma2))
+            kl_norm = calculate_simple_closed_gauss_kl(mean=tf.constant(mu, dtype=tf.float32),
+                                                       log_var=tf.constant(log_sigma2, dtype=tf.float32))
+            relative_diff = np.linalg.norm((kl_norm.numpy() - kl_norm_ans) / kl_norm_ans)
+            self.assertTrue(expr=relative_diff < test_tolerance)
 
     def test_calculate_kl_gs_via_discrete_formula(self):
         test_tolerance = 1.e-5
