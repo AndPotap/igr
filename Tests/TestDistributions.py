@@ -43,26 +43,29 @@ class TestDistributions(unittest.TestCase):
         relative_diff = tf.linalg.norm(log_exp_gs.numpy() - log_exp_gs_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
+    def setUp(self):
+        self.sample_size, self.num_of_vars = 5, 2
+        self.temp = tf.constant(0.1, dtype=tf.float32)
+        self.kappa_stick = np.array([[0.1, 0.22222224, 0.42857146, 0.75000006],
+                                     [0.3, 0.4, 0.5, 0.6],
+                                     [0.3, 0.28571428571428575, 0.2, 0.5]])
+        self.batch_size, self.max_size = self.kappa_stick.shape[0], self.kappa_stick.shape[1]
+        self.kappa_stick = broadcast_sample_and_num(self.kappa_stick, self.kappa_stick.shape,
+                                                    self.sample_size, self.num_of_vars)
+        self.eta_ans = np.array([[0.1, 0.2, 0.3, 0.3],
+                                 [0.3, 0.28, 0.21, 0.126],
+                                 [0.3, 0.2, 0.1, 0.2]])
+
     def test_perform_finite_stick_break_with_manual_input(self):
         test_tolerance = 1.e-7
-        sample_size, num_of_vars = 5, 2
-        temp = tf.constant(0.1, dtype=tf.float32)
-        kappa_stick = np.array([[0.1, 0.22222224, 0.42857146, 0.75000006],
-                                [0.3, 0.4, 0.5, 0.6],
-                                [0.3, 0.28571428571428575, 0.2, 0.5]])
-        batch_size, max_size = kappa_stick.shape[0], kappa_stick.shape[1]
-        kappa_stick = broadcast_sample_and_num(kappa_stick, kappa_stick.shape, sample_size, num_of_vars)
-        eta_ans = np.array([[0.1, 0.2, 0.3, 0.3],
-                            [0.3, 0.28, 0.21, 0.126],
-                            [0.3, 0.2, 0.1, 0.2]])
-        eta_ans = broadcast_sample_and_num(eta_ans, eta_ans.shape, sample_size, num_of_vars)
-        mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
-        xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
+        eta_ans = broadcast_sample_and_num(self.eta_ans, self.eta_ans.shape, self.sample_size, self.num_of_vars)
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(self.batch_size, self.max_size, 1, self.num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(self.batch_size, self.max_size, 1, self.num_of_vars))
 
-        sb = IGR_SB_Finite(mu, xi, temp, sample_size=sample_size)
-        eta_matrix = compute_and_threshold_eta(sb, kappa_stick, run_iteratively=False)
-        eta_iter = compute_and_threshold_eta(sb, kappa_stick, run_iteratively=True)
-        eta_np = calculate_eta_from_kappa(kappa_stick)
+        sb = IGR_SB_Finite(mu, xi, self.temp, sample_size=self.sample_size)
+        eta_matrix = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=False)
+        eta_iter = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=True)
+        eta_np = calculate_eta_from_kappa(self.kappa_stick)
 
         eta_all = [eta_np, eta_matrix.numpy(), eta_iter.numpy()]
         for e in eta_all:
@@ -71,29 +74,17 @@ class TestDistributions(unittest.TestCase):
 
     def test_perform_stick_break_with_manual_input(self):
         test_tolerance = 1.e-7
-        sample_size, num_of_vars, threshold = 5, 2, 0.8
-        temp = tf.constant(0.1, dtype=tf.float32)
-        kappa_stick = np.array([[0.1, 0.22222224, 0.42857146, 0.75000006],
-                                [0.3, 0.4, 0.5, 0.6],
-                                [0.3, 0.28571428571428575, 0.2, 0.5]])
-        batch_size, max_size = kappa_stick.shape[0], kappa_stick.shape[1]
-        kappa_stick = broadcast_sample_and_num(kappa_stick, kappa_stick.shape, sample_size, num_of_vars)
-        eta_ans = np.array([[0.1, 0.2, 0.3, 0.3],
-                            [0.3, 0.28, 0.21, 0.126],
-                            [0.3, 0.2, 0.1, 0.2]])
-        # eta_cumsum = np.array([[0.1, 0.3,  0.6,  0.9],
-        #                        [0.3, 0.58, 0.79, 0.916],
-        #                        [0.3, 0.5,  0.6,  0.8]])
+        threshold = 0.8
         n_required_ans = 2 + 1
-        eta_ans = broadcast_sample_and_num(eta_ans, eta_ans.shape, sample_size, num_of_vars)
+        eta_ans = broadcast_sample_and_num(self.eta_ans, self.eta_ans.shape, self.sample_size, self.num_of_vars)
         eta_ans = eta_ans[:, :n_required_ans, :]
-        mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
-        xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(self.batch_size, self.max_size, 1, self.num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(self.batch_size, self.max_size, 1, self.num_of_vars))
 
-        sb = IGR_SB(mu, xi, temp, sample_size=sample_size, threshold=threshold)
-        eta_matrix = compute_and_threshold_eta(sb, kappa_stick, run_iteratively=False)
-        eta_iter = compute_and_threshold_eta(sb, kappa_stick, run_iteratively=True)
-        eta_np = calculate_eta_from_kappa(kappa_stick)[:, :n_required_ans, :]
+        sb = IGR_SB(mu, xi, self.temp, sample_size=self.sample_size, threshold=threshold)
+        eta_matrix = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=False)
+        eta_iter = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=True)
+        eta_np = calculate_eta_from_kappa(self.kappa_stick)[:, :n_required_ans, :]
 
         eta_all = [eta_np, eta_matrix.numpy(), eta_iter.numpy()]
         for e in eta_all:
