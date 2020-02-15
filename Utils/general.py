@@ -357,6 +357,8 @@ def initialize_mu_and_xi_for_logistic(shape, seed: int = 21) -> Tuple[tf.Variabl
     else:
         mu[:, :categories, :] = tf.math.log(a / (1 - a))
 
+    # noinspection PyArgumentList
     mu = tf.Variable(initial_value=mu, dtype=tf.float32)
+    # noinspection PyArgumentList
     xi = tf.Variable(initial_value=xi, dtype=tf.float32)
     return mu, xi

@@ -85,7 +85,9 @@ def get_initial_params_for_model_type(model_type, shape):
                          shape=(batch_size, categories_n, 1, 1))
         pi_init = tf.constant(pi.numpy().copy(), dtype=tf.float32,
                               shape=(batch_size, categories_n, 1, 1))
+        # noinspection PyArgumentList
         params = [tf.Variable(initial_value=pi)]
+        # noinspection PyArgumentList
         params_init = [tf.Variable(initial_value=pi_init)]
     elif model_type in ['IGR_I', 'IGR_SB', 'IGR_SB_Finite']:
         shape_igr = (batch_size, categories_n - 1, sample_size, num_of_vars)

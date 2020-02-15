@@ -40,6 +40,7 @@ class Distributions:
         return epsilon
 
 
+# noinspection PyPep8Naming
 class IGR_I(Distributions):
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
         super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
@@ -62,6 +63,7 @@ class IGR_I(Distributions):
         return lam
 
 
+# noinspection PyPep8Naming
 class IGR_Planar(IGR_I):
     def __init__(self, mu, xi, temp, planar_flow, sample_size=1, noise_type='normal'):
         super().__init__(mu, xi, temp, sample_size, noise_type)
@@ -72,6 +74,7 @@ class IGR_Planar(IGR_I):
         return lam
 
 
+# noinspection PyPep8Naming
 class IGR_SB(IGR_I):
 
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99, run_iteratively=False):
@@ -111,6 +114,7 @@ class IGR_SB(IGR_I):
         self.n_required = int(np.percentile(res, q=self.quantile)) + 1
 
 
+# noinspection PyPep8Naming
 class IGR_SB_Finite(IGR_SB):
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
         super().__init__(mu=mu, xi=xi, temp=temp, sample_size=sample_size, noise_type=noise_type)
