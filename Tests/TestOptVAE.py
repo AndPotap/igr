@@ -42,7 +42,7 @@ class TestSBDist(unittest.TestCase):
                                                  [-0.1, 0.98, 0.02, -1.4, 0.35]]),
                                        samples_n=samples_n, num_of_vars=num_of_vars)[:, :, :, 0]
         kl_discrete_ans = calculate_kl_discrete(alpha=tf.math.softmax(log_alpha, axis=1))
-        kl_discrete = calculate_categorical_closed_kl(log_α=tf.constant(log_alpha, dtype=tf.float32))
+        kl_discrete = calculate_categorical_closed_kl(log_alpha=tf.constant(log_alpha, dtype=tf.float32))
         relative_diff = np.linalg.norm((kl_discrete.numpy() - kl_discrete_ans) / kl_discrete_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
