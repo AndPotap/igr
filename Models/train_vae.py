@@ -8,12 +8,10 @@ from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBFinite, OptExpGS
 from Models.OptVAE import OptIGRDis, OptExpGSDis, OptPlanarNFDis, OptPlanarNF
 from Utils.viz_vae import plot_originals, plot_reconstructions_samples_and_traversals
 from Utils.general import setup_logger, append_timestamp_to_file
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ===========================================================================================================
+
+
 # Train VAE
 # ===========================================================================================================
-
-
 def run_vae(hyper, run_with_sample):
     data = load_vae_dataset(dataset_name=hyper['dataset_name'], batch_n=hyper['batch_n'],
                             epochs=hyper['epochs'], run_with_sample=run_with_sample,
@@ -58,7 +56,7 @@ def construct_nets_and_optimizer(hyper, model_type):
 
 def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every, monitor_gradients=False):
     logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
-    init_vars = run_initialization_procedure(hyper, test_images, results_path)
+    init_vars = run_initialization_procedure(hyper, results_path)
     (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace, grad_monitor_dict,
      grad_norm) = init_vars
 
@@ -70,6 +68,7 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
             vae_opt, iteration_counter = perform_train_step(x_train, vae_opt, train_loss_mean,
                                                             iteration_counter, disc_c_linspace, cont_c_linspace)
         t1 = time.time()
+        # noinspection PyUnboundLocalVariable
         monitor_vanishing_grads(monitor_gradients, x_train, vae_opt,
                                 iteration_counter, grad_monitor_dict, epoch)
 
@@ -102,7 +101,7 @@ def log_all_hyperparameters(hyper, logger):
         logger.info(f'Hyper: {key}: {value}')
 
 
-def run_initialization_procedure(hyper, test_images, results_path):
+def run_initialization_procedure(hyper, results_path):
     init_vars = initialize_vae_variables(results_path=results_path, hyper=hyper)
     hyper_file, *_ = init_vars
 

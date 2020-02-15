@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from Utils.Distributions import compute_gradients, apply_gradients
 from Utils.general import initialize_mu_and_xi_for_logistic, initialize_mu_and_xi_equally, setup_logger
+
 logger = setup_logger(log_file_name='./Log/discrete.log')
 
 

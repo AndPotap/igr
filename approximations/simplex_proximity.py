@@ -9,7 +9,6 @@ K, N, S = 50, 100, 10_000
 pi = tf.constant(value=[1 / K for _ in range(K)], dtype=tf.float32, shape=(1, K, 1, 1))
 mu, xi = load_parameter_values(prior_file='./Results/mu_xi_unif_50_IGR_I.pkl')
 
-
 all_temps = np.linspace(start=0.05, stop=1.0, num=N)
 threshold = 0.99
 

@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Tuple, List
 from os import environ as os_env
+
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 

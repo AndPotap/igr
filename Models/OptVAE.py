@@ -3,7 +3,7 @@ from typing import Tuple
 import tensorflow as tf
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite, GS, compute_log_exp_gs_dist
-from Utils.initializations import initialize_mu_and_xi_for_logistic
+from Utils.general import initialize_mu_and_xi_for_logistic
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
