@@ -100,7 +100,7 @@ def evaluate_progress_in_test_set(epoch, sop_optimizer, test_dataset, logger, hy
         x_test_upper = x_test[:, :14, :, :]
         loss = sop_optimizer.compute_loss_for_testing(x_upper=x_test_upper,
                                                       x_lower=x_test_lower, discretized=False,
-                                                      sample_size=100)
+                                                      sample_size=1)
         test_mean_loss(loss)
     logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.5e} || '
                 f'Train_Recon {train_mean_loss.result().numpy():2.5e} || '
