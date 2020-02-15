@@ -17,7 +17,8 @@ class SOPOptimizer:
         logits = self.model.call(x_upper=x_upper, discretized=discretized, sample_size=sample_size)
         return logits
 
-    def compute_loss(self, x_lower, logits):
+    @staticmethod
+    def compute_loss(x_lower, logits):
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower, logits=logits)
         loss = tf.math.reduce_sum(loss, axis=[1, 2, 3])
         loss = tf.math.reduce_mean(loss)
@@ -117,8 +118,8 @@ def viz_reconstruction(test_image, model):
     for selected in selected_list:
         plt.figure()
         plt.imshow(image[selected, :, :, 0])
-        plt.savefig(f'./Log/sop/recon_{selected}.png')
+        plt.savefig(f'./Results/recon_{selected}.png')
 
         plt.figure()
         plt.imshow(test_image.numpy()[selected, :, :, 0], cmap='gray')
-        plt.savefig(f'./Log/sop/recon_original_{selected}.png')
+        plt.savefig(f'./Results/recon_original_{selected}.png')
