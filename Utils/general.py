@@ -72,7 +72,6 @@ def get_for_approx(run_against, categories_n, samples_plot_n):
         results_file = f'./Results/mu_xi_discrete.pkl'
         probs = tf.constant(np.array([10., 1., 5., 1., 10., 10., 1., 6., 1., 1.]), dtype=tf.float32)
         probs = probs / np.sum(probs)
-        categories_n = probs.shape[0]
         p_samples = np.random.choice(a=probs.shape[0], p=probs.numpy(), size=samples_plot_n)
     elif run_against == 'poisson':
         poisson_mean = 50
@@ -106,15 +105,10 @@ def get_for_approx(run_against, categories_n, samples_plot_n):
 
 
 def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, q_samples_init,
+                                           model_type, y_lim_max, x_lim_max,
                                            title: str, number_of_bins: int = 15):
     total_iterations = loss_iter.shape[0]
     hist_color = '#377eb8'
-    label = 'IGR-SB'
-    # hist_color = '#984ea3'
-    # label = 'GS with K = 12'
-    ylim = 0.3
-    # xlim = 12
-    xlim = 70
     ax[0].set_title(title)
     ax[0].set_xlabel('Iterations')
     ax[0].set_ylabel('Loss')
@@ -126,17 +120,17 @@ def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, 
 
     ax[1].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p', density=True)
     ax[1].hist(q_samples_init, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5,
-               label=label, density=True)
-    ax[1].set_ylim([0, ylim])
-    ax[1].set_xlim([0, xlim])
+               label=model_type, density=True)
+    ax[1].set_ylim([0, y_lim_max])
+    ax[1].set_xlim([0, x_lim_max])
     ax[1].set_title('Initial distribution')
     ax[1].legend()
 
     ax[2].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p', density=True)
-    ax[2].hist(q_samples, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5, label=label, density=True)
+    ax[2].hist(q_samples, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5, label=model_type, density=True)
     ax[2].set_title('Final distribution')
-    ax[2].set_ylim([0, ylim])
-    ax[2].set_xlim([0, xlim])
+    ax[2].set_ylim([0, y_lim_max])
+    ax[2].set_xlim([0, x_lim_max])
     ax[2].legend()
 
 
