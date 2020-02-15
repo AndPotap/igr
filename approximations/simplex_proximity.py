@@ -1,8 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from Utils.simplex_proximity_funcs import load_parameter_values, run_simulation, plot_stat_result
-from Utils.simplex_proximity_funcs import fit_curve_to_result_along_grid
-from Utils.simplex_proximity_funcs import plot_boxplots
+from Utils.general import load_parameter_values, run_simulation, plot_stat_result
+from Utils.general import fit_curve_to_result_along_grid, plot_boxplots
 
 # K, N, S = 50, 10, 8
 K, N, S = 50, 100, 10_000
