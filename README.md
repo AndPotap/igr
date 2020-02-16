@@ -23,16 +23,16 @@ interest.
 ### Requirements
 Briefly, the requirements for the project are to install Python >= 3.6 (since we use printing syntax
 only available after 3.6) and to `pip` install the packages from `requirements.txt` (they will fetch all the dependencies
-needed). This repo was develop using Tensorflow 2.0.1, but it runs for 2.1.0 as well. The only
-package that requires a specific version is Tensorflow Datasets 1.3.0 since the features in CelebA
-changed. Moreover, we also added a Singulariy definition file `igr_singularity.def` if you want to create an
+needed). This repo was develop using TensorFlow 2.0.1, but it runs for 2.1.0 as well. The only
+package that requires a specific version is TensorFlow Datasets 1.3.0 since the features in CelebA
+changed. Moreover, we also added a Singularity definition file `igr_singularity.def` if you want to create an
 image to run the project in a HPC cluster (it will only require that the host has the 10.0 CUDA drivers available).
 Finally, check that the installation was successful by running
 ```
 cd ./igr/
 python3 vae_experiments/mnist_vae.py
 ```
-from wherever you cloned the repo. It should successfuly run an experiment with an small sample that should
+from wherever you cloned the repo. It should successfully run an experiment with an small sample that should
 take 5 - 10 seconds.
 
 ## General Information
@@ -63,13 +63,9 @@ replicate the paper results (more details in the next section).
 * `structure_output_prediction`: contains all the scripts to run the SOP experiments (more details in the next section).
 
 ### Conventions
+Below I expand on the name of variables and hyperparameters that appear frequently in different experiment scripts.
 
-This experiment is run by a function named `run_vae` this function takes as arguments two parameters. (1) is a
-dictionary that contains all the hyperparameter specifications of the model `hyper` and (2) a flag to test
-that the code is running properly `run_with_sample` (set to False in order to run the experiment with all the data).
-The contents of that the hyperparameter dictionary expects are detailed below:
-
-| Key                               | Value (Example)                            | Description     |
+| Name                               | Type and Value (Example)                            | Description     |
 | :-------------------------------- | :------------------------------: | :-----------------------: |
 | `dataset_name` | `<str> ('mnist')`  | The name of the dataset to run the model. |
 | `model_type` | `<str> ('ExpGSDis')`  | The name of the model to use. Look at `./Models/train_vae.py`  for all the model options. |
@@ -90,9 +86,25 @@ The contents of that the hyperparameter dictionary expects are detailed below:
 | `cont_c_linspace` | `<tuple> ((0., 5., 25000))`  | The lower bound, upper bound, and how many iters to get from lower to upper. |
 | `disc_c_linspace` | `<tuple> ((0., 5., 25000))`  | The lower bound, upper bound, and how many iters to get from lower to upper. |
 | `check_every` | `<int> (1)`  | How often (in terms of epochs) the test loss is evaluated. |
+| `run_with_sample` | `<bool> (True)`  | Test the experiment with a small sample. |
+| `num_of_repetitions` | `<int> (1)`  | Determine how many times to run the experiment (useful for doing CV). |
+| `truncation_options` | `<str> ('quantile')`  | xxx. |
+| `threshold` | `<float> (0.99)`  | xxx. |
+| `prior_file` | `<str> ('./Results/mu_xi_unif_10_IGR_SB_Finite.pkl')`  | Location of the prior parameters
+file. |
+| `xxx` | `<xxx> (xxx)`  | xxx. |
+| `xxx` | `<xxx> (xxx)`  | xxx. |
 
 
 ## Replicating Figures / Tables in the paper
+
+### Figure 1
+* Input: Nothing
+* Files involved: `approximations/simplex_proximity.py`
+XXX
+
+## Discussion
+Below I discuss some relevant topics.
 
 ### Implementation Nuances
 
@@ -103,7 +115,7 @@ estimation. Additionally, the number of categories has a maximum that is set as 
 reference (this is called `latent_discrete_n` in the `hyper` dictionary). This maximum can be moved
 accordingly to fit the problem. For example, for CelebA we set a maximum number of categories to 50
 but the thresholding procedure ended up selecting 20-30. Moving the maximum beyond 50 would have
-resulted in waste of memory allocated but would have not yield any quantitive difference. However,
+resulted in waste of memory allocated but would have not yield any quantitative difference. However,
 setting the maximum to 10 would have truncated the stick-breaking procedure too soon and would have
 resulted in a loss of performance. To avoid this situation, we recommend monitoring if the threshold
 is met. If not, then increasing the maximum would be needed.
