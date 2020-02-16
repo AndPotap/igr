@@ -16,19 +16,20 @@ while generating samples that are closer to their discrete counterparts and achi
 
 ## Overview
 The goal of this documentation is to clarify the structure of the repo and to provide a guide to replicate the
-results from the paper. To avoid reading all the repo details, I will recommend that you find the files that
-are linked to the experiment that you want to run and only then check the information about the folder of
-interest.
+results from the paper. To avoid reading all details, I recommend that you find the files that are linked to
+the experiment that you want to run (see Replicating Figures / Tables section) and only then check the
+information about the folder of interest in the (General Information section).
 
 ### Requirements
-Briefly, the requirements for the project are to install Python >= 3.6 (since we use printing syntax
-only available after 3.6) and to `pip` install the packages from `requirements.txt` (they will fetch all the dependencies
-needed). This repo was develop using TensorFlow 2.0.1, but it runs for 2.1.0 as well. The only
-package that requires a specific version is TensorFlow Datasets 1.3.0 since the features in CelebA
-changed. Moreover, we also added a Singularity definition file `igr_singularity.def` if you want to create an
-image to run the project in a HPC cluster (it will only require that the host has the 10.0 CUDA drivers available).
-Finally, check that the installation was successful by running
+Briefly, the requirements for the project are Python >= 3.6 (since we use printing syntax only available after
+3.6) and to `pip install -r requirements.txt` as that will get all the packages need and the dependencies as
+well. This repo was develop using TensorFlow 2.0.1, but it runs for 2.1.0 as well. The only package that
+requires a specific version is TensorFlow Datasets 1.3.0 since the features in CelebA changed. Moreover, we
+also added a Singularity definition file `igr_singularity.def` if you want to create an image to run the
+project in a HPC cluster (it will only require that the host has the 10.0 CUDA drivers available). Finally,
+check that the installation was successful by running
 ```
+pip install -r requirements.txt
 cd ./igr/
 python3 vae_experiments/mnist_vae.py
 ```
@@ -46,35 +47,35 @@ take 5 - 10 seconds.
 (`OptVAE`, `SOPOptimizer`), and the neural network architectures (`VAENet.py` `SOP.py`)
 for both the VAE and for the SOP experiments.
 * `Results`: this directory serves two purposes. First, it holds all the figures created by the scripts in the
-  repo and then it contains the outputs from the experiments runs that are used as input for some figures /
+  repo and then it contains the outputs from the experiments that are used as input for some figures /
   tables.
 * `Tests`: contains various tests for relevant classes in the repo. The name indicates which class is being tested.
 * `Utils`: has key functions / classes used throughout the repo: `Distributions.py` contains the GS and
   IGR samplers, `MinimizeEmpiricalLoss.py` contains the optimizer class for learning the parameters that
   approximate a discrete distribution, `general.py` contains the functions used for approximating discrete
-  distributions, to evaluate simplex proximity and to initializing the distribution's parameters,
+  distributions, for evaluating simplex proximity and for initializing the distribution's parameters,
   `load_data.py` contains all the utils needed to load the data, `posterior_sampling_funcs.py`, contains the
   functions to sample from the posterior distribution and `viz_vae.py` contains the functions to
   plot the performance over time.
 * `approximations`: contains all the scripts to approximate discrete distributions and to learn the IGR
-  priors (more details in the next section).
+  priors (more details in the Replicating section).
 * `vae_experiments`: contains all the scripts to run the VAE experiments to
-replicate the paper results (more details in the next section).
-* `structure_output_prediction`: contains all the scripts to run the SOP experiments (more details in the next section).
+replicate the paper results (more details in the Replicating section).
+* `structure_output_prediction`: contains all the scripts to run the SOP experiments (more details in the Replicating section).
 
 ### Conventions
 All the scripts and saving references assume that you are running the files from the root folder of the repo
-(as in the first test to check that the installation was correct). Therefore, from the terminal run the
+(as in the first test to check that the installation was correct). In other words, from the terminal run the
 scripts as
 ```
 python3 path/to/script.py
 ```
-Throughout the code, the discrete tensors have the following shape `(batch_n, categories_n, sample_size,
-num_of_vars)`. Where `batch_n` is the batch size used at each iteration (selected by the user), `categories_n`
-is the dimension of each of the discrete variables, `sample_size` is the number of samples taken during the
-reparameterization trick and `num_of_vars` the number of discrete variables that the model has. Finally, below
-is a list that expands on the name of variables and hyperparameters that appear frequently in different
-experiment scripts.
+or set your IDE to run files from the root location. Throughout the code, the discrete tensors have the
+following shape `(batch_n, categories_n, sample_size, num_of_vars)`. Where `batch_n` is the batch size used at
+each iteration (selected by the user), `categories_n` is the dimension of each of the discrete variables,
+`sample_size` is the number of samples taken during the reparameterization trick and `num_of_vars` the number
+of discrete variables that the model has. Finally, below is a list that expands on the name of variables and
+hyperparameters that appear frequently in different experiment scripts.
 
 | Name                               | Type and Value (Example)                            | Description     |
 | :-------------------------------- | :------------------------------: | :-----------------------: |
@@ -82,8 +83,9 @@ experiment scripts.
 | `model_type` | `<str> ('ExpGSDis')`  | The name of the model to use. Look at `./Models/train_vae.py`  for all the model options. |
 | `temp` | `<float> (0.25)`  | The value of the temperature hyperparameter.|
 | `sample_size`  | `<int> (1)`  | The number of samples that are taken from the noise distribution at each iteration. |
-| `n_required` | `<int> ('10')`  | The number of categories needed for each discrete variable. |
-| `num_of_discrete_param` | `<int> (1)`  | The number of parameters for the discrete variables. |
+| `n_required` | `<int> ('10')`  | The number of categories needed for each discrete variable (identical to `categories_n`. |
+| `num_of_discrete_param` | `<int> (1)`  | The number of parameters for the discrete variables. Alpha for GS
+mu and sigma for IGR|
 | `num_of_discrete_var` | `<int> (2)`  | The number of discrete variables in the model. |
 | `num_of_norm_param` | `<int> (0)`  | The number of parameters for the continuous variables. |
 | `num_of_norm_var` | `<int> (0)`  | The number of continuous variables in the model. |
@@ -99,18 +101,18 @@ experiment scripts.
 | `check_every` | `<int> (1)`  | How often (in terms of epochs) the test loss is evaluated. |
 | `run_with_sample` | `<bool> (True)`  | Test the experiment with a small sample. |
 | `num_of_repetitions` | `<int> (1)`  | Determine how many times to run the experiment (useful for doing CV). |
-| `truncation_options` | `<str> ('quantile')`  | Statistical procedure to determine the categories needed in a given batch. |
+| `truncation_options` | `<str> ('quantile')`  | The statistical procedure to determine the categories needed in a given batch. |
 | `threshold` | `<float> (0.99)`  | The precision parameter for the IGR-SB. |
 | `prior_file` | `<str> ('./Results/mu_xi_unif_10_IGR_SB_Finite.pkl')`  | Location of the prior parameters file. |
-| `run_closed_form_kl` | `<bool> (True)`  | Whether to use the Gaussian closef form KL (only available to the IGR). |
+| `run_closed_form_kl` | `<bool> (True)`  | Whether to use the Gaussian close form KL (only available to the IGR). |
 | `width_height` | `<tuple> ((14, 28, 1))`  | The size of the images for the SOP experiment. |
 | `iter_per_epoch` | `<int> (937)`  | The number of iterations per epoch in SOP (the VAE experiments infer this). |
 
 
-## Replicating Figures / Tables in the paper
+## Replicating Figures / Tables
 Below is a description of how to replicate each of the Figures and Tables in the paper. The instructions
 assume that no previous result has been saved, however, the repo contains the weights and log files needed to
-replicate each Figure and Table.
+replicate each Figure and Table so that you can run the scripts that require an input.
 
 ### Figure 1
 * Input: None
@@ -140,8 +142,8 @@ and hyperparameters that you wish to run (see the Conventions section). Then mov
 with ending specified by the `model` string. For example, if you ran then `IGR-I` model 5 times on MNIST and
 you wish to plot the results, then place the 5 loss logs into the directory `./Results/elbo/mnist/igr_i_20`
 and only run case 6, comment out the others. Hence, the location where the files are searched are a
-combination of `Results/<path>/<models['model']>`. The 20 ending refers to the temperature value that makes
-75% of the posterior samples be in a disctance of 0.2 to the simplex vertex, while the cv ending to the
+combination of `Results/<path>/<models['model']>`. The `_20` ending refers to the temperature value that makes
+75% of the posterior samples be in a disctance of 0.2 to the simplex vertex, while the `_cv` ending to the
 temperature values choosen by Cross Validation.
 
 ### Table 1
