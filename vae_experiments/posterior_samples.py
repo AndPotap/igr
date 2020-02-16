@@ -6,7 +6,7 @@ import pandas as pd
 
 dataset_name = 'mnist'
 run_with_sample = False
-plots_path = './Results/Outputs/'
+plots_path = './Results/'
 path = './Results/posterior_samples/' + dataset_name + '/'
 models = {
     1: {'model': 'igr_planar_cv', 'label': 'IGR-Planar(0.85)', 'type': 'IGR_Planar_Dis'},
@@ -46,6 +46,6 @@ plt.ylabel('Euclidean Distance')
 # plt.ylim([0.0, 0.5])
 plt.xlabel('Models')
 plt.legend()
-plt.savefig('./Results/Outputs/posterior_samples_' + dataset_name + '.png')
+plt.savefig('./Results/posterior_samples_' + dataset_name + '.png')
 plt.tight_layout()
 plt.show()

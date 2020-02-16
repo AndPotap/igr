@@ -9,11 +9,11 @@ total_iterations = 1 * int(1.e2)
 # total_iterations = 1 * int(1.e2)
 learning_rate = 1.e-2
 
-samples_plot_n = int(1.e3)
+samples_plot_n = int(1.e4)
 batch_n = 1
 np.random.RandomState(seed=21)
 temp = 0.01
-threshold = 0.95
+threshold = 0.9
 # categories_n = 10
 categories_n = 200
 # categories_n = 12

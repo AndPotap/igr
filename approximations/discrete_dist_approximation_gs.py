@@ -20,7 +20,6 @@ cases = {
 }
 selected_case = 3
 run_against, categories_n, categories_n_list, y_lim_max, x_lim_max = offload_case(cases[selected_case])
-shape = (batch_n, categories_n, 1, 1)
 probs, p_samples, _ = get_for_approx(run_against, categories_n, samples_plot_n)
 
 # Train model
@@ -29,6 +28,7 @@ q_samples_list = []
 q_samples_init_list = []
 for i in range(len(categories_n_list)):
     categories_n = categories_n_list[i]
+    shape = (batch_n, categories_n, 1, 1)
     params, params_init = get_initial_params_for_model_type(model_type=model_type, shape=shape)
 
     minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp=temp, sample_size=sample_size,

@@ -63,7 +63,18 @@ replicate the paper results (more details in the next section).
 * `structure_output_prediction`: contains all the scripts to run the SOP experiments (more details in the next section).
 
 ### Conventions
-Below I expand on the name of variables and hyperparameters that appear frequently in different experiment scripts.
+All the scripts and saving references assume that you are running the files from the root folder of the repo
+(as in the first test to check that the installation was correct). Therefore, from the terminal run the
+scripts as
+```
+python3 path/to/script.py
+```
+Throughout the code, the discrete tensors have the following shape `(batch_n, categories_n, sample_size,
+num_of_vars)`. Where `batch_n` is the batch size used at each iteration (selected by the user), `categories_n`
+is the dimension of each of the discrete variables, `sample_size` is the number of samples taken during the
+reparameterization trick and `num_of_vars` the number of discrete variables that the model has. Finally, below
+is a list that expands on the name of variables and hyperparameters that appear frequently in different
+experiment scripts.
 
 | Name                               | Type and Value (Example)                            | Description     |
 | :-------------------------------- | :------------------------------: | :-----------------------: |
@@ -82,26 +93,98 @@ Below I expand on the name of variables and hyperparameters that appear frequent
 | `batch_n` | `<int> (64)`  | The batch size taken per iteration. |
 | `epochs` | `<int> (100)`  | The number of epochs used when training. |
 | `run_jv` | `<bool> (False)`  | Whether to run the JointVAE model or not. |
-| `gamma` | `<int> (100)`  | The number of epochs used when training. |
+| `gamma` | `<int> (100)`  | The penalty coefficient in the JointVAE loss. |
 | `cont_c_linspace` | `<tuple> ((0., 5., 25000))`  | The lower bound, upper bound, and how many iters to get from lower to upper. |
 | `disc_c_linspace` | `<tuple> ((0., 5., 25000))`  | The lower bound, upper bound, and how many iters to get from lower to upper. |
 | `check_every` | `<int> (1)`  | How often (in terms of epochs) the test loss is evaluated. |
 | `run_with_sample` | `<bool> (True)`  | Test the experiment with a small sample. |
 | `num_of_repetitions` | `<int> (1)`  | Determine how many times to run the experiment (useful for doing CV). |
-| `truncation_options` | `<str> ('quantile')`  | xxx. |
-| `threshold` | `<float> (0.99)`  | xxx. |
-| `prior_file` | `<str> ('./Results/mu_xi_unif_10_IGR_SB_Finite.pkl')`  | Location of the prior parameters
-file. |
-| `xxx` | `<xxx> (xxx)`  | xxx. |
-| `xxx` | `<xxx> (xxx)`  | xxx. |
+| `truncation_options` | `<str> ('quantile')`  | Statistical procedure to determine the categories needed in a given batch. |
+| `threshold` | `<float> (0.99)`  | The precision parameter for the IGR-SB. |
+| `prior_file` | `<str> ('./Results/mu_xi_unif_10_IGR_SB_Finite.pkl')`  | Location of the prior parameters file. |
+| `run_closed_form_kl` | `<bool> (True)`  | Whether to use the Gaussian closef form KL (only available to the IGR). |
+| `width_height` | `<tuple> ((14, 28, 1))`  | The size of the images for the SOP experiment. |
+| `iter_per_epoch` | `<int> (937)`  | The number of iterations per epoch in SOP (the VAE experiments infer this). |
 
 
 ## Replicating Figures / Tables in the paper
+Below is a description of how to replicate each of the Figures and Tables in the paper. The instructions
+assume that no previous result has been saved, however, the repo contains the weights and log files needed to
+replicate each Figure and Table.
 
 ### Figure 1
-* Input: Nothing
+* Input: None
 * Files involved: `approximations/simplex_proximity.py`
-XXX
+Run as is and you will get the boxplot for the GS. If you want to get the graph for the IGR presented in the
+appendix then uncomment the code that has IGR as model option (but you will need to get the prior values from
+`approximations/set_prior.py` (read below).
+
+### Figure 2
+* Input: None.
+* Files involved: `approximations/discrete_dist_approximation_gs.py`, `approximations/set_prior.py`
+For the GS plot, run the `approximations/discrete_dist_approximation_gs.py` as is. If you want to run any of
+the other plots in the appendix make the variable `selected_case` be equal to the case you want. For the IGR,
+run `approximations/set_prior.py` as is. If you want to run other cases modify the  `model_type` variable
+and the `run_against` variable accordingly. Note that the role of the delta parameter (from the softmax++) is
+crucial for learning the last category properly. If set too low, you are virtually eliminating the last
+category (you can modify the value of this parameter in `Utils/Distributions.py`). For both cases the
+sampling is the most expensive computation. To accelerate this, run less samples by moving `samples_plot_n`.
+
+### Figure 3
+* Input: Multiple runs from the models saved at the specified location in the `Results` dictionary (read below).
+* Files involved: `vae_experiments/viz_results.py`, `vae_experiments/discrete_grid.py`
+This figure requires two steps. First to run all the experiments that you want to plot and then to run the
+plotting script. For the first step select in `vae_experiments/discrete_grid.py` the model cases, datasets
+and hyperparameters that you wish to run (see the Conventions section). Then move the `loss*.log`s files to the
+`Results` directory. Place the results in the specified `path` on the `vae_experiments/viz_results.py` script
+with ending specified by the `model` string. For example, if you ran then `IGR-I` model 5 times on MNIST and
+you wish to plot the results, then place the 5 loss logs into the directory `./Results/elbo/mnist/igr_i_20`
+and only run case 6, comment out the others. Hence, the location where the files are searched are a
+combination of `Results/<path>/<models['model']>`. The 20 ending refers to the temperature value that makes
+75% of the posterior samples be in a disctance of 0.2 to the simplex vertex, while the cv ending to the
+temperature values choosen by Cross Validation.
+
+### Table 1
+* Input: The prior parameters for the IGR-SB (`approximations/set_prior.py`).
+* Files involved: `vae_experiments/discrete_grid.py`, `approximations/set_prior.py`
+Select the temp, for the model case and dataset that you wish to run. After testing the run set
+`run_with_sample=False` and the `num_of_repetitions=5`. The hyperparameters used for the Table are the ones
+present in the script. Also note that for MNIST and FMNIST I used the IGR-SB finite variant since I wanted to
+specify directly 10 categories but for CelebA I specified `49` categories as maximum and let the model figure
+out how many to use.
+
+### Figure 4
+* Input: Running the models and temps specified in the plot's caption.
+* Files involved: `vae_experiments/viz_grad_results.py`, `vae_experiments/discrete_grid.py`,
+  `Models/train_vae.py`
+Before running any models ensure that the default value of `monitor_gradients` is set to `True` in the
+`train_vae()` function located in the `train_vae.py` file. Then, run each of the models separately from the
+`vae_experiments/discrete_grid.py` file. Once you run a model, move the last `gradients_*.pkl` file to the
+specified directory in `./Results`, as in Figure 3. For example, if you run the IGR-Planar with its CV temp on
+MNIST for 100 epochs, then place the `Results/gradients_100.pkl` file in the `Results/grads/igr_planar_cv/`
+directory and then run `vae_experiments/viz_grad_results.py` only leaving uncommented case 1. The manual
+moving of files is done to avoid overwritting files by mistake.
+
+### Figure 5
+* Input: The learnt weights of the NNs for each model and the hyper dict used at that run.
+* Files involved: `vae_experiments/viz_grad_results.py`, `vae_experiments/discrete_grid.py`,
+  `vae_experiments/jv_grid.py`
+Once you run a model from either `vae_experiments/discrete_grid.py` or `vae_experiments/jv_grid.py` then move
+the `hyper.pkl` and the last `vae_*.h5` file to the appropriate location in the `Results` directory (similar
+to Figure 3 and 4). For example, if you run the IGR-SB with the low temperature in MNIST, then place the files
+mentioned before in `./Results/posterior_samples/mnist/igr_sb_20`. After that run the script
+`vae_experiments/posterior_samples.py` with only model 4 uncommented.
+
+### Table 2
+* Input: None.
+* Files involved: `vae_experiments/jv_grid.py`
+Similar to Table 1 but only now running the script in `vae_experiments/jv_grid.py`
+
+### Table 3
+* Input: None.
+* Files involved: `structure_output_prediction/sop.py`
+Run the script in `structure_output_prediction/sop.py` by specifying the model in `model_type`. Ensure that
+the temperature value is the correct one.
 
 ## Discussion
 Below I discuss some relevant topics.
