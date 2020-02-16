@@ -23,14 +23,15 @@ information about the folder of interest in the (General Information section).
 ### Requirements
 Briefly, the requirements for the project are Python >= 3.6 (since we use printing syntax only available after
 3.6) and to `pip install -r requirements.txt` as that will get all the packages need and the dependencies as
-well. This repo was develop using TensorFlow 2.0.1, but it runs for 2.1.0 as well. The only package that
+well. Make sure that you have the latests `pip` version (else it will not find the TensorFlow version).
+This repo was develop using TensorFlow 2.0.1, but it runs for 2.1.0 as well. The only package that
 requires a specific version is TensorFlow Datasets 1.3.0 since the features in CelebA changed. Moreover, we
 also added a Singularity definition file `igr_singularity.def` if you want to create an image to run the
 project in a HPC cluster (it will only require that the host has the 10.0 CUDA drivers available). Finally,
-check that the installation was successful by running
+check that the installation was successful by running (but first creating the `Log` dir).
 ```
-pip install -r requirements.txt
 cd ./igr/
+mkdir Log
 python3 vae_experiments/mnist_vae.py
 ```
 from wherever you cloned the repo. It should successfully run an experiment with an small sample that should
