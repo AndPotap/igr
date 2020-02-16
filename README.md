@@ -16,42 +16,54 @@ while generating samples that are closer to their discrete counterparts and achi
 
 ## Overview
 The goal of this documentation is to clarify the structure of the repo and to provide a guide to replicate the
-results from the paper.
-
-## Structure of the Repository
-
-* `xxx`: xxx
-* `Log`: is where the outputs from the experiments are logged and saved.
-* `Models`: contains the training functions (`train_vae.py`, `SOPOptimizer,py`), the optimizer classes (`OptVAE`, `SOPOptimizer`), and
-the neural network architectures (`VAENet.py` `SOP.py`) for both the VAE and for the SOP experiments.
-* `Utils`: Besides general utils, it contains all the distributions (`Distributions.py`) and data loading routines (`load_data.py`)
-* `vae_experiments`: Contains all the scripts to run the VAE experiments to replicate the paper results.
-* `structure_output_prediction`: Contains all the scripts to run the SOP experiments.
-* `Tests`: Contains various tests for relevant classes in the repo. The name indicates which class is being tested.
-
-
-## Replicating Figures / Tables in the paper
+results from the paper. To avoid reading all the repo details, I will recommend that you find the files that
+are linked to the experiment that you want to run and only then check the information about the folder of
+interest.
 
 ### Requirements
-Below is a list of the main requirements. Installing them via `pip` will fetch the dependencies as well. The
-most relevant requirement are for the Tensorflow APIs.
+Briefly, the requirements for the project are to install Python >= 3.6 (since we use printing syntax
+only available after 3.6) and to `pip` install the packages from `requirements.txt` (they will fetch all the dependencies
+needed). This repo was develop using Tensorflow 2.0.1, but it runs for 2.1.0 as well. The only
+package that requires a specific version is Tensorflow Datasets 1.3.0 since the features in CelebA
+changed. Moreover, we also added a Singulariy definition file `igr_singularity.def` if you want to create an
+image to run the project in a HPC cluster (it will only require that the host has the 10.0 CUDA drivers available).
+Finally, check that the installation was successful by running
 ```
-numba==0.46.0
-pandas==0.25.2
-scipy==1.3.1
-seaborn==0.9.0
-tensorflow==2.0.1
-tensorflow-datasets==1.3.0
+cd ./igr/
+python3 vae_experiments/mnist_vae.py
 ```
+from wherever you cloned the repo. It should successfuly run an experiment with an small sample that should
+take 5 - 10 seconds.
 
-### Replicating the results
+## General Information
 
-The scripts to replicate the experiments of the paper are under the `vae_experiments` folder. For example, to replicate the
-results for the binarized MNIST discrete model experiment, in the console you can run (assuming that your folder location
-is on the root of the repo)
-```
-python vae_experiments/mnist_vae.py
-```
+### Structure of the Repository
+
+* `Log`: is the directory where the outputs from the experiments are logged and saved (weights of the NNs).
+  The contents of this directory are disposable, move the results that you want to save into the
+  `Results` directory for further analysis (see below).
+* `Models`: contains the training functions (`train_vae.py`, `SOPOptimizer,py`), the optimizer classes
+(`OptVAE`, `SOPOptimizer`), and the neural network architectures (`VAENet.py` `SOP.py`)
+for both the VAE and for the SOP experiments.
+* `Results`: this directory serves two purposes. First, it holds all the figures created by the scripts in the
+  repo and then it contains the outputs from the experiments runs that are used as input for some figures /
+  tables.
+* `Tests`: contains various tests for relevant classes in the repo. The name indicates which class is being tested.
+* `Utils`: has key functions / classes used throughout the repo: `Distributions.py` contains the GS and
+  IGR samplers, `MinimizeEmpiricalLoss.py` contains the optimizer class for learning the parameters that
+  approximate a discrete distribution, `general.py` contains the functions used for approximating discrete
+  distributions, to evaluate simplex proximity and to initializing the distribution's parameters,
+  `load_data.py` contains all the utils needed to load the data, `posterior_sampling_funcs.py`, contains the
+  functions to sample from the posterior distribution and `viz_vae.py` contains the functions to
+  plot the performance over time.
+* `approximations`: contains all the scripts to approximate discrete distributions and to learn the IGR
+  priors (more details in the next section).
+* `vae_experiments`: contains all the scripts to run the VAE experiments to
+replicate the paper results (more details in the next section).
+* `structure_output_prediction`: contains all the scripts to run the SOP experiments (more details in the next section).
+
+### Conventions
+
 This experiment is run by a function named `run_vae` this function takes as arguments two parameters. (1) is a
 dictionary that contains all the hyperparameter specifications of the model `hyper` and (2) a flag to test
 that the code is running properly `run_with_sample` (set to False in order to run the experiment with all the data).
@@ -64,11 +76,9 @@ The contents of that the hyperparameter dictionary expects are detailed below:
 | `temp` | `<float> (0.25)`  | The value of the temperature hyperparameter.|
 | `sample_size`  | `<int> (1)`  | The number of samples that are taken from the noise distribution at each iteration. |
 | `n_required` | `<int> ('10')`  | The number of categories needed for each discrete variable. |
-| `num_of_discrete_param` | `<int> (1)`  | The number of parameters for the discrete variables.
-(Remember that the IGR requires one les s dimension due to how we reparameterized the simplex). |
+| `num_of_discrete_param` | `<int> (1)`  | The number of parameters for the discrete variables. |
 | `num_of_discrete_var` | `<int> (2)`  | The number of discrete variables in the model. |
-| `num_of_norm_param` | `<int> (0)`  | The number of parameters for the continuous variables.
-If the value is 0 then no continuous variable is incorporated into the model. |
+| `num_of_norm_param` | `<int> (0)`  | The number of parameters for the continuous variables. |
 | `num_of_norm_var` | `<int> (0)`  | The number of continuous variables in the model. |
 | `latent_norm_n` | `<int> (0)`  | The dimensionality of the continuous variables in the model. |
 | `architecture` | `<str> ('dense')`  | The neural network architecture employed. All the options are in `./Models/VAENet.py`.|
@@ -80,6 +90,9 @@ If the value is 0 then no continuous variable is incorporated into the model. |
 | `cont_c_linspace` | `<tuple> ((0., 5., 25000))`  | The lower bound, upper bound, and how many iters to get from lower to upper. |
 | `disc_c_linspace` | `<tuple> ((0., 5., 25000))`  | The lower bound, upper bound, and how many iters to get from lower to upper. |
 | `check_every` | `<int> (1)`  | How often (in terms of epochs) the test loss is evaluated. |
+
+
+## Replicating Figures / Tables in the paper
 
 ### Implementation Nuances
 

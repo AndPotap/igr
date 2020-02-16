@@ -7,7 +7,7 @@ import pandas as pd
 dataset_name = 'mnist'
 run_with_sample = False
 plots_path = './Results/Outputs/'
-path = './Results/Current_Model/' + dataset_name + '/'
+path = './Results/posterior_samples/' + dataset_name + '/'
 models = {
     1: {'model': 'igr_planar_cv', 'label': 'IGR-Planar(0.85)', 'type': 'IGR_Planar_Dis'},
     3: {'model': 'igr_sb_cv', 'label': 'IGR-SB(0.15)', 'type': 'IGR_SB_Finite_Dis'},

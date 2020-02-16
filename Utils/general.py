@@ -17,7 +17,7 @@ from os import environ as os_env
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
-# Approximating functions
+# Approximating Discrete Distributions
 #  ====================================================================================================================
 def offload_case(case):
     run_against = case['run_against']
@@ -284,7 +284,7 @@ def get_ending_with_timestamp(termination: str = '.pkl') -> str:
     return ending
 
 
-#  Simplex Proximity Functions
+#  Evaluating Simplex Proximity
 #  ====================================================================================================================
 def load_parameter_values(prior_file):
     with open(file=prior_file, mode='rb') as f:
@@ -391,7 +391,7 @@ def create_placeholders_for_statistical_results(stats, models, samples_per_stat)
     return placeholders
 
 
-# Initialization functs
+# Initializing Parameters
 # ====================================================================================================================
 def get_uniform_mix_probs(initial_point: int, middle_point: int, final_point: int, mass_in_beginning,
                           max_size: int) -> np.ndarray:
