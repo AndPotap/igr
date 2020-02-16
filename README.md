@@ -1,8 +1,8 @@
 # Invertible Gaussian Reparameterization: Revisting the Gumbel-Softmax
 
-This repo contains a TensorFlow 2.0 implementation of the Invertible Gaussian Reparameterization.<br>
+This repo contains a TensorFlow 2.0 implementation of the Invertible Gaussian Reparameterization.
 
-**Abstract**<br>
+<br>**Abstract**<br>
 *The Gumbel-Softmax is a continuous distribution over the simplex that is often used as a relaxation of discrete
 distributions. Because it can be readily interpreted and easily reparameterized, it enjoys widespread use. Unfortunately, we
 show that the cost of this aesthetic interpretability is material: the temperature hyperparameter must be set too high, KL
@@ -15,19 +15,32 @@ distribution. Our construction improves numerical stability and outperforms the 
 while generating samples that are closer to their discrete counterparts and achieving lower-variance gradients.*
 
 ## Overview
+The goal of this documentation is to clarify the structure of the repo and to provide a guide to replicate the
+results from the paper.
 
-The goal of this documentation is to provide a guide to replicate the results from the paper and to clarify the structure
-of the repo.
+## Structure of the Repository
+
+* `xxx`: xxx
+* `Log`: is where the outputs from the experiments are logged and saved.
+* `Models`: contains the training functions (`train_vae.py`, `SOPOptimizer,py`), the optimizer classes (`OptVAE`, `SOPOptimizer`), and
+the neural network architectures (`VAENet.py` `SOP.py`) for both the VAE and for the SOP experiments.
+* `Utils`: Besides general utils, it contains all the distributions (`Distributions.py`) and data loading routines (`load_data.py`)
+* `vae_experiments`: Contains all the scripts to run the VAE experiments to replicate the paper results.
+* `structure_output_prediction`: Contains all the scripts to run the SOP experiments.
+* `Tests`: Contains various tests for relevant classes in the repo. The name indicates which class is being tested.
+
+
+## Replicating Figures / Tables in the paper
 
 ### Requirements
-Below is a list of the main requirements. Installing them via `pip` will fetch the dependencies as well. The most relevant requirement are for the Tensorflow APIs.
+Below is a list of the main requirements. Installing them via `pip` will fetch the dependencies as well. The
+most relevant requirement are for the Tensorflow APIs.
 ```
 numba==0.46.0
 pandas==0.25.2
-plotly==4.2.1
 scipy==1.3.1
 seaborn==0.9.0
-tensorflow==2.0.0
+tensorflow==2.0.1
 tensorflow-datasets==1.3.0
 ```
 
@@ -51,9 +64,11 @@ The contents of that the hyperparameter dictionary expects are detailed below:
 | `temp` | `<float> (0.25)`  | The value of the temperature hyperparameter.|
 | `sample_size`  | `<int> (1)`  | The number of samples that are taken from the noise distribution at each iteration. |
 | `n_required` | `<int> ('10')`  | The number of categories needed for each discrete variable. |
-| `num_of_discrete_param` | `<int> (1)`  | The number of parameters for the discrete variables (Remember that the IGR requires one less). |
+| `num_of_discrete_param` | `<int> (1)`  | The number of parameters for the discrete variables.
+(Remember that the IGR requires one les s dimension due to how we reparameterized the simplex). |
 | `num_of_discrete_var` | `<int> (2)`  | The number of discrete variables in the model. |
-| `num_of_norm_param` | `<int> (0)`  | The number of parameters for the continuous variables. If the value is 0 then no continuous variable is incorporated into the model. |
+| `num_of_norm_param` | `<int> (0)`  | The number of parameters for the continuous variables.
+If the value is 0 then no continuous variable is incorporated into the model. |
 | `num_of_norm_var` | `<int> (0)`  | The number of continuous variables in the model. |
 | `latent_norm_n` | `<int> (0)`  | The dimensionality of the continuous variables in the model. |
 | `architecture` | `<str> ('dense')`  | The neural network architecture employed. All the options are in `./Models/VAENet.py`.|
@@ -65,14 +80,6 @@ The contents of that the hyperparameter dictionary expects are detailed below:
 | `cont_c_linspace` | `<tuple> ((0., 5., 25000))`  | The lower bound, upper bound, and how many iters to get from lower to upper. |
 | `disc_c_linspace` | `<tuple> ((0., 5., 25000))`  | The lower bound, upper bound, and how many iters to get from lower to upper. |
 | `check_every` | `<int> (1)`  | How often (in terms of epochs) the test loss is evaluated. |
-
-### Understanding the structure of the repository
-
-* `Models`: contains the training functions (`train_vae.py`) and the neural network architectures (`VAENet.py`).
-* `Utils`: Besides general utils, it contains all the distributions (`Distributions.py`) and data loading routines (`load_data.py`)
-* `vae_experiments`: Contains all the scripts to run the VAE experiments to replicate the paper results.
-* `structure_output_prediction`: Contains all the scripts to run the SOP experiments.
-* `Tests`: Contains various tests for relevant classes in the repo. The name indicates which class is being tested.
 
 ### Implementation Nuances
 
