@@ -22,14 +22,16 @@ information about the folder of interest in the (General Information section).
 
 ### Requirements
 Briefly, the requirements for the project are Python >= 3.6 (since we use printing syntax only available after
-3.6) and to `pip install -r requirements.txt` as that will get all the packages need and the dependencies as
-well. Make sure that you have the latests `pip` version (else it will not find the TensorFlow version).
-This repo was develop using TensorFlow 2.0.1, but it runs for 2.1.0 as well. The only package that
-requires a specific version is TensorFlow Datasets 1.3.0 since the features in CelebA changed. Moreover, we
-also added a Singularity definition file `igr_singularity.def` if you want to create an image to run the
-project in a HPC cluster (it will only require that the host has the 10.0 CUDA drivers available). Finally,
-check that the installation was successful by running (but first creating the `Log` dir).
+3.6) and to pip install the the packages needed (which will fetch all the dependencies as well). Make sure
+that you have the latest `pip` version (else it will not find TensorFlow 2).  This repo was develop using
+TensorFlow 2.0.1, but it runs for 2.1.0 as well. The only package that requires a specific version is
+TensorFlow Datasets 1.3.0 since the features in CelebA changed. Moreover, we also added a Singularity
+definition file `igr_singularity.def` if you want to create an image to run the project in a HPC cluster (it
+will only require that the host has the 10.0 CUDA drivers available). In summary you could run the following
+in you terminal to ensure that the installation works (after adding the repo to your `$PYTHONPATH`)
 ```
+python3 -m pip install --update pip
+python3 -m pip install -r requirements.txt
 cd ./igr/
 mkdir Log
 python3 vae_experiments/mnist_vae.py
@@ -64,7 +66,7 @@ for both the VAE and for the SOP experiments.
 replicate the paper results (more details in the Replicating section).
 * `structure_output_prediction`: contains all the scripts to run the SOP experiments (more details in the Replicating section).
 
-### Conventions
+### Variables Explanation
 All the scripts and saving references assume that you are running the files from the root folder of the repo
 (as in the first test to check that the installation was correct). In other words, from the terminal run the
 scripts as
@@ -190,7 +192,6 @@ Run the script in `structure_output_prediction/sop.py` by specifying the model i
 the temperature value is the correct one.
 
 ## Discussion
-Below I discuss some relevant topics.
 
 ### Implementation Nuances
 
