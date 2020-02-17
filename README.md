@@ -28,7 +28,8 @@ TensorFlow 2.0.1, but it runs for 2.1.0 as well. The only package that requires 
 TensorFlow Datasets 1.3.0 since the features in CelebA changed. Moreover, we also added a Singularity
 definition file `igr_singularity.def` if you want to create an image to run the project in a HPC cluster (it
 will only require that the host has the 10.0 CUDA drivers available). In summary you could run the following
-in you terminal to ensure that the installation works (after adding the repo to your `$PYTHONPATH`)
+in you terminal to ensure that the installation works (after adding the repo to your `$PYTHONPATH`
+`export PYTHONPATH=$PYTHONPATH:"path/to/igr"`)
 ```
 python3 -m pip install --update pip
 python3 -m pip install -r requirements.txt
