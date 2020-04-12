@@ -90,9 +90,9 @@ def get_initial_params_for_model_type(model_type, shape):
         params = [tf.Variable(initial_value=pi)]
         # noinspection PyArgumentList
         params_init = [tf.Variable(initial_value=pi_init)]
-    elif model_type in ['IGR_I', 'IGR_SB', 'IGR_SB_Finite']:
+    elif model_type in ['IGR_I', 'IGR_SB', 'IGR_SB_Finite', 'IGR_Planar']:
         shape_igr = (batch_size, categories_n - 1, sample_size, num_of_vars)
-        if model_type == 'IGR_I':
+        if model_type in ['IGR_I', 'IGR_Planar']:
             mu, xi = initialize_mu_and_xi_equally(shape_igr)
         else:
             mu, xi = initialize_mu_and_xi_for_logistic(shape_igr, seed=21)
