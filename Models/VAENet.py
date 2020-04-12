@@ -224,7 +224,7 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
         self.initializer = initializer
 
     def build(self, input_shape):
-        self.w = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer=self.initializer,
+        self.w = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer='random_normal',
                                  trainable=True, name='w')
         self.b = self.add_weight(shape=(1, 1, 1, self.var_num), initializer='zeros', trainable=True, name='b')
         self.u = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer=self.initializer,
@@ -253,10 +253,10 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
         return {**base_config, 'units': self.units, 'var_num': self.var_num}
 
 
-def create_nested_planar_flow(nested_layers, latent_n, var_num):
+def create_nested_planar_flow(nested_layers, latent_n, var_num, initializer='random_normal'):
     sequence = [tf.keras.layers.InputLayer(input_shape=(latent_n, 1, var_num))]
     for l in range(nested_layers):
-        sequence.append(PlanarFlowLayer(units=latent_n, var_num=var_num))
+        sequence.append(PlanarFlowLayer(units=latent_n, var_num=var_num, initializer=initializer))
     planar_flow = tf.keras.Sequential(sequence)
     return planar_flow
 
