@@ -2,9 +2,19 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from Models.VAENet import PlanarFlowLayer
+from Models.VAENet import create_nested_planar_flow
 
 
 class TestVAENet(unittest.TestCase):
+
+    def test_nested_planar_flow_creation(self):
+        latent_n = 3
+        # batch_n = 1
+        # sample_size = 1
+        var_num = 1
+        nested_layers = 2
+        breakpoint()
+        planar_flow = create_nested_planar_flow(nested_layers, latent_n, var_num)
 
     def test_planar_flow_computation(self):
         test_tolerance = 1.e-1
