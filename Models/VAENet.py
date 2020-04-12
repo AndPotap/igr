@@ -24,8 +24,10 @@ class VAENet(tf.keras.Model):
                               self.disc_param_num * self.disc_latent_in * self.disc_var_num)
         self.latent_dim_out = (self.cont_var_num * self.cont_latent_n +
                                self.disc_var_num * self.disc_latent_out)
-        self.split_sizes_list = [self.cont_latent_n * self.cont_var_num for _ in range(self.cont_param_num)]
-        self.split_sizes_list += [self.disc_latent_in * self.disc_var_num for _ in range(self.disc_param_num)]
+        self.split_sizes_list = [self.cont_latent_n *
+                                 self.cont_var_num for _ in range(self.cont_param_num)]
+        self.split_sizes_list += [self.disc_latent_in *
+                                  self.disc_var_num for _ in range(self.disc_param_num)]
         self.num_var = (self.cont_var_num, self.disc_var_num)
 
         self.inference_net = tf.keras.Sequential
@@ -53,7 +55,7 @@ class VAENet(tf.keras.Model):
                     self.generate_planar_flow()
                 self.generate_convolutional_generative_net_jointvae()
 
-    # -------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------
     def generate_dense_inference_net(self):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
@@ -92,7 +94,7 @@ class VAENet(tf.keras.Model):
             PlanarFlowLayer(units=self.disc_latent_in, var_num=self.disc_var_num),
             PlanarFlowLayer(units=self.disc_latent_in, var_num=self.disc_var_num)])
 
-    # -------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------
     def generate_convolutional_inference_net_jointvae(self):
         input_layer = tf.keras.layers.Input(shape=self.image_shape)
         conv = tf.keras.layers.Conv2D(filters=32, kernel_size=(4, 4), strides=(2, 2),
@@ -109,7 +111,8 @@ class VAENet(tf.keras.Model):
         if len(self.split_sizes_list) == 1:
             concat_layer = tf.keras.layers.Dense(units=self.split_sizes_list[0])(dense_layer)
         else:
-            params_layer = [tf.keras.layers.Dense(units=u)(dense_layer) for u in self.split_sizes_list]
+            params_layer = [tf.keras.layers.Dense(units=u)(dense_layer)
+                            for u in self.split_sizes_list]
             concat_layer = tf.keras.layers.Concatenate()(params_layer)
         self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[concat_layer])
 
@@ -129,7 +132,7 @@ class VAENet(tf.keras.Model):
                                                 strides=(2, 2), padding='same')(layer)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[layer])
 
-    # -------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------
     def generate_convolutional_inference_net_jointvae_celeb_a(self):
         input_layer = tf.keras.layers.Input(shape=self.image_shape)
         conv = tf.keras.layers.Conv2D(filters=32, kernel_size=(4, 4), strides=(2, 2),
@@ -146,7 +149,8 @@ class VAENet(tf.keras.Model):
         if len(self.split_sizes_list) == 1:
             concat_layer = tf.keras.layers.Dense(units=self.split_sizes_list[0])(dense_layer)
         else:
-            params_layer = [tf.keras.layers.Dense(units=u)(dense_layer) for u in self.split_sizes_list]
+            params_layer = [tf.keras.layers.Dense(units=u)(dense_layer)
+                            for u in self.split_sizes_list]
             concat_layer = tf.keras.layers.Concatenate()(params_layer)
         self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[concat_layer])
 
@@ -167,7 +171,7 @@ class VAENet(tf.keras.Model):
                                                 activation='elu')(layer)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[layer])
 
-    # -------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------
     def generate_convolutional_inference_net(self):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
@@ -192,7 +196,7 @@ class VAENet(tf.keras.Model):
                 filters=1, kernel_size=3, strides=(1, 1), padding="SAME"),
         ])
 
-    # -------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------
     def encode(self, x):
         params = self.split_and_reshape_network_parameters(x=x)
         return params
@@ -203,16 +207,19 @@ class VAENet(tf.keras.Model):
         for idx, param in enumerate(params):
             batch_size = param.shape[0]
             if self.disc_var_num > 1:
-                param = tf.reshape(param, shape=(batch_size, self.disc_latent_in, 1, self.disc_var_num))
+                param = tf.reshape(param, shape=(
+                    batch_size, self.disc_latent_in, 1, self.disc_var_num))
             else:
-                param = tf.reshape(param, shape=(batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
+                param = tf.reshape(param, shape=(
+                    batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
             reshaped_params.append(param)
         return reshaped_params
 
     def decode(self, z):
-        logits = tf.split(self.generative_net(z), num_or_size_splits=self.log_px_z_params_num, axis=3)
+        logits = tf.split(self.generative_net(
+            z), num_or_size_splits=self.log_px_z_params_num, axis=3)
         return logits
-    # -------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------
 
 
 class PlanarFlowLayer(tf.keras.layers.Layer):
@@ -226,7 +233,8 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
     def build(self, input_shape):
         self.w = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer='random_normal',
                                  trainable=True, name='w')
-        self.b = self.add_weight(shape=(1, 1, 1, self.var_num), initializer='zeros', trainable=True, name='b')
+        self.b = self.add_weight(shape=(1, 1, 1, self.var_num), initializer='zeros',
+                                 trainable=True, name='b')
         self.u = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer=self.initializer,
                                  trainable=True, name='u')
         super().build(input_shape)
@@ -262,7 +270,8 @@ def create_nested_planar_flow(nested_layers, latent_n, var_num, initializer='ran
 
 
 def determine_path_to_save_results(model_type, dataset_name):
-    results_path = './Log/' + dataset_name + '_' + model_type + append_timestamp_to_file('', termination='')
+    results_path = './Log/' + dataset_name + '_' + \
+        model_type + append_timestamp_to_file('', termination='')
     return results_path
 
 
