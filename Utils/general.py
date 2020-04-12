@@ -28,16 +28,19 @@ def offload_case(case):
     return run_against, categories_n, categories_n_list, y_lim_max, x_lim_max
 
 
-def sample_from_approx(params, params_init, temp, model_type, p_samples, samples_plot_n, threshold):
+def sample_from_approx(params, params_init, temp, model_type, p_samples, samples_plot_n, threshold,
+                       planar_flow):
     temp = tf.constant(temp, dtype=tf.float32)
     q_samples = np.zeros(shape=samples_plot_n)
     q_samples_init = np.zeros(shape=samples_plot_n)
     for sample_id in range(samples_plot_n):
         q_samples[sample_id] = generate_sample(sample_size=1, params=params, temp=temp,
                                                threshold=threshold,
-                                               dist_type=model_type)
-        q_samples_init[sample_id] = generate_sample(sample_size=1, params=params_init, dist_type=model_type,
-                                                    temp=temp, threshold=threshold)
+                                               dist_type=model_type, planar_flow=planar_flow)
+        q_samples_init[sample_id] = generate_sample(sample_size=1, params=params_init,
+                                                    dist_type=model_type,
+                                                    temp=temp, threshold=threshold,
+                                                    planar_flow=planar_flow)
     print(f'{model_type}')
     print(f'Mean {np.mean(q_samples):4.2f} || '
           f'Var {np.var(q_samples):4.2f} || '
@@ -83,7 +86,8 @@ def get_for_approx(run_against, categories_n, samples_plot_n):
     elif run_against == 'binomial':
         binomial_p = 0.3
         results_file = f'./Results/mu_xi_binomial_{binomial_p}.pkl'
-        binomial_probs = np.array([binom.pmf(k=k, n=categories_n, p=binomial_p) for k in range(categories_n)])
+        binomial_probs = np.array([binom.pmf(k=k, n=categories_n, p=binomial_p)
+                                   for k in range(categories_n)])
         p_samples = np.random.binomial(n=categories_n, p=binomial_p, size=samples_plot_n)
         probs = tf.constant(binomial_probs, dtype=tf.float32, shape=categories_n)
     elif run_against == 'geometric':
@@ -119,7 +123,8 @@ def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, 
     ax[0].plot(np.arange(total_iterations), loss_df, label=f'mean over {window} iter')
     ax[0].legend()
 
-    ax[1].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p', density=True)
+    ax[1].hist(p_samples, bins=np.arange(number_of_bins),
+               color='grey', alpha=0.5, label='p', density=True)
     ax[1].hist(q_samples_init, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5,
                label=model_type, density=True)
     ax[1].set_ylim([0, y_lim_max])
@@ -127,8 +132,10 @@ def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, 
     ax[1].set_title('Initial distribution')
     ax[1].legend()
 
-    ax[2].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p', density=True)
-    ax[2].hist(q_samples, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5, label=model_type, density=True)
+    ax[2].hist(p_samples, bins=np.arange(number_of_bins),
+               color='grey', alpha=0.5, label='p', density=True)
+    ax[2].hist(q_samples, bins=np.arange(number_of_bins),
+               color=hist_color, alpha=0.5, label=model_type, density=True)
     ax[2].set_title('Final distribution')
     ax[2].set_ylim([0, y_lim_max])
     ax[2].set_xlim([0, x_lim_max])
@@ -305,7 +312,8 @@ def plot_boxplots(model: str, results, temp_grid, mult=5):
             rows_list.append(entry)
     df = pd.DataFrame(rows_list)
     ax = sns.boxplot(x='tau', y='distance', data=df, color='royalblue', boxprops={'alpha': 0.5})
-    ax.set_xticklabels([f'{tau:0.2f}' for tau in [temp_grid[mult * i] for i in range(obs_n // mult)]])
+    ax.set_xticklabels([f'{tau:0.2f}' for tau in [temp_grid[mult * i]
+                                                  for i in range(obs_n // mult)]])
     ax.tick_params(labelrotation=90)
     plt.xlabel('τ')
     plt.ylabel('Distribution of Distance to Simplex Vertex')
