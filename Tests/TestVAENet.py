@@ -8,13 +8,20 @@ from Models.VAENet import create_nested_planar_flow
 class TestVAENet(unittest.TestCase):
 
     def test_nested_planar_flow_creation(self):
-        latent_n = 3
-        # batch_n = 1
-        # sample_size = 1
-        var_num = 1
+        tolerance = 1.e-1
+        batch_n = 1
+        sample_size = 1
         nested_layers = 2
-        breakpoint()
-        planar_flow = create_nested_planar_flow(nested_layers, latent_n, var_num)
+        initializer = 'zeros'
+        example = np.array([[1., 2., 3., 4.], [4., 3., 2., 1.]]).T
+        latent_n, var_num = example.shape
+        example = np.reshape(example, newshape=(1, latent_n, 1, var_num))
+        example = np.broadcast_to(example, shape=(batch_n, latent_n, sample_size, var_num))
+        planar_flow = create_nested_planar_flow(nested_layers, latent_n, var_num, initializer)
+        approx = planar_flow(tf.constant(example, dtype=tf.float32)).numpy()
+        diff = np.linalg.norm(approx - example) / np.linalg.norm(example)
+        print(f'Diff {diff:1.3e}')
+        self.assertTrue(expr=diff < tolerance)
 
     def test_planar_flow_computation(self):
         test_tolerance = 1.e-1
