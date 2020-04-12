@@ -10,7 +10,8 @@ logger = setup_logger(log_file_name='./Log/discrete.log')
 class MinimizeEmpiricalLoss:
 
     def __init__(self, params, learning_rate, temp, sample_size=int(1.e3), max_iterations=int(1.e4),
-                 run_kl=True, tolerance=1.e-5, model_type='IGR_I', threshold=0.9):
+                 run_kl=True, tolerance=1.e-5, model_type='IGR_I', threshold=0.9,
+                 planar_flow=None):
 
         self.params = params
         self.learning_rate = learning_rate
@@ -21,6 +22,7 @@ class MinimizeEmpiricalLoss:
         self.tolerance = tolerance
         self.model_type = model_type
         self.threshold = threshold
+        self.planar_flow = planar_flow
 
         self.iteration = 0
         self.training_time = 0
@@ -56,7 +58,8 @@ class MinimizeEmpiricalLoss:
                                                    probs=probs, dist_type=self.model_type,
                                                    sample_size=self.sample_size, threshold=self.threshold,
                                                    run_iteratively=self.run_iteratively,
-                                                   run_kl=self.run_kl)
+                                                   run_kl=self.run_kl,
+                                                   planar_flow=self.planar_flow)
         apply_gradients(optimizer=optimizer, gradients=grad, variables=self.params)
         return loss, n_required
 
