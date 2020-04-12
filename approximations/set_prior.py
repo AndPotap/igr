@@ -4,22 +4,22 @@ from matplotlib import pyplot as plt
 from Utils.MinimizeEmpiricalLoss import MinimizeEmpiricalLoss, get_initial_params_for_model_type
 from Utils.general import get_for_approx, plot_loss_and_initial_final_histograms, sample_from_approx
 
-sample_size = 1000
-total_iterations = 1 * int(1.e2)
+sample_size = int(1.e3)
+total_iterations = 3 * int(1.e1)
 # total_iterations = 1 * int(1.e2)
 learning_rate = 1.e-2
 
-samples_plot_n = int(1.e4)
+samples_plot_n = int(1.e3)
 batch_n = 1
 np.random.RandomState(seed=21)
 temp = 0.01
 threshold = 0.9
 # categories_n = 10
-categories_n = 200
-# categories_n = 12
+# categories_n = 200
+categories_n = 100
 shape = (batch_n, categories_n, 1, 1)
-# model_type = 'IGR_I'
-model_type = 'IGR_SB'
+model_type = 'IGR_I'
+# model_type = 'IGR_SB'
 # model_type = 'IGR_SB_Finite'
 skip_first_iterations = 10
 
