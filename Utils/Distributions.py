@@ -312,7 +312,8 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
 
 
 def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dtype=tf.float32),
-                               sample_size: int = 1, threshold: float = 0.99, run_iteratively=False):
+                               sample_size: int = 1, threshold: float = 0.99, run_iteratively=False,
+                               planar_flow=None):
     if dist_type == 'IGR_SB':
         mu, xi = params
         chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
@@ -329,6 +330,9 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
     elif dist_type == 'IGR_I':
         mu, xi, = params
         chosen_dist = IGR_I(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
+    elif dist_type == 'IGR_Planar':
+        mu, xi, = params
+        chosen_dist = IGR_Planar(mu=mu, xi=xi, temp=temp, planar_flow=planar_flow, sample_size=sample_size)
     else:
         raise RuntimeError
 
