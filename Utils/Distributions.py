@@ -168,10 +168,12 @@ def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tens
 # Optimization functions for the Expectation Minimization Loss
 # ===========================================================================================================
 def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dist_type: str = 'sb',
-                 sample_size: int = 1, threshold: float = 0.99, run_iteratively=False, run_kl=True):
+                 sample_size: int = 1, threshold: float = 0.99, run_iteratively=False, run_kl=True,
+                 planar_flow: str = None):
     chosen_dist = select_chosen_distribution(dist_type=dist_type, params=params, temp=temp,
                                              sample_size=sample_size, threshold=threshold,
-                                             run_iteratively=run_iteratively)
+                                             run_iteratively=run_iteratively,
+                                             planar_flow=planar_flow)
 
     chosen_dist.generate_sample()
     psi_mean = tf.reduce_mean(chosen_dist.psi, axis=[0, 2, 3])
@@ -188,11 +190,12 @@ def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dis
 
 def compute_gradients(params, temp: tf.Tensor, probs: tf.Tensor, run_kl=True,
                       dist_type: str = 'sb', sample_size: int = 1, run_iteratively=False,
-                      threshold: float = 0.99) -> Tuple[tf.Tensor, tf.Tensor, int]:
+                      threshold: float = 0.99,
+                      planar_flow: str = None) -> Tuple[tf.Tensor, tf.Tensor, int]:
     with tf.GradientTape() as tape:
         loss, n_required = compute_loss(params=params, temp=temp, probs=probs, sample_size=sample_size,
                                         threshold=threshold, dist_type=dist_type, run_kl=run_kl,
-                                        run_iteratively=run_iteratively)
+                                        run_iteratively=run_iteratively, planar_flow=planar_flow)
         gradient = tape.gradient(target=loss, sources=params)
     return gradient, loss, n_required
 
@@ -295,9 +298,10 @@ def iterative_sb(kappa):
 
 
 def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: float = 0.99,
-                    output_one_hot=False):
+                    output_one_hot=False, planar_flow=None):
     chosen_dist = select_chosen_distribution(dist_type=dist_type, threshold=threshold,
-                                             params=params, temp=temp, sample_size=sample_size)
+                                             params=params, temp=temp, sample_size=sample_size,
+                                             planar_flow=planar_flow)
     # categories_n = params[0].shape[1]
     chosen_dist.generate_sample()
     if output_one_hot:
