@@ -38,7 +38,8 @@ class MinimizeEmpiricalLoss:
         t0 = time.time()
         while continue_training:
             current_iter_time = time.time()
-            loss, n_required = self.take_gradient_step_and_compute_loss(optimizer=optimizer, probs=probs)
+            loss, n_required = self.take_gradient_step_and_compute_loss(
+                optimizer=optimizer, probs=probs)
             self.iter_time += time.time() - current_iter_time
 
             self.loss_iter[self.iteration] = loss.numpy()
@@ -61,7 +62,8 @@ class MinimizeEmpiricalLoss:
 
     def evaluate_progress(self, loss_iter, n_required_iter):
         if (self.iteration % self.check_every == 0) & (self.iteration > self.check_every):
-            self.check_mean_loss_to_previous_iterations(loss_iter=loss_iter, n_required_iter=n_required_iter)
+            self.check_mean_loss_to_previous_iterations(loss_iter=loss_iter,
+                                                        n_required_iter=n_required_iter)
 
             logger.info(f'Iter {self.iteration:4d} || '
                         f'Loss {self.mean_loss:2.3e} || '
