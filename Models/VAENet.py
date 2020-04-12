@@ -217,16 +217,17 @@ class VAENet(tf.keras.Model):
 
 class PlanarFlowLayer(tf.keras.layers.Layer):
 
-    def __init__(self, units, var_num, **kwargs):
+    def __init__(self, units, var_num, initializer='random_normal', **kwargs):
         super().__init__(**kwargs)
         self.units = units
         self.var_num = var_num
+        self.initializer = initializer
 
     def build(self, input_shape):
-        self.w = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer='random_normal',
+        self.w = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer=self.initializer,
                                  trainable=True, name='w')
         self.b = self.add_weight(shape=(1, 1, 1, self.var_num), initializer='zeros', trainable=True, name='b')
-        self.u = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer='random_normal',
+        self.u = self.add_weight(shape=(1, self.units, 1, self.var_num), initializer=self.initializer,
                                  trainable=True, name='u')
         super().build(input_shape)
 
@@ -250,6 +251,14 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
     def get_config(self):
         base_config = super().get_config()
         return {**base_config, 'units': self.units, 'var_num': self.var_num}
+
+
+def create_nested_planar_flow(nested_layers, latent_n, var_num):
+    sequence = [tf.keras.layers.InputLayer(input_shape=(latent_n, 1, var_num))]
+    for l in range(nested_layers):
+        sequence.append(PlanarFlowLayer(units=latent_n, var_num=var_num))
+    planar_flow = tf.keras.Sequential(sequence)
+    return planar_flow
 
 
 def determine_path_to_save_results(model_type, dataset_name):
