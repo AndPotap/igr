@@ -14,7 +14,7 @@ class TestVAENet(unittest.TestCase):
         nested_layers, latent_n, var_num = 2, 4, 1
         weights = generate_random_planar_flow_weights(nested_layers, latent_n, var_num)
         pf = offload_weights_planar_flow(weights)
-        print(f'\nTEST: offloading')
+        print(f'\nTEST: Weigth Offloading')
         for idx in range(len(pf.weights)):
             approx = weights[idx].numpy()
             ans = pf.weights[idx].numpy()
@@ -35,7 +35,7 @@ class TestVAENet(unittest.TestCase):
         planar_flow = create_nested_planar_flow(nested_layers, latent_n, var_num, initializer)
         approx = planar_flow(tf.constant(example, dtype=tf.float32)).numpy()
         diff = np.linalg.norm(approx - example) / np.linalg.norm(example)
-        print(f'\nTEST: nested creation')
+        print(f'\nTEST: Nested Creation')
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < tolerance)
 
@@ -61,7 +61,7 @@ class TestVAENet(unittest.TestCase):
                         u_tilde[:, 1] * np.tanh(1.),
                         z[:, 2] + u_tilde[:, 2] * np.tanh(1.))).T
         diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans)
-        print(f'\nTEST: manual computation')
+        print(f'\nTEST: NumPy Planar Flow Manual Computation')
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < tolerance)
 
@@ -69,27 +69,18 @@ class TestVAENet(unittest.TestCase):
         test_tolerance = 1.e-1
         sample_size = 1
         batch_n = 3
-        example = np.array([[1., 2., 3., 4.], [4., 3., 2., 1.]]).T
+        z = np.array([[1., 2., 3., 4.], [4., 3., 2., 1.]]).T
         u = np.array([[-1., 1.1, 2.3, -2.], [4., 0.1, 0., -1.]]).T
         w = np.array([[1., 0., 3., 0.], [0., 3., 0., 1.]]).T
         b = np.array([1., -1])
-        latent_n, var_num = example.shape
-        example = np.reshape(example, newshape=(1, latent_n, 1, var_num))
-        example = np.broadcast_to(example, shape=(batch_n, latent_n, sample_size, var_num))
-        u2 = np.reshape(u, newshape=(1, latent_n, 1, var_num))
-        w2 = np.reshape(w, newshape=(1, latent_n, 1, var_num))
-        b2 = np.reshape(b, newshape=(1, 1, 1, var_num))
-        u_tf = tf.constant(u2, dtype=tf.float32)
-        b_tf = tf.constant(b2, dtype=tf.float32)
-        w_tf = tf.constant(w2, dtype=tf.float32)
+        latent_n, var_num = z.shape
+        z, u_tf, b_tf, w_tf = prepare_case(z, u, w, b, batch_n, sample_size)
 
-        pf = PlanarFlowLayer(units=latent_n, var_num=1)
-        pf.build(input_shape=example.shape)
-        pf.w = w_tf
-        pf.u = u_tf
-        pf.b = b_tf
-        result_tf = pf.call(tf.constant(example, dtype=tf.float32)).numpy()
-        result_np = compute_pf(example, w=w, u=u, b=b)
+        pf = PlanarFlowLayer(units=latent_n, var_num=var_num)
+        pf.build(input_shape=z.shape)
+        pf.w, pf.u, pf.b = w_tf, u_tf, b_tf
+        result_tf = pf.call(tf.constant(z, dtype=tf.float32)).numpy()
+        result_np = compute_pf(z, w=w, u=u, b=b)
 
         diff = np.linalg.norm(result_tf - result_np) / np.linalg.norm(result_np)
         print(f'\nTEST: Planar Flow Implementation')
@@ -144,8 +135,7 @@ def compute_pf(inputs, w, u, b):
 
 def planar_flow(z, w, u, b):
     u_tilde = get_u_tilde(u, w)
-    tanh = np.tanh(np.dot(w, z) + b)
-    output = z + u_tilde * tanh
+    output = z + u_tilde * np.tanh(np.dot(w, z) + b)
     return output
 
 
@@ -161,6 +151,19 @@ def nest_planar_flow(nested_layers, z, w, u, b):
     for l in range(1, nested_layers):
         z_nest[l, :] = planar_flow(z_nest[l - 1, :], w[l, :], u[l, :], b[l])
     return z_nest
+
+
+def prepare_case(z, u, w, b, batch_n, sample_size):
+    latent_n, var_num = z.shape
+    z = np.reshape(z, newshape=(1, latent_n, 1, var_num))
+    z = np.broadcast_to(z, shape=(batch_n, latent_n, sample_size, var_num))
+    u2 = np.reshape(u, newshape=(1, latent_n, 1, var_num))
+    w2 = np.reshape(w, newshape=(1, latent_n, 1, var_num))
+    b2 = np.reshape(b, newshape=(1, 1, 1, var_num))
+    u_tf = tf.constant(u2, dtype=tf.float32)
+    b_tf = tf.constant(b2, dtype=tf.float32)
+    w_tf = tf.constant(w2, dtype=tf.float32)
+    return z, u_tf, b_tf, w_tf
 
 
 if __name__ == '__main__':
