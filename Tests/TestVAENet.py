@@ -3,9 +3,23 @@ import numpy as np
 import tensorflow as tf
 from Models.VAENet import PlanarFlowLayer
 from Models.VAENet import create_nested_planar_flow
+from Models.VAENet import offload_weights_planar_flow
 
 
 class TestVAENet(unittest.TestCase):
+
+    def test_planar_flow_weight_offloading(self):
+        tolerance = 1.e-16
+        nested_layers, latent_n, var_num = 2, 4, 1
+        planar_flow = create_nested_planar_flow(nested_layers, latent_n, var_num)
+        pf = offload_weights_planar_flow(planar_flow.weights)
+        print(f'\nTEST: offloading')
+        for idx in range(len(pf.weights)):
+            approx = planar_flow.weights[idx].numpy()
+            ans = pf.weights[idx].numpy()
+            diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans + 1.e-20)
+            print(f'\nDiff {diff:1.3e}')
+            self.assertTrue(expr=diff < tolerance)
 
     def test_nested_planar_flow_creation(self):
         tolerance = 1.e-1
@@ -20,7 +34,8 @@ class TestVAENet(unittest.TestCase):
         planar_flow = create_nested_planar_flow(nested_layers, latent_n, var_num, initializer)
         approx = planar_flow(tf.constant(example, dtype=tf.float32)).numpy()
         diff = np.linalg.norm(approx - example) / np.linalg.norm(example)
-        print(f'Diff {diff:1.3e}')
+        print(f'\nTEST: nested creation')
+        print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < tolerance)
 
     def test_planar_flow_computation(self):
@@ -51,7 +66,8 @@ class TestVAENet(unittest.TestCase):
         result_np = compute_pf(example, w=w, u=u, b=b)
 
         diff = np.linalg.norm(result_tf - result_np) / np.linalg.norm(result_np)
-        print(diff)
+        print(f'\nTEST: Planar Flow Implementation')
+        print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
 
     def test_planar_flow_layer_gradient(self):
