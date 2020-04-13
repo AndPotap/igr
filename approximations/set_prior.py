@@ -6,10 +6,10 @@ from Utils.general import get_for_approx, plot_loss_and_initial_final_histograms
 from Models.VAENet import offload_weights_planar_flow
 from Models.VAENet import generate_random_planar_flow_weights
 
-sample_size = int(1.e3)
+sample_size = int(1.e4)
 # total_iterations = 3 * int(1.e1)
-total_iterations = 1 * int(1.e3)
-learning_rate = 1.e-2
+total_iterations = 2 * int(1.e2)
+learning_rate = 1.e-1
 
 samples_plot_n = int(1.e3)
 batch_n = 1
