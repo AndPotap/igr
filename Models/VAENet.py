@@ -269,6 +269,17 @@ def create_nested_planar_flow(nested_layers, latent_n, var_num, initializer='ran
     return planar_flow
 
 
+def offload_weights_planar_flow(weights):
+    num_of_planar_flow_params_per_layer = 3
+    nested_layers = int(len(weights) / num_of_planar_flow_params_per_layer)
+    input_shape = weights[0].shape
+    batch_n, latent_n, sample_size, var_num = input_shape
+    pf = create_nested_planar_flow(nested_layers, latent_n, var_num)
+    for idx, w in enumerate(weights):
+        pf.weights[idx].assign(w)
+    return pf
+
+
 def determine_path_to_save_results(model_type, dataset_name):
     results_path = './Log/' + dataset_name + '_' + \
         model_type + append_timestamp_to_file('', termination='')
