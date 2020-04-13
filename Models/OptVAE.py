@@ -97,7 +97,7 @@ class OptVAE:
         loss, recon, kl, kl_norm, kl_dis = output
         return loss, recon, kl, kl_norm, kl_dis
 
-    def compute_gradients(self, x) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+    def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x)
             output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
@@ -210,16 +210,28 @@ class OptIGR(OptVAE):
         else:
             mu_disc, xi_disc = params_broad
             kl_norm = 0.
+        mu_disc_prior, xi_disc_prior = self.update_prior_values()
+        kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, mu_disc_prior, xi_disc_prior)
+        return kl_norm, kl_dis
+
+    def update_prior_values(self):
         current_batch_n = self.dist.lam.shape[0]
         mu_disc_prior = self.mu_0[:current_batch_n, :, :]
         xi_disc_prior = self.xi_0[:current_batch_n, :, :]
-        kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc, log_var_q=2 * xi_disc,
-                                                        mean_p=mu_disc_prior, log_var_p=2. * xi_disc_prior,
+        return mu_disc_prior, xi_disc_prior
+
+    @staticmethod
+    def compute_discrete_kl(mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
+        kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc,
+                                                        log_var_q=2 * xi_disc,
+                                                        mean_p=mu_disc_prior,
+                                                        log_var_p=2. * xi_disc_prior,
                                                         axis=(1, 3))
-        return kl_norm, kl_dis
+        return kl_dis
 
     def load_prior_values(self):
-        shape = (self.batch_size, self.nets.disc_latent_in, self.sample_size, self.nets.disc_var_num)
+        shape = (self.batch_size, self.nets.disc_latent_in,
+                 self.sample_size, self.nets.disc_var_num)
         self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
 
 
@@ -317,7 +329,8 @@ class OptSB(OptSBFinite):
         self.use_continuous = use_continuous
 
     def select_distribution(self, mu, xi):
-        self.dist = IGR_SB(mu, xi, sample_size=self.sample_size, temp=self.temp, threshold=self.threshold)
+        self.dist = IGR_SB(mu, xi, sample_size=self.sample_size,
+                           temp=self.temp, threshold=self.threshold)
         self.dist.truncation_option = self.truncation_option
         self.dist.quantile = self.quantile
 
@@ -358,7 +371,8 @@ def compute_log_gaussian_pdf(x, x_logit):
 
     x_broad = infer_shape_from(v=mu, x=x)
 
-    log_pixel = - 0.5 * ((x_broad - mu) / xi) ** 2. - 0.5 * tf.math.log(2 * pi) - tf.math.log(1.e-8 + xi)
+    log_pixel = - 0.5 * ((x_broad - mu) / xi) ** 2. - 0.5 * \
+        tf.math.log(2 * pi) - tf.math.log(1.e-8 + xi)
     log_px_z = tf.reduce_sum(log_pixel, axis=[1, 2, 3])
     return log_px_z
 
