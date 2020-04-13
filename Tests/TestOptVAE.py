@@ -13,7 +13,8 @@ class TestSBDist(unittest.TestCase):
         samples_n, num_of_vars = 1, 2
         mu = broadcast_to_shape(np.array([[1., -1., 0.15, 0.45, -0.3],
                                           [-0.1, 0.98, 0.02, -1.4, 0.35],
-                                          [0., 0., 2., 2., 0.]]), samples_n=samples_n, num_of_vars=num_of_vars)
+                                          [0., 0., 2., 2., 0.]]),
+                                samples_n=samples_n, num_of_vars=num_of_vars)
         log_sigma2 = broadcast_to_shape(np.array(
             [[-1.7261764, 0.1970883, -0.05951275, 0.43101027, 1.00751897],
              [-1.55425, -0.0337, 1.22609, -0.19088, 0.9577],
@@ -42,7 +43,8 @@ class TestSBDist(unittest.TestCase):
                                                  [-0.1, 0.98, 0.02, -1.4, 0.35]]),
                                        samples_n=samples_n, num_of_vars=num_of_vars)[:, :, :, 0]
         kl_discrete_ans = calculate_kl_discrete(alpha=tf.math.softmax(log_alpha, axis=1))
-        kl_discrete = calculate_categorical_closed_kl(log_alpha=tf.constant(log_alpha, dtype=tf.float32))
+        kl_discrete = calculate_categorical_closed_kl(
+            log_alpha=tf.constant(log_alpha, dtype=tf.float32))
         relative_diff = np.linalg.norm((kl_discrete.numpy() - kl_discrete_ans) / kl_discrete_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
