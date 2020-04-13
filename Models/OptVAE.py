@@ -414,6 +414,10 @@ def calculate_general_closed_form_gauss_kl(mean_q, log_var_q, mean_p, log_var_p,
     return kl_norm
 
 
+def calculate_planar_flow_determinant(weights):
+    return weights
+
+
 def compute_log_normal_pdf(sample, mean, log_var):
     pi = 3.141592653589793
     log2pi = -0.5 * tf.math.log(2 * pi)
