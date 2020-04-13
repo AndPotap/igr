@@ -78,7 +78,8 @@ class IGR_Planar(IGR_I):
 # noinspection PyPep8Naming
 class IGR_SB(IGR_I):
 
-    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99, run_iteratively=False):
+    def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99,
+                 run_iteratively=False):
         super().__init__(mu, xi, temp, sample_size, noise_type)
 
         self.threshold = threshold
@@ -143,14 +144,15 @@ class GS(Distributions):
 
 
 # Distribution functions
-# ===========================================================================================================
+# =========================================================================================================
 def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> tf.Tensor:
     n_required = tf.constant(value=psi.shape[1], dtype=tf.float32)
     offset = tf.constant(1.e-20)
 
     log_const = tf.math.lgamma(n_required) + (n_required - 1) * tf.math.log(temp)
     log_sum = tf.reduce_sum(logits - (temp + tf.constant(1.)) * tf.math.log(psi + offset), axis=1)
-    log_norm = - n_required * tf.math.log(tf.reduce_sum(tf.math.exp(logits) / psi ** temp, axis=1) + offset)
+    log_norm = - n_required * \
+        tf.math.log(tf.reduce_sum(tf.math.exp(logits) / psi ** temp, axis=1) + offset)
 
     log_p_concrete = log_const + log_sum + log_norm
     return log_p_concrete
@@ -160,13 +162,14 @@ def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tens
     categories_n = tf.constant(log_psi.shape[1], dtype=tf.float32)
     log_cons = tf.math.lgamma(categories_n) + (categories_n - 1) * tf.math.log(temp)
     aux = logits - temp * log_psi
-    log_sums = tf.math.reduce_sum(aux, axis=1) - categories_n * tf.math.reduce_logsumexp(aux, axis=1)
+    log_sums = tf.math.reduce_sum(aux, axis=1) - categories_n * \
+        tf.math.reduce_logsumexp(aux, axis=1)
     log_exp_gs_dist = log_cons + log_sums
     return log_exp_gs_dist
 
 
 # Optimization functions for the Expectation Minimization Loss
-# ===========================================================================================================
+# =========================================================================================================
 def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dist_type: str = 'sb',
                  sample_size: int = 1, threshold: float = 0.99, run_iteratively=False, run_kl=True,
                  planar_flow: str = None):
@@ -181,7 +184,8 @@ def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dis
         if dist_type == 'GS':
             loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required]))
         else:
-            loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required + 1]))
+            loss = psi_mean * (tf.math.log(psi_mean) -
+                               tf.math.log(probs[:chosen_dist.n_required + 1]))
         loss = tf.reduce_sum(loss)
     else:
         loss = tf.reduce_sum((psi_mean - probs[:chosen_dist.n_required + 1]) ** 2)
@@ -205,7 +209,7 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 
 
 # Utils
-# ===========================================================================================================
+# =========================================================================================================
 # @tf.function
 def project_to_vertices_via_softmax_pp(lam):
     delta = tf.constant(0.1, dtype=tf.float32)
@@ -240,8 +244,10 @@ def accumulate_one_minus_kappa_prods(kappa, lower, upper):
     forget_last = -1
     one = tf.constant(value=1., dtype=tf.float32)
 
-    diagonal_kappa = tf.linalg.diag(tf.transpose(one - kappa[:, :forget_last, :, :], perm=[0, 2, 3, 1]))
-    accumulation = tf.transpose(tf.tensordot(lower, diagonal_kappa, axes=[[1], [3]]), perm=[1, 0, 4, 2, 3])
+    diagonal_kappa = tf.linalg.diag(tf.transpose(
+        one - kappa[:, :forget_last, :, :], perm=[0, 2, 3, 1]))
+    accumulation = tf.transpose(tf.tensordot(lower, diagonal_kappa,
+                                             axes=[[1], [3]]), perm=[1, 0, 4, 2, 3])
     accumulation_w_ones = accumulation + upper
     cumprod = tf.math.reduce_prod(input_tensor=accumulation_w_ones, axis=2)
     return cumprod
@@ -271,8 +277,10 @@ def generate_lower_and_upper_triangular_matrices(categories_n):
 def broadcast_matrices_to_shape(lower, upper, batch_size, categories_n, sample_size, num_of_vars):
     upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1))
     upper = np.reshape(upper, newshape=(batch_size, categories_n, categories_n - 1, 1, 1))
-    upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1, sample_size, 1))
-    upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1, sample_size, num_of_vars))
+    upper = np.broadcast_to(upper, shape=(batch_size, categories_n,
+                                          categories_n - 1, sample_size, 1))
+    upper = np.broadcast_to(upper, shape=(batch_size, categories_n,
+                                          categories_n - 1, sample_size, num_of_vars))
 
     lower = tf.constant(value=lower, dtype=tf.float32)  # no reshape needed
     upper = tf.constant(value=upper, dtype=tf.float32)
@@ -336,7 +344,8 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
         chosen_dist = IGR_I(mu=mu, xi=xi, temp=temp, sample_size=sample_size)
     elif dist_type == 'IGR_Planar':
         mu, xi, = params
-        chosen_dist = IGR_Planar(mu=mu, xi=xi, temp=temp, planar_flow=planar_flow, sample_size=sample_size)
+        chosen_dist = IGR_Planar(mu=mu, xi=xi, temp=temp,
+                                 planar_flow=planar_flow, sample_size=sample_size)
     else:
         raise RuntimeError
 
