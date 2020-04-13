@@ -280,6 +280,22 @@ def offload_weights_planar_flow(weights):
     return pf
 
 
+def generate_random_planar_flow_weights(nested_layers, latent_n, var_num):
+    weights = []
+    for _ in range(nested_layers):
+        outputs = generate_random_layer_weights(latent_n, var_num)
+        for element in outputs:
+            weights.append(element)
+    return weights
+
+
+def generate_random_layer_weights(latent_n, var_num):
+    w = tf.Variable(tf.random.normal(mean=0., stddev=1., shape=(1, latent_n, 1, var_num)), name='w')
+    b = tf.Variable(tf.random.normal(mean=0., stddev=1., shape=(1, 1, 1, var_num)), name='b')
+    u = tf.Variable(tf.random.normal(mean=0., stddev=1., shape=(1, latent_n, 1, var_num)), name='u')
+    return w, b, u
+
+
 def determine_path_to_save_results(model_type, dataset_name):
     results_path = './Log/' + dataset_name + '_' + \
         model_type + append_timestamp_to_file('', termination='')
