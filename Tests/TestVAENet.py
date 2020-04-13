@@ -40,6 +40,32 @@ class TestVAENet(unittest.TestCase):
         self.assertTrue(expr=diff < tolerance)
 
     def test_planar_flow_computation(self):
+        tolerance = 1.e-10
+        categories_n = 4
+        z = np.array([[i + 1 for i in np.arange(categories_n)],
+                      [0 for _ in range(categories_n)],
+                      [1 / np.sqrt(categories_n) for i in range(categories_n, 0, -1)]]).T
+        w = np.array([[-1 for _ in np.arange(categories_n)],
+                      [2 * i for i in range(categories_n)],
+                      [1 / np.sqrt(categories_n) for i in range(categories_n, 0, -1)]]).T
+        u = np.array([[-1 for _ in np.arange(categories_n)],
+                      [i for i in range(categories_n)],
+                      [i for i in range(categories_n, 0, -1)]]).T
+        b = np.array([np.sum(z[:, 0]), 1., 0.])
+        u_tilde = np.zeros(shape=(categories_n, len(b)))
+        approx = np.zeros(shape=(categories_n, len(b)))
+        for idx in range(len(b)):
+            approx[:, idx] = planar_flow(z[:, idx], w[:, idx], u[:, idx], b[idx])
+            u_tilde[:, idx] = get_u_tilde(u[:, idx], w[:, idx])
+        ans = np.stack((z[:, 0],
+                        u_tilde[:, 1] * np.tanh(1.),
+                        z[:, 2] + u_tilde[:, 2] * np.tanh(1.))).T
+        diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans)
+        print(f'\nTEST: manual computation')
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(expr=diff < tolerance)
+
+    def test_planar_flow_broadcast_computation(self):
         test_tolerance = 1.e-1
         sample_size = 1
         batch_n = 3
@@ -63,7 +89,6 @@ class TestVAENet(unittest.TestCase):
         pf.u = u_tf
         pf.b = b_tf
         result_tf = pf.call(tf.constant(example, dtype=tf.float32)).numpy()
-        # result_tf = pf(tf.constant(example, dtype=tf.float32)).numpy()
         result_np = compute_pf(example, w=w, u=u, b=b)
 
         diff = np.linalg.norm(result_tf - result_np) / np.linalg.norm(result_np)
@@ -118,11 +143,16 @@ def compute_pf(inputs, w, u, b):
 
 
 def planar_flow(z, w, u, b):
-    alpha = -1 + np.log(1 + np.exp(np.dot(w, u))) - np.dot(w, u)
-    u_tilde = u + alpha * w / np.linalg.norm(w)
+    u_tilde = get_u_tilde(u, w)
     tanh = np.tanh(np.dot(w, z) + b)
     output = z + u_tilde * tanh
     return output
+
+
+def get_u_tilde(u, w):
+    alpha = -1 + np.log(1 + np.exp(np.dot(w, u))) - np.dot(w, u)
+    u_tilde = u + alpha * w / np.linalg.norm(w)
+    return u_tilde
 
 
 def nest_planar_flow(nested_layers, z, w, u, b):
