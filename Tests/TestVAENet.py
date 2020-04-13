@@ -4,18 +4,19 @@ import tensorflow as tf
 from Models.VAENet import PlanarFlowLayer
 from Models.VAENet import create_nested_planar_flow
 from Models.VAENet import offload_weights_planar_flow
+from Models.VAENet import generate_random_planar_flow_weights
 
 
 class TestVAENet(unittest.TestCase):
 
     def test_planar_flow_weight_offloading(self):
-        tolerance = 1.e-16
+        tolerance = 1.e-10
         nested_layers, latent_n, var_num = 2, 4, 1
-        planar_flow = create_nested_planar_flow(nested_layers, latent_n, var_num)
-        pf = offload_weights_planar_flow(planar_flow.weights)
+        weights = generate_random_planar_flow_weights(nested_layers, latent_n, var_num)
+        pf = offload_weights_planar_flow(weights)
         print(f'\nTEST: offloading')
         for idx in range(len(pf.weights)):
-            approx = planar_flow.weights[idx].numpy()
+            approx = weights[idx].numpy()
             ans = pf.weights[idx].numpy()
             diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans + 1.e-20)
             print(f'\nDiff {diff:1.3e}')
