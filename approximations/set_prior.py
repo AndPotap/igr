@@ -3,11 +3,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 from Utils.MinimizeEmpiricalLoss import MinimizeEmpiricalLoss, get_initial_params_for_model_type
 from Utils.general import get_for_approx, plot_loss_and_initial_final_histograms, sample_from_approx
-from Models.VAENet import create_nested_planar_flow
+from Models.VAENet import offload_weights_planar_flow
+from Models.VAENet import generate_random_planar_flow_weights
 
 sample_size = int(1.e3)
-total_iterations = 3 * int(1.e1)
-# total_iterations = 1 * int(1.e2)
+# total_iterations = 3 * int(1.e1)
+total_iterations = 1 * int(1.e3)
 learning_rate = 1.e-2
 
 samples_plot_n = int(1.e3)
@@ -38,7 +39,8 @@ params, params_init = get_initial_params_for_model_type(model_type=model_type, s
 if model_type.find('Planar'):
     nested_layers = 2
     var_num = 1
-    planar_flow = create_nested_planar_flow(nested_layers, categories_n - 1, var_num, initializer='zeros')
+    weights = generate_random_planar_flow_weights(nested_layers, categories_n - 1, var_num)
+    planar_flow = offload_weights_planar_flow(weights)
 else:
     planar_flow = None
 minimizer = MinimizeEmpiricalLoss(learning_rate=learning_rate, temp=temp, sample_size=sample_size,
