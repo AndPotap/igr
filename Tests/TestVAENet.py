@@ -125,5 +125,13 @@ def planar_flow(z, w, u, b):
     return output
 
 
+def nest_planar_flow(nested_layers, z, w, u, b):
+    z_nest = np.zeros(shape=((nested_layers,) + z.shape))
+    z_nest[0, :] = z
+    for l in range(1, nested_layers):
+        z_nest[l, :] = planar_flow(z_nest[l - 1, :], w[l, :], u[l, :], b[l])
+    return z_nest
+
+
 if __name__ == '__main__':
     unittest.main()
