@@ -418,8 +418,20 @@ def calculate_general_closed_form_gauss_kl(mean_q, log_var_q, mean_p, log_var_p,
     return kl_norm
 
 
-def calculate_planar_flow_determinant(weights):
-    return weights
+def calculate_planar_flow_log_determinant(z, planar_flow):
+    log_det = tf.constant(0., dtype=tf.float32)
+    nested_layers = int(len(planar_flow.weights) / 3)
+    zl = z
+    for l in range(nested_layers):
+        pf_layer = planar_flow.get_layer(index=l)
+        w, b, _ = pf_layer.weights
+        u = pf_layer.get_u_tilde()
+        uTw = tf.math.reduce_sum(u * w, axis=1)
+        wTz = tf.math.reduce_sum(w * zl, axis=1)
+        h_prime = 1. - tf.math.tanh(wTz + b) ** 2
+        log_det -= tf.math.log(tf.math.abs(1 + h_prime * uTw))
+        zl = pf_layer.call(zl)
+    return log_det
 
 
 def compute_log_normal_pdf(sample, mean, log_var):
