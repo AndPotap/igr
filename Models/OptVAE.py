@@ -271,6 +271,17 @@ class OptPlanarNFDis(OptIGRDis):
         self.dist = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
                                temp=self.temp, sample_size=self.sample_size)
 
+    def compute_discrete_kl(self, mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
+        kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc,
+                                                        log_var_q=2 * xi_disc,
+                                                        mean_p=mu_disc_prior,
+                                                        log_var_p=2. * xi_disc_prior,
+                                                        axis=(1, 3))
+        pf_log_jac_det = calculate_planar_flow_log_determinant(self.dist.lam,
+                                                               self.nets.planar_flow)
+        output = kl_dis + pf_log_jac_det
+        return output
+
 
 class OptSBFinite(OptIGR):
 
@@ -428,9 +439,10 @@ def calculate_planar_flow_log_determinant(z, planar_flow):
         u = pf_layer.get_u_tilde()
         uTw = tf.math.reduce_sum(u * w, axis=1)
         wTz = tf.math.reduce_sum(w * zl, axis=1)
-        h_prime = 1. - tf.math.tanh(wTz + b) ** 2
+        h_prime = 1. - tf.math.tanh(wTz + b[0, :, :, :]) ** 2
         log_det -= tf.math.log(tf.math.abs(1 + h_prime * uTw))
         zl = pf_layer.call(zl)
+    log_det = tf.reduce_sum(log_det, axis=[-1])
     return log_det
 
 
