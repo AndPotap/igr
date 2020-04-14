@@ -266,6 +266,7 @@ class OptPlanarNFDis(OptIGRDis):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.regularize_planar_flow = True
 
     def select_distribution(self, mu, xi):
         self.dist = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
@@ -277,10 +278,13 @@ class OptPlanarNFDis(OptIGRDis):
                                                         mean_p=mu_disc_prior,
                                                         log_var_p=2. * xi_disc_prior,
                                                         axis=(1, 3))
-        pf_log_jac_det = calculate_planar_flow_log_determinant(self.dist.lam,
-                                                               self.nets.planar_flow)
-        output = kl_dis + pf_log_jac_det
-        return output
+        if self.regularize_planar_flow:
+            pf_log_jac_det = calculate_planar_flow_log_determinant(self.dist.lam,
+                                                                   self.nets.planar_flow)
+            output = kl_dis + pf_log_jac_det
+            return output
+        else:
+            return kl_dis
 
 
 class OptSBFinite(OptIGR):
