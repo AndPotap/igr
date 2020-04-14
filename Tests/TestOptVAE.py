@@ -3,9 +3,30 @@ import numpy as np
 import tensorflow as tf
 from Models.OptVAE import calculate_simple_closed_gauss_kl, calculate_categorical_closed_kl
 from Models.OptVAE import calculate_general_closed_form_gauss_kl
+from Models.OptVAE import calculate_planar_flow_log_determinant
+from Models.VAENet import create_nested_planar_flow
+from Tests.TestVAENet import calculate_pf_log_det_np_all
 
 
 class TestSBDist(unittest.TestCase):
+
+    def test_planar_flow_log_determinant(self):
+        tolerance = 1.e-6
+        batch_n = 1
+        sample_size = 1
+        categories_n = 4
+        input_shape = batch_n, categories_n, sample_size, batch_n
+        nested_layers, var_num = 2, 1
+        z = np.array([1 / np.sqrt(categories_n) for _ in np.arange(categories_n)])
+        z = prepare_example(z, input_shape)
+        planar_flow = create_nested_planar_flow(nested_layers, categories_n, var_num)
+        approx = calculate_planar_flow_log_determinant(z, planar_flow).numpy()
+        w_np, u_np, b_np = get_pf_layers_weights(planar_flow)
+        ans = calculate_pf_log_det_np_all(z, w_np, u_np, b_np)
+        diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans + 1.e-20)
+        print(f'\nTEST: TF Planar Flow Log Determinant')
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(expr=diff < tolerance)
 
     def test_calculate_kl_norm_via_analytical_formula(self):
         test_tolerance = 1.e-5
@@ -117,6 +138,33 @@ def calculate_kl_discrete(alpha):
     for i in range(categories_n):
         kl_discrete[:, i, :] = alpha[:, i, :] * (np.log(alpha[:, i, :]) - np.log(1 / categories_n))
     return np.sum(kl_discrete, axis=1)
+
+
+def prepare_example(z, input_shape, make_tf=True):
+    batch_n, categories_n, sample_size, var_num = input_shape
+    z = np.reshape(z, newshape=(1, categories_n, 1, var_num))
+    z = np.broadcast_to(z, shape=input_shape)
+    z = tf.constant(z, dtype=tf.float32) if make_tf else z
+    return z
+
+
+def get_pf_layers_weights(planar_flow):
+    nested_layers = int(len(planar_flow.weights) / 3)
+    pf_layer = planar_flow.get_layer(index=0)
+    w0, b0, u0 = pf_layer.weights
+    w_np = np.zeros(shape=(w0.shape + (nested_layers,)))
+    b_np = np.zeros(shape=(b0.shape + (nested_layers,)))
+    u_np = np.zeros(shape=(u0.shape + (nested_layers,)))
+    w_np[:, :, :, :, 0] = w0.numpy()
+    b_np[:, :, :, :, 0] = b0.numpy()
+    u_np[:, :, :, :, 0] = u0.numpy()
+    for l in range(1, nested_layers):
+        pf_layer = planar_flow.get_layer(index=l)
+        w0, b0, u0 = pf_layer.weights
+        w_np[:, :, :, :, l] = w0.numpy()
+        b_np[:, :, :, :, l] = b0.numpy()
+        u_np[:, :, :, :, l] = u0.numpy()
+    return w_np, u_np, b_np
 
 
 def broadcast_to_shape(v, samples_n, num_of_vars):
