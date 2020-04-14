@@ -31,7 +31,8 @@ class TestSBDist(unittest.TestCase):
         for mu, log_sigma2 in cases:
             kl_norm_ans = calculate_kl_norm(mu=mu, sigma2=np.exp(log_sigma2))
             kl_norm = calculate_simple_closed_gauss_kl(mean=tf.constant(mu, dtype=tf.float32),
-                                                       log_var=tf.constant(log_sigma2, dtype=tf.float32))
+                                                       log_var=tf.constant(log_sigma2,
+                                                                           dtype=tf.float32))
             relative_diff = np.linalg.norm((kl_norm.numpy() - kl_norm_ans) / kl_norm_ans)
             self.assertTrue(expr=relative_diff < test_tolerance)
 
@@ -94,8 +95,10 @@ def calculate_kl_norm_general_from_vectors(mean_0, log_var_0, mean_1, log_var_1)
             for r in range(num_of_var):
                 cov_0 = np.diag(np.exp(log_var_0[i, :, j, r]))
                 cov_1 = np.diag(np.exp(log_var_1[i, :, j, r]))
-                kl_norm[i, j, r] = calculate_kl_norm_general(mean_0=mean_0[i, :, j, r], cov_0=cov_0,
-                                                             mean_1=mean_1[i, :, j, r], cov_1=cov_1)
+                kl_norm[i, j, r] = calculate_kl_norm_general(mean_0=mean_0[i, :, j, r],
+                                                             cov_0=cov_0,
+                                                             mean_1=mean_1[i, :, j, r],
+                                                             cov_1=cov_1)
     return kl_norm
 
 
