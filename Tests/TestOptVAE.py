@@ -16,7 +16,7 @@ class TestSBDist(unittest.TestCase):
         sample_size = 1
         categories_n = 4
         input_shape = batch_n, categories_n, sample_size, batch_n
-        nested_layers, var_num = 1, 1
+        nested_layers, var_num = 2, 1
         z = np.array([1 / np.sqrt(categories_n) for _ in np.arange(categories_n)])
         z = prepare_example(z, input_shape)
         planar_flow = create_nested_planar_flow(nested_layers, categories_n, var_num)
