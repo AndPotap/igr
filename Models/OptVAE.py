@@ -1,8 +1,8 @@
 import pickle
-from typing import Tuple
 import tensorflow as tf
 from os import environ as os_env
-from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite, GS, compute_log_exp_gs_dist
+from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
+from Utils.Distributions import GS, compute_log_exp_gs_dist
 from Utils.general import initialize_mu_and_xi_for_logistic
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -101,7 +101,8 @@ class OptVAE:
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x)
             output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-                                       run_jv=self.run_jv, run_closed_form_kl=self.run_closed_form_kl)
+                                       run_jv=self.run_jv,
+                                       run_closed_form_kl=self.run_closed_form_kl)
             loss, recon, kl, kl_n, kl_d = output
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         return gradients, loss, recon, kl, kl_n, kl_d
@@ -127,7 +128,8 @@ class OptExpGS(OptVAE):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
-        self.dist = GS(log_pi=tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1)), temp=self.temp)
+        self.dist = GS(log_pi=tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1)),
+                       temp=self.temp)
         self.log_psi = tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1))
 
     def reparameterize(self, params_broad):
@@ -320,7 +322,8 @@ class OptSBFinite(OptIGR):
 class OptSB(OptSBFinite):
 
     def __init__(self, nets, optimizer, hyper, use_continuous):
-        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=use_continuous)
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper,
+                         use_continuous=use_continuous)
         self.max_categories = hyper['latent_discrete_n']
         self.threshold = hyper['threshold']
         self.truncation_option = hyper['truncation_option']
@@ -343,7 +346,7 @@ class OptSB(OptSBFinite):
         return z_discrete
 
 
-# ===========================================================================================================
+# =================================================================================================
 def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
                  gamma=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
     if run_jv:
@@ -398,7 +401,8 @@ def sample_kl_norm(z_norm, mean, log_var):
 
 
 def calculate_simple_closed_gauss_kl(mean, log_var):
-    kl_norm = 0.5 * tf.reduce_sum(tf.math.exp(log_var) + tf.math.pow(mean, 2) - log_var - tf.constant(1.),
+    kl_norm = 0.5 * tf.reduce_sum(tf.math.exp(log_var) + tf.math.pow(mean, 2) -
+                                  log_var - tf.constant(1.),
                                   axis=1)
     return kl_norm
 
@@ -448,7 +452,8 @@ def get_broadcasted_uniform_probs(shape):
     uniform_probs = tf.constant([1 / categories_n for _ in range(categories_n)], dtype=tf.float32,
                                 shape=(1, categories_n, 1, 1))
     uniform_probs = shape_prior_to_sample_size_and_discrete_var_num(uniform_probs, batch_n,
-                                                                    categories_n, sample_size, disc_var_num)
+                                                                    categories_n, sample_size,
+                                                                    disc_var_num)
     return uniform_probs
 
 
