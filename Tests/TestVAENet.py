@@ -49,7 +49,7 @@ class TestVAENet(unittest.TestCase):
                       [i for i in range(categories_n, 0, -1)]]).T
         b = np.array([np.sum(z), -1.])
         nested_layers = len(b)
-        approx = calculate_planar_flow_log_determinant(z, w, u, b)
+        approx = calculate_pf_log_det_np(z, w, u, b)
         u_tilde = np.zeros(shape=(categories_n, len(b)))
         for l in range(nested_layers):
             u_tilde[:, l] = get_u_tilde(u[:, l], w[:, l])
@@ -168,7 +168,21 @@ def get_u_tilde(u, w):
     return u_tilde
 
 
-def calculate_planar_flow_log_determinant(z, w, u, b):
+def calculate_pf_log_det_np_all(inputs, w, u, b):
+    batch_n, latent_n, sample_size, var_num = inputs.shape
+    output = np.zeros(shape=(batch_n, 1, sample_size, var_num))
+    for batch in range(batch_n):
+        for sample in range(sample_size):
+            for var in range(var_num):
+                z_c = inputs[batch, :, sample, var].numpy()
+                w_c = w[batch, :, sample, var, :]
+                u_c = u[batch, :, sample, var, :]
+                b_c = b[batch, :, sample, var, :].T
+                output[batch, 0, sample, var] = calculate_pf_log_det_np(z_c, w_c, u_c, b_c)
+    return output
+
+
+def calculate_pf_log_det_np(z, w, u, b):
     nested_layers = len(b)
     z_nest = nest_planar_flow(nested_layers, z, w, u, b)
     log_det = 0
