@@ -39,6 +39,29 @@ class TestVAENet(unittest.TestCase):
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < tolerance)
 
+    def test_planar_flow_determinant(self):
+        tolerance = 1.e-10
+        categories_n = 4
+        z = np.array([1 / np.sqrt(categories_n) for _ in np.arange(categories_n)])
+        w = np.array([[-1 for _ in np.arange(categories_n)],
+                      [1 / np.sqrt(categories_n) for i in range(categories_n, 0, -1)]]).T
+        u = np.array([[-1 for _ in np.arange(categories_n)],
+                      [i for i in range(categories_n, 0, -1)]]).T
+        b = np.array([np.sum(z), -1.])
+        nested_layers = len(b)
+        approx = calculate_planar_flow_log_determinant(nested_layers, z, w, u, b)
+        u_tilde = np.zeros(shape=(categories_n, len(b)))
+        for l in range(nested_layers):
+            u_tilde[:, l] = get_u_tilde(u[:, l], w[:, l])
+
+        ans = np.stack((1 + u_tilde[:, 0].T @ w[:, 0],
+                        1 + u_tilde[:, 1] @ w[:, 1])).T
+        ans = -np.sum(np.log(ans))
+        diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans)
+        print(f'\nTEST: Planar Flow Determinant')
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(expr=diff < tolerance)
+
     def test_planar_flow_computation(self):
         tolerance = 1.e-10
         categories_n = 4
@@ -145,11 +168,21 @@ def get_u_tilde(u, w):
     return u_tilde
 
 
+def calculate_planar_flow_log_determinant(nested_layers, z, w, u, b):
+    z_nest = nest_planar_flow(nested_layers, z, w, u, b)
+    log_det = 0
+    for l in range(nested_layers):
+        u_tilde = get_u_tilde(u[:, l], w[:, l])
+        h_prime = 1 - np.tanh(w[:, l].T @ z_nest[:, l] + b[l]) ** 2
+        log_det -= np.log(np.abs(1 + h_prime * u_tilde.T @ w[:, l]))
+    return log_det
+
+
 def nest_planar_flow(nested_layers, z, w, u, b):
-    z_nest = np.zeros(shape=((nested_layers,) + z.shape))
-    z_nest[0, :] = z
-    for l in range(1, nested_layers):
-        z_nest[l, :] = planar_flow(z_nest[l - 1, :], w[l, :], u[l, :], b[l])
+    z_nest = np.zeros(shape=(z.shape + (nested_layers + 1, )))
+    z_nest[:, 0] = z
+    for l in range(1, nested_layers + 1):
+        z_nest[:, l] = planar_flow(z_nest[:, l - 1], w[:, l - 1], u[:, l - 1], b[l - 1])
     return z_nest
 
 
