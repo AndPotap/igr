@@ -240,9 +240,7 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        prod_wTu = tf.math.reduce_sum(self.w * self.u, axis=1)
-        alpha = -1 + tf.math.softplus(prod_wTu) - prod_wTu
-        u_tilde = self.u + alpha * self.w / tf.linalg.norm(self.w)
+        u_tilde = self.get_u_tilde()
 
         batch_n, n_required, sample_size, var_num = inputs.shape
         if batch_n is None:
@@ -255,6 +253,12 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
         tanh = tf.math.tanh(prod_wTinputs + self.b)
         output = inputs + u_tilde_broad * tanh
         return output
+
+    def get_u_tilde(self):
+        prod_wTu = tf.math.reduce_sum(self.w * self.u, axis=1)
+        alpha = -1 + tf.math.softplus(prod_wTu) - prod_wTu
+        u_tilde = self.u + alpha * self.w / tf.linalg.norm(self.w)
+        return u_tilde
 
     def get_config(self):
         base_config = super().get_config()
