@@ -57,13 +57,13 @@ class IGR_I(Distributions):
         epsilon = self.sample_noise(shape=mu_broad.shape)
         sigma_broad = tf.math.exp(xi_broad)
         self.kappa = mu_broad + sigma_broad * epsilon
-        self.lam = self.transform(mu_broad, sigma_broad, epsilon)
+        self.lam = self.transform()
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
         self.psi = project_to_vertices_via_softmax_pp(self.lam / self.temp)
         # self.psi = tf.math.softmax(self.lam / self.temp, axis=1)
 
-    def transform(self, kappa):
-        lam = kappa
+    def transform(self):
+        lam = self.kappa
         return lam
 
 
@@ -73,8 +73,8 @@ class IGR_Planar(IGR_I):
         super().__init__(mu, xi, temp, sample_size, noise_type)
         self.planar_flow = planar_flow
 
-    def transform(self, kappa):
-        lam = (self.planar_flow(kappa))
+    def transform(self):
+        lam = (self.planar_flow(self.kappa))
         return lam
 
 
@@ -90,8 +90,8 @@ class IGR_SB(IGR_I):
         self.quantile = 70
         self.run_iteratively = run_iteratively
 
-    def transform(self, kappa):
-        eta = tf.math.sigmoid(kappa)
+    def transform(self):
+        eta = tf.math.sigmoid(self.kappa)
         lam = self.apply_stick_break(eta)
         return lam
 
