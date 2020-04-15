@@ -8,9 +8,9 @@ os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 class Distributions:
 
-    def __init__(self, batch_size: int, categories_n: int, sample_size: int = 1, num_of_vars: int =
-                 1,
-                 noise_type: str = 'normal', temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
+    def __init__(self, batch_size: int, categories_n: int, sample_size: int = 1,
+                 num_of_vars: int = 1, noise_type: str = 'normal',
+                 temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
 
         self.noise_type = noise_type
         self.temp = temp
