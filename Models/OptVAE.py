@@ -191,6 +191,7 @@ class OptIGR(OptVAE):
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.dist = IGR_I(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
         self.use_continuous = True
+        self.use_kl_dis_sample = True
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
@@ -217,11 +218,18 @@ class OptIGR(OptVAE):
 
     def compute_discrete_kl(self, mu_disc, xi_disc):
         mu_disc_prior, xi_disc_prior = self.update_prior_values()
-        kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc,
-                                                        log_var_q=2 * xi_disc,
-                                                        mean_p=mu_disc_prior,
-                                                        log_var_p=2. * xi_disc_prior,
-                                                        axis=(1, 3))
+        if self.use_kl_dis_sample:
+            kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc,
+                                                            log_var_q=2. * xi_disc,
+                                                            mean_p=mu_disc_prior,
+                                                            log_var_p=2. * xi_disc_prior,
+                                                            axis=(1, 3))
+        else:
+            kl_dis = compute_log_normal_pdf(self.dist.lam,
+                                            mean=mu_disc, log_var=2. * xi_disc)
+            kl_dis -= compute_log_normal_pdf(self.dist.lam,
+                                             mean=mu_disc_prior, log_var=2. * xi_disc_prior)
+            kl_dis = tf.reduce_sum(kl_dis, axis=2)
         return kl_dis
 
     def update_prior_values(self):
