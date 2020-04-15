@@ -212,24 +212,23 @@ class OptIGR(OptVAE):
         else:
             mu_disc, xi_disc = params_broad
             kl_norm = 0.
-        mu_disc_prior, xi_disc_prior = self.update_prior_values()
-        kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, mu_disc_prior, xi_disc_prior)
+        kl_dis = self.compute_discrete_kl(mu_disc, xi_disc)
         return kl_norm, kl_dis
 
-    def update_prior_values(self):
-        current_batch_n = self.dist.lam.shape[0]
-        mu_disc_prior = self.mu_0[:current_batch_n, :, :]
-        xi_disc_prior = self.xi_0[:current_batch_n, :, :]
-        return mu_disc_prior, xi_disc_prior
-
-    @staticmethod
-    def compute_discrete_kl(mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
+    def compute_discrete_kl(self, mu_disc, xi_disc):
+        mu_disc_prior, xi_disc_prior = self.update_prior_values()
         kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc,
                                                         log_var_q=2 * xi_disc,
                                                         mean_p=mu_disc_prior,
                                                         log_var_p=2. * xi_disc_prior,
                                                         axis=(1, 3))
         return kl_dis
+
+    def update_prior_values(self):
+        current_batch_n = self.dist.lam.shape[0]
+        mu_disc_prior = self.mu_0[:current_batch_n, :, :]
+        xi_disc_prior = self.xi_0[:current_batch_n, :, :]
+        return mu_disc_prior, xi_disc_prior
 
     def load_prior_values(self):
         shape = (self.batch_size, self.nets.disc_latent_in,
