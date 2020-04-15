@@ -271,7 +271,8 @@ class OptPlanarNFDis(OptIGRDis):
         self.dist = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
                                temp=self.temp, sample_size=self.sample_size)
 
-    def compute_discrete_kl(self, mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
+    def compute_discrete_kl(self, mu_disc, xi_disc):
+        mu_disc_prior, xi_disc_prior = self.update_prior_values()
         kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc,
                                                         log_var_q=2 * xi_disc,
                                                         mean_p=mu_disc_prior,
