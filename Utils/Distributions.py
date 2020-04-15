@@ -8,7 +8,8 @@ os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 class Distributions:
 
-    def __init__(self, batch_size: int, categories_n: int, sample_size: int = 1, num_of_vars: int = 1,
+    def __init__(self, batch_size: int, categories_n: int, sample_size: int = 1, num_of_vars: int =
+                 1,
                  noise_type: str = 'normal', temp: tf.Tensor = tf.constant(0.1, dtype=tf.float32)):
 
         self.noise_type = noise_type
@@ -106,7 +107,8 @@ class IGR_SB(IGR_I):
     def construct_matrices_for_sb(self):
         lower, upper = generate_lower_and_upper_triangular_matrices(self.categories_n)
         lower, upper = broadcast_matrices_to_shape(lower, upper, self.batch_size,
-                                                   self.categories_n, self.sample_size, self.num_of_vars)
+                                                   self.categories_n, self.sample_size,
+                                                   self.num_of_vars)
         return lower, upper
 
     def perform_truncation_via_threshold(self, vector):
@@ -128,7 +130,8 @@ class IGR_SB_Finite(IGR_SB):
 class GS(Distributions):
 
     def __init__(self, log_pi, temp, sample_size: int = 1):
-        super().__init__(batch_size=log_pi.shape[0], categories_n=log_pi.shape[1], sample_size=sample_size,
+        super().__init__(batch_size=log_pi.shape[0], categories_n=log_pi.shape[1],
+                         sample_size=sample_size,
                          temp=temp, num_of_vars=log_pi.shape[3])
         self.log_pi = log_pi
 
@@ -196,7 +199,8 @@ def compute_gradients(params, temp: tf.Tensor, probs: tf.Tensor, run_kl=True,
                       threshold: float = 0.99,
                       planar_flow: str = None) -> Tuple[tf.Tensor, tf.Tensor, int]:
     with tf.GradientTape() as tape:
-        loss, n_required = compute_loss(params=params, temp=temp, probs=probs, sample_size=sample_size,
+        loss, n_required = compute_loss(params=params, temp=temp, probs=probs,
+                                        sample_size=sample_size,
                                         threshold=threshold, dist_type=dist_type, run_kl=run_kl,
                                         run_iteratively=run_iteratively, planar_flow=planar_flow)
         gradient = tape.gradient(target=loss, sources=params)
