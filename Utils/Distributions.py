@@ -56,11 +56,11 @@ class IGR_I(Distributions):
         sigma_broad = tf.math.exp(xi_broad)
         self.lam = self.transform(mu_broad, sigma_broad, epsilon)
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
-        self.psi = project_to_vertices_via_softmax_pp(self.lam)
-        # self.psi = tf.math.softmax(self.lam, axis=1)
+        self.psi = project_to_vertices_via_softmax_pp(self.lam / self.temp)
+        # self.psi = tf.math.softmax(self.lam / self.temp, axis=1)
 
     def transform(self, mu_broad, sigma_broad, epsilon):
-        lam = (mu_broad + sigma_broad * epsilon) / self.temp
+        lam = (mu_broad + sigma_broad * epsilon)
         return lam
 
 
@@ -71,7 +71,7 @@ class IGR_Planar(IGR_I):
         self.planar_flow = planar_flow
 
     def transform(self, mu_broad, sigma_broad, epsilon):
-        lam = (self.planar_flow(mu_broad + sigma_broad * epsilon)) / self.temp
+        lam = (self.planar_flow(mu_broad + sigma_broad * epsilon))
         return lam
 
 
@@ -90,8 +90,7 @@ class IGR_SB(IGR_I):
     def transform(self, mu_broad, sigma_broad, epsilon):
         kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
         eta = self.apply_stick_break(kappa)
-        lam = eta / self.temp
-        return lam
+        return eta
 
     def apply_stick_break(self, kappa):
         eta = iterative_sb(kappa) if self.run_iteratively else self.perform_matrix_sb(kappa)
