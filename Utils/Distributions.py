@@ -20,6 +20,7 @@ class Distributions:
         self.num_of_vars = num_of_vars
 
         self.n_required = categories_n
+        self.kappa = tf.constant(0., dtype=tf.float32)
         self.lam = tf.constant(0., dtype=tf.float32)
         self.log_psi = tf.constant(0., dtype=tf.float32)
         self.psi = tf.constant(0., dtype=tf.float32)
@@ -55,13 +56,14 @@ class IGR_I(Distributions):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         epsilon = self.sample_noise(shape=mu_broad.shape)
         sigma_broad = tf.math.exp(xi_broad)
+        self.kappa = mu_broad + sigma_broad * epsilon
         self.lam = self.transform(mu_broad, sigma_broad, epsilon)
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
         self.psi = project_to_vertices_via_softmax_pp(self.lam / self.temp)
         # self.psi = tf.math.softmax(self.lam / self.temp, axis=1)
 
-    def transform(self, mu_broad, sigma_broad, epsilon):
-        lam = (mu_broad + sigma_broad * epsilon)
+    def transform(self, kappa):
+        lam = kappa
         return lam
 
 
@@ -71,8 +73,8 @@ class IGR_Planar(IGR_I):
         super().__init__(mu, xi, temp, sample_size, noise_type)
         self.planar_flow = planar_flow
 
-    def transform(self, mu_broad, sigma_broad, epsilon):
-        lam = (self.planar_flow(mu_broad + sigma_broad * epsilon))
+    def transform(self, kappa):
+        lam = (self.planar_flow(kappa))
         return lam
 
 
@@ -88,10 +90,10 @@ class IGR_SB(IGR_I):
         self.quantile = 70
         self.run_iteratively = run_iteratively
 
-    def transform(self, mu_broad, sigma_broad, epsilon):
-        kappa = tf.math.sigmoid(mu_broad + sigma_broad * epsilon)
-        eta = self.apply_stick_break(kappa)
-        return eta
+    def transform(self, kappa):
+        eta = tf.math.sigmoid(kappa)
+        lam = self.apply_stick_break(eta)
+        return lam
 
     def apply_stick_break(self, kappa):
         eta = iterative_sb(kappa) if self.run_iteratively else self.perform_matrix_sb(kappa)
