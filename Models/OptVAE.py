@@ -225,10 +225,12 @@ class OptIGR(OptVAE):
                                                             log_var_p=2. * xi_disc_prior,
                                                             axis=(1, 3))
         else:
-            kl_dis = self.compute_sampled_kl(mu_disc, xi_disc, mu_disc_prior, xi_disc_prior)
+            kl_dis = self.compute_sampled_discrete_kl(mu_disc, xi_disc,
+                                                      mu_disc_prior, xi_disc_prior)
         return kl_dis
 
-    def compute_sampled_kl(self, mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
+    def compute_sampled_discrete_kl(self, mu_disc, xi_disc,
+                                    mu_disc_prior, xi_disc_prior):
         log_qz_x = compute_log_normal_pdf(self.dist.kappa,
                                           mean=mu_disc, log_var=2. * xi_disc)
         log_pz = compute_log_normal_pdf(self.dist.kappa,
@@ -272,7 +274,7 @@ class OptPlanarNF(OptIGR):
         self.dist = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
                                temp=self.temp, sample_size=self.sample_size)
 
-    def compute_sampled_kl(self, mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
+    def compute_sampled_discrete_kl(self, mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
         log_qz_x = compute_log_normal_pdf(self.dist.kappa,
                                           mean=mu_disc, log_var=2. * xi_disc)
         log_pz = compute_log_normal_pdf(self.dist.lam,
@@ -284,25 +286,10 @@ class OptPlanarNF(OptIGR):
         return kl_dis
 
 
-class OptPlanarNFDis(OptIGRDis):
+class OptPlanarNFDis(OptIGRDis, OptPlanarNF):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-
-    def select_distribution(self, mu, xi):
-        self.dist = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
-                               temp=self.temp, sample_size=self.sample_size)
-
-    def compute_sampled_kl(self, mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
-        log_qz_x = compute_log_normal_pdf(self.dist.kappa,
-                                          mean=mu_disc, log_var=2. * xi_disc)
-        log_pz = compute_log_normal_pdf(self.dist.lam,
-                                        mean=mu_disc_prior, log_var=2. * xi_disc_prior)
-        kl_dis = tf.reduce_sum(log_qz_x - log_pz, axis=2)
-        pf_log_jac_det = calculate_planar_flow_log_determinant(self.dist.kappa,
-                                                               self.nets.planar_flow)
-        kl_dis = kl_dis + pf_log_jac_det
-        return kl_dis
 
 
 class OptSBFinite(OptIGR):
