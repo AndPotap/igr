@@ -26,4 +26,5 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'run_jv': False, 'gamma': tf.constant(30.), 'check_every': 10,
          'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
 
-run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, num_of_repetitions, run_with_sample)
+run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps,
+                      num_of_repetitions, run_with_sample)
