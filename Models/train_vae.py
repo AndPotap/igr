@@ -184,8 +184,8 @@ def update_test_progress(x_test, vae_opt, test_progress):
     test_progress['N'](vae_opt.n_required)
     for k, v in test_progress['vars_to_track'].items():
         if k != 'N':
-            loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=v[0],
-                                                                  run_closed_form_kl=v[1])
+            loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=v[0])
+
             test_progress[k](loss)
     return test_progress
 
