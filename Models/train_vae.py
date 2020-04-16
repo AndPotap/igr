@@ -10,8 +10,6 @@ from Utils.viz_vae import plot_originals, plot_reconstructions_samples_and_trave
 from Utils.general import setup_logger, append_timestamp_to_file
 
 
-# Train VAE
-# ===========================================================================================================
 def run_vae(hyper, run_with_sample):
     data = load_vae_dataset(dataset_name=hyper['dataset_name'], batch_n=hyper['batch_n'],
                             epochs=hyper['epochs'], run_with_sample=run_with_sample,
@@ -55,11 +53,11 @@ def construct_nets_and_optimizer(hyper, model_type):
 
 
 def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every,
-        monitor_gradients=False):
+              monitor_gradients=False):
     logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     init_vars = run_initialization_procedure(hyper, results_path)
     (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace,
-            grad_monitor_dict,
+     grad_monitor_dict,
      grad_norm) = init_vars
 
     initial_time = time.time()
@@ -92,7 +90,7 @@ def start_all_logging_instruments(hyper, test_images):
     if not os.path.exists(results_path):
         os.mkdir(results_path)
     logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=results_path +
-        '/loss.log',
+                                                                 '/loss.log',
                                                                  termination='.log'),
                           logger_name=append_timestamp_to_file('logger', termination=''))
     log_all_hyperparameters(hyper=hyper, logger=logger)
@@ -125,7 +123,7 @@ def initialize_vae_variables(results_path, hyper):
     grad_monitor_dict = {}
     grad_norm = tf.constant(0., dtype=tf.float32)
     init_vars = (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace,
-            grad_monitor_dict,
+                 grad_monitor_dict,
                  grad_norm)
     return init_vars
 
@@ -136,14 +134,15 @@ def convert_into_linspace(limits_tuple):
 
 
 def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace,
-        cont_c_linspace):
+                       cont_c_linspace):
     output = vae_opt.compute_gradients(x=x_train)
     gradients, loss, log_px_z, kl, kl_n, kl_d = output
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     train_loss_mean(loss)
     update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
-                                   disc_c_linspace=disc_c_linspace, cont_c_linspace=cont_c_linspace)
+                                   disc_c_linspace=disc_c_linspace,
+                                   cont_c_linspace=cont_c_linspace)
     return vae_opt, iteration_counter
 
 
@@ -154,7 +153,7 @@ def update_regularization_channels(vae_opt, iteration_counter, disc_c_linspace, 
 
 
 def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_counter,
-        grad_monitor_dict, epoch):
+                            grad_monitor_dict, epoch):
     if monitor_gradients:
         grad_norm = vae_opt.monitor_parameter_gradients_at_psi(x=x_train)
         grad_monitor_dict.update({iteration_counter: grad_norm.numpy()})
@@ -169,7 +168,7 @@ def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, i
         for x_test in test_dataset.take(hyper['iter_per_epoch']):
             test_progress = update_test_progress(x_test, vae_opt, test_progress)
         log_test_progress(logger, test_progress, epoch, time_taken, iteration_counter,
-                train_loss_mean, vae_opt.temp)
+                          train_loss_mean, vae_opt.temp)
 
 
 def create_test_progress_tracker():
@@ -186,13 +185,13 @@ def update_test_progress(x_test, vae_opt, test_progress):
     for k, v in test_progress['vars_to_track'].items():
         if k != 'N':
             loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=v[0],
-                    run_closed_form_kl=v[1])
+                                                                  run_closed_form_kl=v[1])
             test_progress[k](loss)
     return test_progress
 
 
 def log_test_progress(logger, test_progress, epoch, time_taken, iteration_counter, train_loss_mean,
-        temp):
+                      temp):
     test_print = f'Epoch {epoch:4d} || '
     for k, _ in test_progress['vars_to_track'].items():
         loss = test_progress[k].result().numpy()
@@ -209,11 +208,11 @@ def log_test_progress(logger, test_progress, epoch, time_taken, iteration_counte
 
 
 def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path,
-        save_every=25):
+                              save_every=25):
     if epoch % save_every == 0:
         vae_opt.nets.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
         plot_reconstructions_samples_and_traversals(hyper=hyper, epoch=epoch,
-                results_path=results_path,
+                                                    results_path=results_path,
                                                     test_images=test_images, vae_opt=vae_opt)
 
 
@@ -226,7 +225,7 @@ def save_final_results(nets, logger, results_file, initial_time, temp):
 
 
 def run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, num_of_repetitions,
-        run_with_sample):
+                          run_with_sample):
     for _, model in model_cases.items():
         hyper_copy = dict(hyper)
         hyper_copy = fill_in_dict(hyper_copy, model)
