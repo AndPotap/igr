@@ -90,9 +90,10 @@ class OptVAE:
                   tf.reduce_mean(kl_norm), tf.reduce_mean(kl_dis))
         return output
 
-    def compute_losses_from_x_wo_gradients(self, x, run_jv, run_closed_form_kl):
+    def compute_losses_from_x_wo_gradients(self, x, run_jv, run_closed_form_kl,
+                                           run_with_one_hot=False):
         z, x_logit, params_broad = self.perform_fwd_pass(x=x)
-        # z[-1] = make_one_hot(z[-1])
+        z[-1] = make_one_hot(z[-1]) if run_with_one_hot else z[-1]
         output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                    run_jv=run_jv, run_closed_form_kl=run_closed_form_kl)
         loss, recon, kl, kl_norm, kl_dis = output
