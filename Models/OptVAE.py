@@ -135,6 +135,7 @@ class OptExpGS(OptVAE):
         self.dist = GS(log_pi=tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1)),
                        temp=self.temp)
         self.log_psi = tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1))
+        self.use_continuous = True
 
     def reparameterize(self, params_broad):
         mean, log_var, logits = params_broad
@@ -147,17 +148,34 @@ class OptExpGS(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
-    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
-        mean, log_var, logits = params_broad
-        z_norm, _ = z
-        kl_norm = sample_kl_norm(z_norm=z_norm, mean=mean, log_var=log_var)
-        kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=logits, temp=self.temp)
+    def compute_kl_elements(self, z, params_broad):
+        if self.use_continuous:
+            mean, log_var, log_alpha = params_broad
+            z_norm, _ = z
+            if self.sample_from_cont_kl:
+                z_norm, _ = z
+                kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
+            else:
+                kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
+        else:
+            log_alpha = params_broad[0]
+            kl_norm = 0.
+        kl_dis = self.compute_discrete_kl(log_alpha)
         return kl_norm, kl_dis
+
+    def compute_discrete_kl(self, log_alpha):
+        if self.sample_from_disc_kl:
+            kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
+                                      temp=self.temp)
+        else:
+            kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha)
+        return kl_dis
 
 
 class OptExpGSDis(OptExpGS):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.use_continuous = False
 
     def reparameterize(self, params_broad):
         self.dist = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
@@ -167,24 +185,6 @@ class OptExpGSDis(OptExpGS):
         z_discrete = [self.dist.psi]
         # z_discrete = [gs.log_psi]
         return z_discrete
-
-    def compute_kl_elements(self, z, params_broad, run_closed_form_kl):
-        if run_closed_form_kl:
-            kl_norm, kl_dis = self.compute_kl_elements_via_closed_cat(params_broad=params_broad)
-        else:
-            kl_norm, kl_dis = self.compute_kl_elements_via_sample(params_broad=params_broad)
-        return kl_norm, kl_dis
-
-    @staticmethod
-    def compute_kl_elements_via_closed_cat(params_broad):
-        kl_norm = 0.
-        kl_dis = calculate_categorical_closed_kl(log_alpha=params_broad[0])
-        return kl_norm, kl_dis
-
-    def compute_kl_elements_via_sample(self, params_broad):
-        kl_norm = 0.
-        kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=params_broad[0], temp=self.temp)
-        return kl_norm, kl_dis
 
 
 class OptIGR(OptVAE):
@@ -213,6 +213,7 @@ class OptIGR(OptVAE):
         if self.use_continuous:
             mean, log_var, mu_disc, xi_disc = params_broad
             if self.sample_from_cont_kl:
+                z_norm, _ = z
                 kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
             else:
                 kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
@@ -225,14 +226,14 @@ class OptIGR(OptVAE):
     def compute_discrete_kl(self, mu_disc, xi_disc):
         mu_disc_prior, xi_disc_prior = self.update_prior_values()
         if self.sample_from_disc_kl:
+            kl_dis = self.compute_sampled_discrete_kl(mu_disc, xi_disc,
+                                                      mu_disc_prior, xi_disc_prior)
+        else:
             kl_dis = calculate_general_closed_form_gauss_kl(mean_q=mu_disc,
                                                             log_var_q=2. * xi_disc,
                                                             mean_p=mu_disc_prior,
                                                             log_var_p=2. * xi_disc_prior,
                                                             axis=(1, 3))
-        else:
-            kl_dis = self.compute_sampled_discrete_kl(mu_disc, xi_disc,
-                                                      mu_disc_prior, xi_disc_prior)
         return kl_dis
 
     def compute_sampled_discrete_kl(self, mu_disc, xi_disc,
