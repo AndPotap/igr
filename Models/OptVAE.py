@@ -92,6 +92,7 @@ class OptVAE:
 
     def compute_losses_from_x_wo_gradients(self, x, run_jv, run_closed_form_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x=x)
+        # z[-1] = make_one_hot(z[-1])
         output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                    run_jv=run_jv, run_closed_form_kl=run_closed_form_kl)
         loss, recon, kl, kl_norm, kl_dis = output
@@ -513,3 +514,10 @@ def flatten_discrete_variables(original_z):
     batch_n, disc_latent_n, sample_size, disc_var_num = original_z.shape
     z_discrete = tf.reshape(original_z, shape=(batch_n, disc_var_num * disc_latent_n, sample_size))
     return z_discrete
+
+
+def make_one_hot(z_dis):
+    categories_n = z_dis.shape[1]
+    idx = tf.argmax(z_dis, axis=1)
+    one_hot = tf.transpose(tf.one_hot(idx, depth=categories_n), perm=[0, 3, 1, 2])
+    return one_hot
