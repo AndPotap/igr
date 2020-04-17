@@ -15,8 +15,11 @@ class OptVAE:
         self.batch_size = hyper['sample_size']
         self.n_required = hyper['n_required']
         self.sample_size = hyper['sample_size']
+        self.sample_size_training = hyper['sample_size']
+        self.sample_size_testing = hyper['sample_size_testing']
         self.num_of_vars = hyper['num_of_discrete_var']
         self.dataset_name = hyper['dataset_name']
+        self.model_type = hyper['model_type']
         self.test_with_one_hot = hyper['test_with_one_hot']
         self.sample_from_cont_kl = hyper['sample_from_cont_kl']
         self.sample_from_disc_kl = hyper['sample_from_disc_kl']
@@ -30,14 +33,22 @@ class OptVAE:
         self.continuous_c = tf.constant(0.)
 
     def perform_fwd_pass(self, x, test_with_one_hot=False):
+        self.set_hyper_for_training_or_testing(test_with_one_hot)
         params = self.nets.encode(x)
-        if test_with_one_hot:
-            self.temp = self.temp_testing
-        else:
-            self.temp = self.temp_training
         z = self.reparameterize(params_broad=params)
         x_logit = self.decode(z=z)
         return z, x_logit, params
+
+    def set_hyper_for_training_or_testing(self, test_with_one_hot):
+        if test_with_one_hot:
+            self.temp = self.temp_testing
+            if self.model_type.find('GS') >= 0:
+                self.sample_size = 1
+            else:
+                self.sample_size = self.sample_size_testing
+        else:
+            self.temp = self.temp_training
+            self.sample_size = self.sample_size_training
 
     def reparameterize(self, params_broad):
         mean, log_var = params_broad
@@ -77,7 +88,8 @@ class OptVAE:
         x_logit = [mu, xi]
         return x_logit
 
-    def compute_kl_elements(self, z, params_broad, sample_from_cont_kl, sample_from_disc_kl):
+    def compute_kl_elements(self, z, params_broad,
+                            sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot):
         mean, log_var = params_broad
         if sample_from_cont_kl:
             kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
@@ -86,14 +98,16 @@ class OptVAE:
         kl_dis = tf.constant(0.) if sample_from_disc_kl else tf.constant(0.)
         return kl_norm, kl_dis
 
-    def compute_loss(self, x, x_logit, z, params_broad, sample_from_cont_kl, sample_from_disc_kl):
+    def compute_loss(self, x, x_logit, z, params_broad,
+                     sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
             log_px_z = compute_log_gaussian_pdf(x=x, x_logit=x_logit)
         else:
             log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
         kl_norm, kl_dis = self.compute_kl_elements(z=z, params_broad=params_broad,
                                                    sample_from_cont_kl=sample_from_cont_kl,
-                                                   sample_from_disc_kl=sample_from_disc_kl)
+                                                   sample_from_disc_kl=sample_from_disc_kl,
+                                                   test_with_one_hot=test_with_one_hot)
         kl = kl_norm + kl_dis
         loss = compute_loss(log_px_z=log_px_z, kl_norm=kl_norm, kl_dis=kl_dis,
                             run_jv=self.run_jv, gamma=self.gamma,
@@ -107,7 +121,8 @@ class OptVAE:
                                                          test_with_one_hot=self.test_with_one_hot)
         output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                    sample_from_cont_kl=sample_from_cont_kl,
-                                   sample_from_disc_kl=sample_from_disc_kl)
+                                   sample_from_disc_kl=sample_from_disc_kl,
+                                   test_with_one_hot=self.test_with_one_hot)
         loss, recon, kl, kl_norm, kl_dis = output
         return loss, recon, kl, kl_norm, kl_dis
 
@@ -116,7 +131,8 @@ class OptVAE:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x)
             output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                        sample_from_cont_kl=self.sample_from_cont_kl,
-                                       sample_from_disc_kl=self.sample_from_disc_kl)
+                                       sample_from_disc_kl=self.sample_from_disc_kl,
+                                       test_with_one_hot=False)
             loss, recon, kl, kl_n, kl_d = output
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         return gradients, loss, recon, kl, kl_n, kl_d
@@ -157,7 +173,9 @@ class OptExpGS(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
-    def compute_kl_elements(self, z, params_broad, sample_from_cont_kl, sample_from_disc_kl):
+    def compute_kl_elements(self, z, params_broad,
+                            sample_from_cont_kl, sample_from_disc_kl,
+                            test_with_one_hot):
         if self.use_continuous:
             mean, log_var, log_alpha = params_broad
             z_norm, _ = z
@@ -169,13 +187,15 @@ class OptExpGS(OptVAE):
         else:
             log_alpha = params_broad[0]
             kl_norm = 0.
-        kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl)
+        kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl, test_with_one_hot)
         return kl_norm, kl_dis
 
-    def compute_discrete_kl(self, log_alpha, sample_from_disc_kl):
+    def compute_discrete_kl(self, log_alpha, sample_from_disc_kl, test_with_one_hot):
         if sample_from_disc_kl:
             kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
                                       temp=self.temp)
+        elif test_with_one_hot:
+            kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha)
         else:
             kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha)
         return kl_dis
@@ -214,9 +234,10 @@ class OptIGR(OptVAE):
         return z
 
     def select_distribution(self, mu, xi):
-        self.dist = IGR_I(mu=mu, xi=xi, temp=self.temp)
+        self.dist = IGR_I(mu=mu, xi=xi, temp=self.temp, sample_size=self.sample_size)
 
-    def compute_kl_elements(self, z, params_broad, sample_from_cont_kl, sample_from_disc_kl):
+    def compute_kl_elements(self, z, params_broad,
+                            sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot):
         if self.use_continuous:
             mean, log_var, mu_disc, xi_disc = params_broad
             if sample_from_cont_kl:
@@ -227,7 +248,11 @@ class OptIGR(OptVAE):
         else:
             mu_disc, xi_disc = params_broad
             kl_norm = 0.
-        kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
+        if test_with_one_hot:
+            p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
+            kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
+        else:
+            kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
         return kl_norm, kl_dis
 
     def compute_discrete_kl(self, mu_disc, xi_disc, sample_from_disc_kl):
@@ -477,11 +502,11 @@ def compute_log_normal_pdf(sample, mean, log_var):
     return log_normal_pdf
 
 
-def calculate_categorical_closed_kl(log_alpha):
+def calculate_categorical_closed_kl(log_alpha, normalize=True):
     offset = 1.e-20
     categories_n = tf.constant(log_alpha.shape[1], dtype=tf.float32)
     log_uniform_inv = tf.math.log(categories_n)
-    pi = tf.math.softmax(log_alpha, axis=1)
+    pi = tf.math.softmax(log_alpha, axis=1) if normalize else log_alpha
     kl_discrete = tf.reduce_sum(pi * (tf.math.log(pi + offset) + log_uniform_inv), axis=(1, 3))
     return kl_discrete
 
