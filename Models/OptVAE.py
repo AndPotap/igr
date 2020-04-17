@@ -12,7 +12,6 @@ class OptVAE:
     def __init__(self, nets, optimizer, hyper):
         self.nets = nets
         self.optimizer = optimizer
-        self.run_closed_form_kl = hyper['run_closed_form_kl']
         self.batch_size = hyper['sample_size']
         self.n_required = hyper['n_required']
         self.sample_size = hyper['sample_size']
