@@ -21,14 +21,21 @@ class OptVAE:
         self.test_with_one_hot = hyper['test_with_one_hot']
         self.sample_from_cont_kl = hyper['sample_from_cont_kl']
         self.sample_from_disc_kl = hyper['sample_from_disc_kl']
+        self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
+        self.temp_training = tf.constant(value=hyper['temp'], dtype=tf.float32)
+        self.temp_testing = tf.constant(value=1e-2, dtype=tf.float32)
 
         self.run_jv = hyper['run_jv']
         self.gamma = hyper['gamma']
         self.discrete_c = tf.constant(0.)
         self.continuous_c = tf.constant(0.)
 
-    def perform_fwd_pass(self, x):
+    def perform_fwd_pass(self, x, test_with_one_hot=False):
         params = self.nets.encode(x)
+        if test_with_one_hot:
+            self.temp = self.temp_testing
+        else:
+            self.temp = self.temp_training
         z = self.reparameterize(params_broad=params)
         x_logit = self.decode(z=z)
         return z, x_logit, params
@@ -95,8 +102,8 @@ class OptVAE:
         return output
 
     def compute_losses_from_x_wo_gradients(self, x, run_jv):
-        z, x_logit, params_broad = self.perform_fwd_pass(x=x)
-        z[-1] = make_one_hot(z[-1]) if self.test_with_one_hot else z[-1]
+        z, x_logit, params_broad = self.perform_fwd_pass(x=x,
+                                                         test_with_one_hot=self.test_with_one_hot)
         output = self.compute_loss(x=x, x_logit=x_logit, z=z,
                                    params_broad=params_broad, run_jv=run_jv)
         loss, recon, kl, kl_norm, kl_dis = output
@@ -131,7 +138,6 @@ class OptExpGS(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.dist = GS(log_pi=tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1)),
                        temp=self.temp)
         self.log_psi = tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1))
@@ -142,8 +148,8 @@ class OptExpGS(OptVAE):
         z_norm = sample_normal(mean=mean, log_var=log_var)
         self.dist = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
         self.dist.generate_sample()
-        z_discrete = self.dist.psi
         self.log_psi = self.dist.log_psi
+        z_discrete = self.dits.psi
         self.n_required = z_discrete.shape[1]
         z = [z_norm, z_discrete]
         return z
@@ -180,17 +186,15 @@ class OptExpGSDis(OptExpGS):
     def reparameterize(self, params_broad):
         self.dist = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
         self.dist.generate_sample()
-        self.log_psi = self.dist.log_psi
         self.n_required = self.dist.psi.shape[1]
+        self.log_psi = self.dist.log_psi
         z_discrete = [self.dist.psi]
-        # z_discrete = [gs.log_psi]
         return z_discrete
 
 
 class OptIGR(OptVAE):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.dist = IGR_I(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
