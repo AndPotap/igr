@@ -173,7 +173,7 @@ def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tens
 
 
 # Optimization functions for the Expectation Minimization Loss
-# =========================================================================================================
+# ================================================================================================
 def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dist_type: str = 'sb',
                  sample_size: int = 1, threshold: float = 0.99, run_iteratively=False, run_kl=True,
                  planar_flow: str = None):
@@ -214,7 +214,7 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 
 
 # Utils
-# =========================================================================================================
+# =================================================================================================
 # @tf.function
 def project_to_vertices_via_softmax_pp(lam):
     delta = tf.constant(0.1, dtype=tf.float32)
@@ -329,8 +329,8 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
 
 
 def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dtype=tf.float32),
-                               sample_size: int = 1, threshold: float = 0.99, run_iteratively=False,
-                               planar_flow=None):
+                               sample_size: int = 1, threshold: float = 0.99,
+                               run_iteratively=False, planar_flow=None):
     if dist_type == 'IGR_SB':
         mu, xi = params
         chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
