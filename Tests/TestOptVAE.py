@@ -86,8 +86,9 @@ class TestSBDist(unittest.TestCase):
         num_of_vars = 1
         log_alpha = broadcast_to_shape(np.array([[1., -1., 0.15, 0.45, -0.3],
                                                  [-0.1, 0.98, 0.02, -1.4, 0.35]]),
-                                       samples_n=samples_n, num_of_vars=num_of_vars)[:, :, :, 0]
+                                       samples_n=samples_n, num_of_vars=num_of_vars)
         kl_discrete_ans = calculate_kl_discrete(alpha=tf.math.softmax(log_alpha, axis=1))
+        kl_discrete_ans = np.sum(kl_discrete_ans, axis=-1)
         kl_discrete = calculate_categorical_closed_kl(
             log_alpha=tf.constant(log_alpha, dtype=tf.float32))
         relative_diff = np.linalg.norm((kl_discrete.numpy() - kl_discrete_ans) / kl_discrete_ans)
