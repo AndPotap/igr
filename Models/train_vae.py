@@ -164,16 +164,18 @@ def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_count
 def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, iteration_counter,
                                   time_taken, train_loss_mean, check_every=10):
     if epoch % check_every == 0:
-        test_progress = create_test_progress_tracker()
+        test_progress = create_test_progress_tracker(run_jv=hyper['run_jv'])
         for x_test in test_dataset.take(hyper['iter_per_epoch']):
             test_progress = update_test_progress(x_test, vae_opt, test_progress)
         log_test_progress(logger, test_progress, epoch, time_taken, iteration_counter,
                           train_loss_mean, vae_opt.temp)
 
 
-def create_test_progress_tracker():
-    vars_to_track = {'TeELBO': (False, False), 'TeELBOC': (False, True), 'TeJV': (True, False),
-                     'TeJVC': (True, True), 'N': ()}
+def create_test_progress_tracker(run_jv):
+    if run_jv:
+        vars_to_track = {'TeJV': True, 'TeJVC': False, 'N': ()}
+    else:
+        vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'N': ()}
     test_track = {'vars_to_track': vars_to_track}
     for k, _ in vars_to_track.items():
         test_track[k] = tf.keras.metrics.Mean()
@@ -184,14 +186,16 @@ def update_test_progress(x_test, vae_opt, test_progress):
     test_progress['N'](vae_opt.n_required)
     for k, v in test_progress['vars_to_track'].items():
         if k != 'N':
-            loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test, run_jv=v[0])
+            loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test,
+                                                                  sample_from_cont_kl=v,
+                                                                  sample_from_disc_kl=v)
 
             test_progress[k](loss)
     return test_progress
 
 
-def log_test_progress(logger, test_progress, epoch, time_taken, iteration_counter, train_loss_mean,
-                      temp):
+def log_test_progress(logger, test_progress, epoch, time_taken,
+                      iteration_counter, train_loss_mean, temp):
     test_print = f'Epoch {epoch:4d} || '
     for k, _ in test_progress['vars_to_track'].items():
         loss = test_progress[k].result().numpy()
