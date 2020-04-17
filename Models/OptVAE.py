@@ -482,7 +482,7 @@ def calculate_categorical_closed_kl(log_alpha):
     categories_n = tf.constant(log_alpha.shape[1], dtype=tf.float32)
     log_uniform_inv = tf.math.log(categories_n)
     pi = tf.math.softmax(log_alpha, axis=1)
-    kl_discrete = tf.reduce_sum(pi * tf.math.log(pi + offset), axis=1) + log_uniform_inv
+    kl_discrete = tf.reduce_sum(pi * (tf.math.log(pi + offset) + log_uniform_inv), axis=(1, 3))
     return kl_discrete
 
 
