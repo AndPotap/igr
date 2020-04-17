@@ -78,34 +78,37 @@ class OptVAE:
         x_logit = [mu, xi]
         return x_logit
 
-    def compute_kl_elements(self, z, params_broad):
+    def compute_kl_elements(self, z, params_broad, sample_from_cont_kl, sample_from_disc_kl):
         mean, log_var = params_broad
-        if self.sample_from_cont_kl:
+        if sample_from_cont_kl:
             kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
         else:
             kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
-        kl_dis = tf.constant(0.) if self.sample_from_disc_kl else tf.constant(0.)
+        kl_dis = tf.constant(0.) if sample_from_disc_kl else tf.constant(0.)
         return kl_norm, kl_dis
 
-    def compute_loss(self, x, x_logit, z, params_broad, run_jv):
+    def compute_loss(self, x, x_logit, z, params_broad, sample_from_cont_kl, sample_from_disc_kl):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
             log_px_z = compute_log_gaussian_pdf(x=x, x_logit=x_logit)
         else:
             log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        kl_norm, kl_dis = self.compute_kl_elements(z=z, params_broad=params_broad)
+        kl_norm, kl_dis = self.compute_kl_elements(z=z, params_broad=params_broad,
+                                                   sample_from_cont_kl=sample_from_cont_kl,
+                                                   sample_from_disc_kl=sample_from_disc_kl)
         kl = kl_norm + kl_dis
         loss = compute_loss(log_px_z=log_px_z, kl_norm=kl_norm, kl_dis=kl_dis,
-                            run_jv=run_jv, gamma=self.gamma,
+                            run_jv=self.run_jv, gamma=self.gamma,
                             discrete_c=self.discrete_c, continuous_c=self.continuous_c)
         output = (loss, tf.reduce_mean(log_px_z), tf.reduce_mean(kl),
                   tf.reduce_mean(kl_norm), tf.reduce_mean(kl_dis))
         return output
 
-    def compute_losses_from_x_wo_gradients(self, x, run_jv):
+    def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x=x,
                                                          test_with_one_hot=self.test_with_one_hot)
-        output = self.compute_loss(x=x, x_logit=x_logit, z=z,
-                                   params_broad=params_broad, run_jv=run_jv)
+        output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
+                                   sample_from_cont_kl=sample_from_cont_kl,
+                                   sample_from_disc_kl=sample_from_disc_kl)
         loss, recon, kl, kl_norm, kl_dis = output
         return loss, recon, kl, kl_norm, kl_dis
 
@@ -113,7 +116,8 @@ class OptVAE:
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x)
             output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-                                       run_jv=self.run_jv)
+                                       sample_from_cont_kl=self.sample_from_cont_kl,
+                                       sample_from_disc_kl=self.sample_from_disc_kl)
             loss, recon, kl, kl_n, kl_d = output
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         return gradients, loss, recon, kl, kl_n, kl_d
@@ -154,11 +158,11 @@ class OptExpGS(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
-    def compute_kl_elements(self, z, params_broad):
+    def compute_kl_elements(self, z, params_broad, sample_from_cont_kl, sample_from_disc_kl):
         if self.use_continuous:
             mean, log_var, log_alpha = params_broad
             z_norm, _ = z
-            if self.sample_from_cont_kl:
+            if sample_from_cont_kl:
                 z_norm, _ = z
                 kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
             else:
@@ -166,11 +170,11 @@ class OptExpGS(OptVAE):
         else:
             log_alpha = params_broad[0]
             kl_norm = 0.
-        kl_dis = self.compute_discrete_kl(log_alpha)
+        kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl)
         return kl_norm, kl_dis
 
-    def compute_discrete_kl(self, log_alpha):
-        if self.sample_from_disc_kl:
+    def compute_discrete_kl(self, log_alpha, sample_from_disc_kl):
+        if sample_from_disc_kl:
             kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
                                       temp=self.temp)
         else:
@@ -213,10 +217,10 @@ class OptIGR(OptVAE):
     def select_distribution(self, mu, xi):
         self.dist = IGR_I(mu=mu, xi=xi, temp=self.temp)
 
-    def compute_kl_elements(self, z, params_broad):
+    def compute_kl_elements(self, z, params_broad, sample_from_cont_kl, sample_from_disc_kl):
         if self.use_continuous:
             mean, log_var, mu_disc, xi_disc = params_broad
-            if self.sample_from_cont_kl:
+            if sample_from_cont_kl:
                 z_norm, _ = z
                 kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
             else:
@@ -224,12 +228,12 @@ class OptIGR(OptVAE):
         else:
             mu_disc, xi_disc = params_broad
             kl_norm = 0.
-        kl_dis = self.compute_discrete_kl(mu_disc, xi_disc)
+        kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
         return kl_norm, kl_dis
 
-    def compute_discrete_kl(self, mu_disc, xi_disc):
+    def compute_discrete_kl(self, mu_disc, xi_disc, sample_from_disc_kl):
         mu_disc_prior, xi_disc_prior = self.update_prior_values()
-        if self.sample_from_disc_kl:
+        if sample_from_disc_kl:
             kl_dis = self.compute_sampled_discrete_kl(mu_disc, xi_disc,
                                                       mu_disc_prior, xi_disc_prior)
         else:
