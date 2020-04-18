@@ -37,12 +37,20 @@ class OptVAE:
         self.set_hyper_for_training_or_testing(test_with_one_hot)
         params = self.nets.encode(x)
         z = self.reparameterize(params_broad=params)
-        x_logit = self.decode(z=z)
+        if test_with_one_hot:
+            batch_n, categories_n, _, var_num = z[-1].shape
+            zz = []
+            for idx in range(len(z)):
+                zz.append(tf.slice(z[idx], [0, 0, 0, 0], [batch_n, categories_n, 1, var_num]))
+            x_logit = self.decode(z=zz)
+        else:
+            x_logit = self.decode(z=z)
         return z, x_logit, params
 
     def set_hyper_for_training_or_testing(self, test_with_one_hot):
         if test_with_one_hot:
             self.temp = self.temp_testing
+            # self.sample_size = self.sample_size_testing
             if self.model_type.find('GS') >= 0:
                 self.sample_size = 1
             else:
@@ -193,7 +201,9 @@ class OptExpGS(OptVAE):
 
     def compute_discrete_kl(self, log_alpha, sample_from_disc_kl, test_with_one_hot):
         if test_with_one_hot:
-            kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha)
+            # p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
+            # kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
+            kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
         else:
             if sample_from_disc_kl:
                 kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
@@ -252,7 +262,10 @@ class OptIGR(OptVAE):
             kl_norm = 0.
         if test_with_one_hot:
             p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
-            kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=True)
+            p_discrete = tf.math.abs(p_discrete)
+            # z_discrete = tf.math.softmax(self.dist.lam / self.temp, axis=1)
+            # p_discrete = tf.reduce_mean(z_discrete, axis=2, keepdims=True)
+            kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
         else:
             kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
         return kl_norm, kl_dis
@@ -416,7 +429,7 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
                                - gamma * tf.math.abs(kl_dis - discrete_c))
     else:
         kl = kl_norm + kl_dis
-        elbo = tf.reduce_mean(log_px_z - kl)
+        elbo = tf.reduce_mean(log_px_z) - tf.reduce_mean(kl)
         loss = -elbo
     return loss
 
@@ -424,7 +437,7 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
 def compute_log_bernoulli_pdf(x, x_logit):
     x_broad = infer_shape_from(v=x_logit, x=x)
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
-    log_px_z = tf.reduce_sum(cross_ent, axis=[1, 2, 3])
+    log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
     return log_px_z
 
 
