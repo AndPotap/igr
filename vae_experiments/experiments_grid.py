@@ -3,7 +3,7 @@ from Models.train_vae import run_vae_for_all_cases
 
 run_with_sample = True
 num_of_repetitions = 1
-temps = [0.05]
+temps = [0.10]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
 model_cases = {
     1: {'model_type': 'IGR_I_Dis', 'n_required': 9},
@@ -22,7 +22,7 @@ dataset_cases = {
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'num_of_discrete_var': 30, 'test_with_one_hot': True,
-         'sample_from_cont_kl': True, 'sample_from_disc_kl': False,
+         'sample_from_cont_kl': True, 'sample_from_disc_kl': True,
          'learning_rate': 0.001, 'batch_n': 64, 'epochs': 100,
          'sample_size': 1, 'sample_size_testing': int(1.e2),
          'run_jv': False, 'gamma': tf.constant(30.), 'check_every': 1,
