@@ -61,6 +61,9 @@ class IGR_I(Distributions):
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
         self.psi = project_to_vertices_via_softmax_pp(self.lam / self.temp)
         # self.psi = tf.math.softmax(self.lam / self.temp, axis=1)
+        # Check in train_model for the hyperparameter addition of 1 category
+        # Look for the line:
+        # hyper_copy['latent_discrete_n'] += 1
 
     def transform(self):
         lam = self.kappa
