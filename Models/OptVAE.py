@@ -128,7 +128,7 @@ class OptVAE:
 
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
-            z, x_logit, params_broad = self.perform_fwd_pass(x=x)
+            z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
             output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                        sample_from_cont_kl=self.sample_from_cont_kl,
                                        sample_from_disc_kl=self.sample_from_disc_kl,
