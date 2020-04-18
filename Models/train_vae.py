@@ -175,7 +175,8 @@ def create_test_progress_tracker(run_jv):
     if run_jv:
         vars_to_track = {'TeJV': True, 'TeJVC': False, 'N': ()}
     else:
-        vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'N': ()}
+        # vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'N': ()}
+        vars_to_track = {'TeELBO': True, 'N': ()}
     test_track = {'vars_to_track': vars_to_track}
     for k, _ in vars_to_track.items():
         test_track[k] = tf.keras.metrics.Mean()
