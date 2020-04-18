@@ -56,7 +56,7 @@ class VAENet(tf.keras.Model):
                 self.generate_convolutional_generative_net_jointvae()
 
     # -------------------------------------------------------------------------------------------
-    def generate_dense_inference_net(self, activation='linear'):
+    def generate_dense_inference_net(self, activation='relu'):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
             tf.keras.layers.Flatten(),
@@ -68,7 +68,7 @@ class VAENet(tf.keras.Model):
             tf.keras.layers.Dense(units=self.latent_dim_in),
         ])
 
-    def generate_dense_generative_net(self, activation='linear'):
+    def generate_dense_generative_net(self, activation='relu'):
         activation_type = self.determine_activation_from_case()
         self.generative_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
