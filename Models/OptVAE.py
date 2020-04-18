@@ -3,7 +3,8 @@ import tensorflow as tf
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
-from Utils.general import initialize_mu_and_xi_for_logistic
+# from Utils.general import initialize_mu_and_xi_for_logistic
+from Utils.general import initialize_mu_and_xi_equally
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -286,7 +287,8 @@ class OptIGR(OptVAE):
     def load_prior_values(self):
         shape = (self.batch_size, self.nets.disc_latent_in,
                  self.sample_size, self.nets.disc_var_num)
-        self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
+        # self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
+        self.mu_0, self.xi_0 = initialize_mu_and_xi_equally(shape=shape)
 
 
 class OptIGRDis(OptIGR):
