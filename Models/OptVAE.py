@@ -250,7 +250,7 @@ class OptIGR(OptVAE):
             kl_norm = 0.
         if test_with_one_hot:
             p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
-            kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
+            kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=True)
         else:
             kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
         return kl_norm, kl_dis
