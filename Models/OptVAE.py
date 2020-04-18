@@ -192,13 +192,14 @@ class OptExpGS(OptVAE):
         return kl_norm, kl_dis
 
     def compute_discrete_kl(self, log_alpha, sample_from_disc_kl, test_with_one_hot):
-        if sample_from_disc_kl:
-            kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
-                                      temp=self.temp)
-        elif test_with_one_hot:
+        if test_with_one_hot:
             kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha)
         else:
-            kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha)
+            if sample_from_disc_kl:
+                kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
+                                          temp=self.temp)
+            else:
+                kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha)
         return kl_dis
 
 
