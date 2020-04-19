@@ -2,13 +2,13 @@ import tensorflow as tf
 from Models.train_vae import run_vae_for_all_cases
 
 run_with_sample = True
-num_of_repetitions = 3
-temps = [0.1]
+num_of_repetitions = 1
+temps = [0.3, 0.85]
 # temps = [0.01, 0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
 # temps = [0.10, 0.30, 0.50, 0.67, 0.85, 1.00, 1.11, 1.25]
 model_cases = {
-    1: {'model_type': 'IGR_I', 'n_required': 9},
-    # 2: {'model_type': 'IGR_Planar', 'n_required': 9},
+    # 1: {'model_type': 'IGR_I', 'n_required': 9},
+    2: {'model_type': 'IGR_Planar', 'n_required': 9},
     # 3: {'model_type': 'IGR_SB_Finite', 'n_required': 9,
     #     'prior_file': './Results/mu_xi_unif_10_IGR_SB_Finite.pkl'},
     # 4: {'model_type': 'IGR_SB', 'n_required': 49,
@@ -25,7 +25,11 @@ dataset_cases = {
     #     'cont_c_linspace': (0., 50., 100_000), 'disc_c_linspace': (0., 10., 100_000)}
 }
 hyper = {'num_of_norm_param': 2, 'num_of_norm_var': 1, 'num_of_discrete_var': 1,
-         'learning_rate': 0.001, 'batch_n': 64, 'epochs': 50, 'sample_size': 1,
+         'learning_rate': 0.001, 'batch_n': 64, 'epochs': 50,
+         'test_with_one_hot': True,
+         'sample_from_cont_kl': True, 'sample_from_disc_kl': True,
+         'sample_size': 1, 'sample_size_testing': int(1.e2),
          'run_jv': True, 'architecture': 'conv_jointvae', 'check_every': 10}
 
-run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, num_of_repetitions, run_with_sample)
+run_vae_for_all_cases(hyper, model_cases, dataset_cases,
+                      temps, num_of_repetitions, run_with_sample)
