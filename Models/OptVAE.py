@@ -1,6 +1,5 @@
 import pickle
 import tensorflow as tf
-import tensorflow_probability as tfp
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
@@ -148,7 +147,7 @@ class OptVAE:
                                                    test_with_one_hot=False)
         kl = kl_norm + kl_dis
         elbo = tf.reduce_mean(log_px_z, axis=0) - tf.reduce_mean(kl, axis=0)
-        elbo_var = tfp.stats.variance(elbo)
+        elbo_var = tf.math.reduce_variance(elbo)
 
         self.sample_size_training = aux
         return elbo_var
