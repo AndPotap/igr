@@ -207,7 +207,8 @@ def log_test_progress(logger, test_progress, epoch, time_taken,
     test_print += (f'TrL {train_loss_mean.result().numpy():2.5e} || ' +
                    f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ')
     logger.info(test_print)
-    tf.summary.scalar(name='Test ELBO', data=-test_progress['TeELBO'].result(), step=epoch)
+    var_name = list(test_progress['vars_to_track'].keys())[0]
+    tf.summary.scalar(name='Test ELBO', data=-test_progress[var_name].result(), step=epoch)
     tf.summary.scalar(name='N Required', data=test_progress['N'].result(), step=epoch)
     tf.summary.scalar(name='Temp', data=temp, step=epoch)
 
