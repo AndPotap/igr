@@ -53,7 +53,7 @@ def construct_nets_and_optimizer(hyper, model_type):
 
 
 def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every,
-              monitor_gradients=False):
+              monitor_gradients=False, monitor_variance=True):
     logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     init_vars = run_initialization_procedure(hyper, results_path)
     (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace,
@@ -64,11 +64,17 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
     for epoch in range(1, hyper['epochs'] + 1):
         t0 = time.time()
         train_loss_mean = tf.keras.metrics.Mean()
+        elbo_var_mean = tf.keras.metrics.Mean()
         for x_train in train_dataset.take(hyper['iter_per_epoch']):
             vae_opt, iteration_counter = perform_train_step(x_train, vae_opt, train_loss_mean,
                                                             iteration_counter, disc_c_linspace,
                                                             cont_c_linspace)
+            if monitor_variance and epoch % 1 == 0:
+                elbo_var = vae_opt.compute_loss_variance(x_train)
+                elbo_var_mean(elbo_var)
         t1 = time.time()
+        res = elbo_var_mean.result().numpy()
+        print(f'ELBO variance {res:1.2e}')
         # noinspection PyUnboundLocalVariable
         monitor_vanishing_grads(monitor_gradients, x_train, vae_opt,
                                 iteration_counter, grad_monitor_dict, epoch)
