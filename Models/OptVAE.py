@@ -1,5 +1,6 @@
 import pickle
 import tensorflow as tf
+import tensorflow_probability as tfp
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
@@ -134,6 +135,23 @@ class OptVAE:
                                    test_with_one_hot=self.test_with_one_hot)
         loss, recon, kl, kl_norm, kl_dis = output
         return loss, recon, kl, kl_norm, kl_dis
+
+    def compute_loss_variance(self, x):
+        aux = self.sample_size_training
+        self.sample_size_training = int(1.e2)
+
+        z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
+        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
+        kl_norm, kl_dis = self.compute_kl_elements(z=z, params_broad=params_broad,
+                                                   sample_from_cont_kl=self.sample_from_cont_kl,
+                                                   sample_from_disc_kl=self.sample_from_disc_kl,
+                                                   test_with_one_hot=False)
+        kl = kl_norm + kl_dis
+        elbo = tf.reduce_mean(log_px_z, axis=0) - tf.reduce_mean(kl, axis=0)
+        elbo_var = tfp.stats.variance(elbo)
+
+        self.sample_size_training = aux
+        return elbo_var
 
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
