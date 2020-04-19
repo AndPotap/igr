@@ -26,7 +26,7 @@ dataset_cases = {
 }
 hyper = {'num_of_norm_param': 2, 'num_of_norm_var': 1, 'num_of_discrete_var': 1,
          'learning_rate': 0.001, 'batch_n': 64, 'epochs': 50,
-         'test_with_one_hot': True,
+         'test_with_one_hot': False,
          'sample_from_cont_kl': True, 'sample_from_disc_kl': True,
          'sample_size': 1, 'sample_size_testing': int(1.e2),
          'run_jv': True, 'architecture': 'conv_jointvae', 'check_every': 10}
