@@ -254,7 +254,7 @@ class OptIGR(OptVAE):
             mean, log_var, mu_disc, xi_disc = params_broad
             if sample_from_cont_kl:
                 z_norm, _ = z
-                kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
+                kl_norm = sample_kl_norm(z_norm=z_norm, mean=mean, log_var=log_var)
             else:
                 kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
