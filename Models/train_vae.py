@@ -74,7 +74,7 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
                 elbo_var_mean(elbo_var)
         t1 = time.time()
         res = elbo_var_mean.result().numpy()
-        print(f'ELBO variance {res:1.2e}')
+        logger.info(f'ELBO variance {res:1.2e}')
         # noinspection PyUnboundLocalVariable
         monitor_vanishing_grads(monitor_gradients, x_train, vae_opt,
                                 iteration_counter, grad_monitor_dict, epoch)
