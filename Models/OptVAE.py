@@ -27,6 +27,7 @@ class OptVAE:
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.temp_training = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.temp_testing = tf.constant(value=1e-2, dtype=tf.float32)
+        self.stick_the_landing = hyper['stick_the_landing']
 
         self.run_jv = hyper['run_jv']
         self.gamma = hyper['gamma']
@@ -212,6 +213,8 @@ class OptExpGS(OptVAE):
                 kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
             log_alpha = params_broad[0]
+            if self.stick_the_landing:
+                log_alpha = tf.stop_gradient(log_alpha)
             kl_norm = 0.
         kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl, test_with_one_hot)
         return kl_norm, kl_dis
@@ -276,12 +279,13 @@ class OptIGR(OptVAE):
                 kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
             mu_disc, xi_disc = params_broad
+            if self.stick_the_landing:
+                mu_disc = tf.stop_gradient(mu_disc)
+                xi_disc = tf.stop_gradient(xi_disc)
             kl_norm = 0.
         if test_with_one_hot:
             p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
             p_discrete = tf.math.abs(p_discrete)
-            # z_discrete = tf.math.softmax(self.dist.lam / self.temp, axis=1)
-            # p_discrete = tf.reduce_mean(z_discrete, axis=2, keepdims=True)
             kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
         else:
             kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
