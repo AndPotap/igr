@@ -5,9 +5,9 @@ from Utils.interpretation_funcs import compute_cat_prob
 def test_gaussian_inter():
     tolerance = 1.e-1
     mu = np.array([3., 2., 1., 0.1])
-    # sigma = np.array([0.1, 1., 1., 3])
-    sigma = np.array([1., 1., 1., 1.])
-    cov = np.diag(sigma)
+    sigma = np.array([0.1, 1., 1., 3])
+    # sigma = np.array([1., 1., 1., 1.])
+    cov = np.diag(sigma ** 2)
     samples_n = int(1.e4)
     categories_n = mu.shape[0]
     z = np.random.multivariate_normal(mu, cov, size=samples_n)
