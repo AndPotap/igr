@@ -51,11 +51,12 @@ def test_gaussian_inter():
 
 
 def test_gaussian_inter_uniform():
-    categories_n = 5
-    samples_n = int(1.e5)
+    categories_n = 9
+    samples_n = int(1.e4)
     tolerance = 1.e-1
 
     mu = np.zeros(categories_n)
+    # mu = np.zeros(categories_n) - 0.754
     sigma = np.ones(categories_n)
     z = np.random.multivariate_normal(mu, np.diag(sigma), size=samples_n)
 
