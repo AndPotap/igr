@@ -33,14 +33,21 @@ class OptVAE:
         self.continuous_c = tf.constant(0.)
 
     def perform_fwd_pass(self, x, test_with_one_hot=False):
+        self.set_hyper_for_testing(test_with_one_hot)
         params = self.nets.encode(x)
         z = self.reparameterize(params_broad=params)
         x_logit = self.decode_w_or_wo_one_hot(z, test_with_one_hot)
         return z, x_logit, params
 
+    def set_hyper_for_testing(self, test_with_one_hot):
+        if test_with_one_hot:
+            self.sample_size = self.sample_size_testing
+        else:
+            self.sample_size = self.sample_size_training
+
     def decode_w_or_wo_one_hot(self, z, test_with_one_hot):
         if test_with_one_hot:
-            batch_n, categories_n, _, var_num = z[-1].shape
+            batch_n, categories_n, sample_size, var_num = z[-1].shape
             zz = []
             for idx in range(len(z)):
                 one_hot = tf.transpose(tf.one_hot(tf.argmax(z[idx], axis=1), depth=categories_n),
