@@ -56,24 +56,24 @@ class VAENet(tf.keras.Model):
                 self.generate_convolutional_generative_net_jointvae()
 
     # -------------------------------------------------------------------------------------------
-    def generate_dense_inference_net(self, activation='relu'):
+    def generate_dense_inference_net(self, activation='linear'):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
                                   self.image_shape[2],
                                   activation=activation),
-            tf.keras.layers.Dense(units=512, activation=activation),
-            tf.keras.layers.Dense(units=256, activation=activation),
+            # tf.keras.layers.Dense(units=512, activation=activation),
+            # tf.keras.layers.Dense(units=256, activation=activation),
             tf.keras.layers.Dense(units=self.latent_dim_in),
         ])
 
-    def generate_dense_generative_net(self, activation='relu'):
+    def generate_dense_generative_net(self, activation='linear'):
         activation_type = self.determine_activation_from_case()
         self.generative_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
-            tf.keras.layers.Dense(units=256, activation=activation),
-            tf.keras.layers.Dense(units=512, activation=activation),
+            # tf.keras.layers.Dense(units=256, activation=activation),
+            # tf.keras.layers.Dense(units=512, activation=activation),
             tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
                                   self.image_shape[2] *
                                   self.log_px_z_params_num, activation=activation_type),
