@@ -25,8 +25,6 @@ class OptVAE:
         self.sample_from_cont_kl = hyper['sample_from_cont_kl']
         self.sample_from_disc_kl = hyper['sample_from_disc_kl']
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
-        self.temp_training = tf.constant(value=hyper['temp'], dtype=tf.float32)
-        self.temp_testing = tf.constant(value=1e-2, dtype=tf.float32)
         self.stick_the_landing = hyper['stick_the_landing']
 
         self.run_jv = hyper['run_jv']
@@ -35,30 +33,25 @@ class OptVAE:
         self.continuous_c = tf.constant(0.)
 
     def perform_fwd_pass(self, x, test_with_one_hot=False):
-        self.set_hyper_for_training_or_testing(test_with_one_hot)
         params = self.nets.encode(x)
         z = self.reparameterize(params_broad=params)
+        x_logit = self.decode_w_or_wo_one_hot(z, test_with_one_hot)
+        return z, x_logit, params
+
+    def decode_w_or_wo_one_hot(self, z, test_with_one_hot):
         if test_with_one_hot:
             batch_n, categories_n, _, var_num = z[-1].shape
             zz = []
             for idx in range(len(z)):
-                zz.append(tf.slice(z[idx], [0, 0, 0, 0], [batch_n, categories_n, 1, var_num]))
+                one_hot = tf.transpose(tf.one_hot(tf.argmax(z[idx], axis=1), depth=categories_n),
+                                       perm=[0, 3, 1, 2])
+                # below is to use only one sample when evaluating
+                # tf.slice(z[idx], [0, 0, 0, 0], [batch_n, categories_n, 1, var_num])
+                zz.append(one_hot)
             x_logit = self.decode(z=zz)
         else:
             x_logit = self.decode(z=z)
-        return z, x_logit, params
-
-    def set_hyper_for_training_or_testing(self, test_with_one_hot):
-        if test_with_one_hot:
-            self.temp = self.temp_testing
-            # self.sample_size = self.sample_size_testing
-            if self.model_type.find('GS') >= 0:
-                self.sample_size = 1
-            else:
-                self.sample_size = self.sample_size_testing
-        else:
-            self.temp = self.temp_training
-            self.sample_size = self.sample_size_training
+        return x_logit
 
     def reparameterize(self, params_broad):
         mean, log_var = params_broad
