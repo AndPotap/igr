@@ -216,20 +216,15 @@ class OptExpGS(OptVAE):
             if self.stick_the_landing:
                 log_alpha = tf.stop_gradient(log_alpha)
             kl_norm = 0.
-        kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl, test_with_one_hot)
+        kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl)
         return kl_norm, kl_dis
 
-    def compute_discrete_kl(self, log_alpha, sample_from_disc_kl, test_with_one_hot):
-        if test_with_one_hot:
-            # p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
-            # kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
-            kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
+    def compute_discrete_kl(self, log_alpha, sample_from_disc_kl):
+        if sample_from_disc_kl:
+            kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
+                                      temp=self.temp)
         else:
-            if sample_from_disc_kl:
-                kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
-                                          temp=self.temp)
-            else:
-                kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha)
+            kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
         return kl_dis
 
 
