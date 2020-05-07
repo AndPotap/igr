@@ -21,13 +21,14 @@ dataset_cases = {
     # 3: {'dataset_name': 'celeb_a', 'architecture': 'conv_jointvae'},
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
-         'num_of_discrete_var': 20,
          'test_with_one_hot': True,
-         'sample_from_cont_kl': True, 'sample_from_disc_kl': True,
+         'sample_from_disc_kl': True,
+         'sample_from_cont_kl': True,
+         'check_every': 1,
+         'sample_size_testing': int(1.e1),
+         'num_of_discrete_var': 20,
          'learning_rate': 3 * 1.e-4, 'batch_n': 100, 'epochs': 100,
-         'sample_size': 1, 'sample_size_testing': int(1.e3),
-         'stick_the_landing': False,
-         'check_every': 10,
+         'sample_size': 1, 'stick_the_landing': False,
          'run_jv': False, 'gamma': tf.constant(30.),
          'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
 
