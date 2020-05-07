@@ -53,7 +53,8 @@ class OptVAE:
                 one_hot = tf.transpose(tf.one_hot(tf.argmax(z[idx], axis=1), depth=categories_n),
                                        perm=[0, 3, 1, 2])
                 # below is to use only one sample when evaluating
-                # tf.slice(z[idx], [0, 0, 0, 0], [batch_n, categories_n, 1, var_num])
+                if self.model_type == 'IGR_I_Dis':
+                    one_hot = tf.slice(one_hot, [0, 0, 0, 0], [batch_n, categories_n, 1, var_num])
                 zz.append(one_hot)
             x_logit = self.decode(z=zz)
         else:
@@ -279,8 +280,12 @@ class OptIGR(OptVAE):
                 xi_disc = tf.stop_gradient(xi_disc)
             kl_norm = 0.
         if test_with_one_hot:
-            p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
-            p_discrete = tf.math.abs(p_discrete)
+            batch_n, categories_n, sample_size, var_num = z[-1].shape
+            one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
+                                   perm=[0, 3, 1, 2])
+            p_discrete = tf.reduce_mean(one_hot, axis=2, keepdims=True)
+            # p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
+            # p_discrete = tf.math.abs(p_discrete)  # not necessary if samples are one-hot
             kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
         else:
             kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
