@@ -124,8 +124,9 @@ def evaluate_progress_in_test_set(epoch, sop_optimizer, test_dataset, logger, hy
 
 def viz_reconstruction(test_image, model):
     x_test_upper = test_image[:, :14, :, :]
-    recon = tf.math.round(tf.math.sigmoid(model.call(x_upper=x_test_upper)))
-    image = np.concatenate((x_test_upper.numpy(), recon), axis=1)
+    logits = model.call(x_upper=x_test_upper)
+    reconstruction = tf.math.round(tf.math.sigmoid(logits))
+    image = np.concatenate((x_test_upper.numpy(), reconstruction), axis=1)
     selected_list = [10, 23, 2, 5, 20, 11, 0, 12, 33, 52]
     for selected in selected_list:
         plt.figure()
