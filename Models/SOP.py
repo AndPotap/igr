@@ -32,7 +32,7 @@ class SOP(tf.keras.Model):
     def call(self, x_upper, sample_size=1, use_one_hot=False):
         batch_n, width, height, rgb = x_upper.shape
         x_upper_broad = brodcast_to_sample_size(x_upper, sample_size=sample_size)
-        x_upper_broad = tf.reshape(x_upper_broad, shape=(batch_n * sample_size, width, height, rgb))
+        x_upper_broad = tf.reshape(x_upper_broad, shape=(batch_n, width, height, sample_size))
 
         out = self.h1_dense(self.flat_layer(self.input_layer(x_upper_broad)))
         # params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
@@ -51,8 +51,8 @@ class SOP(tf.keras.Model):
         if self.model_type == 'GS':
             psi = sample_gs_binary(params=params, temp=self.temp)
         elif self.model_type in ['IGR_I', 'IGR_SB', 'IGR_Planar']:
-            psi = sample_igr_bernoulli(model_type=self.model_type, params=params, temp=self.temp,
-                                       use_one_hot=use_one_hot, planar_flow=self.planar_flow)
+            psi = sample_igr_binary(model_type=self.model_type, params=params, temp=self.temp,
+                                    planar_flow=self.planar_flow)
         else:
             raise RuntimeError
         psi = tf.math.round(psi) if use_one_hot else psi
@@ -71,10 +71,10 @@ def sample_gs_binary(params, temp):
     return psi
 
 
-def sample_igr_bernoulli(model_type, params, temp, use_one_hot, planar_flow):
+def sample_igr_binary(model_type, params, temp, planar_flow):
     dist = get_igr_dist(model_type, params, temp, planar_flow)
     dist.generate_sample()
-    psi = project_to_vertices(lam=dist.lam[:, 0, 0, :], use_one_hot=use_one_hot)
+    psi = tf.math.sigmoid(lam=dist.lam[:, 0, 0, :])
     return psi
 
 
@@ -94,11 +94,11 @@ def get_igr_dist(model_type, params, temp, planar_flow):
     return dist
 
 
-def project_to_vertices(lam, use_one_hot):
-    psi = tf.math.sigmoid(lam)
-    if use_one_hot:
-        psi = tf.math.round(lam)
-    return psi
+def generate_planar_flow(disc_latent_in, disc_var_num):
+    planar_flow = tf.keras.Sequential([InputLayer(input_shape=(disc_latent_in, 1, disc_var_num)),
+                                       PlanarFlowLayer(units=disc_latent_in, var_num=disc_var_num),
+                                       PlanarFlowLayer(units=disc_latent_in, var_num=disc_var_num)])
+    return planar_flow
 
 
 def brodcast_to_sample_size(a, sample_size):
@@ -108,11 +108,3 @@ def brodcast_to_sample_size(a, sample_size):
     a = tf.reshape(a, shape=newshape)
     a = tf.broadcast_to(a, shape=broad_shape)
     return a
-
-
-def generate_planar_flow(disc_latent_in, disc_var_num):
-    planar_flow = tf.keras.Sequential([
-        tf.keras.layers.InputLayer(input_shape=(disc_latent_in, 1, disc_var_num)),
-        PlanarFlowLayer(units=disc_latent_in, var_num=disc_var_num),
-        PlanarFlowLayer(units=disc_latent_in, var_num=disc_var_num)])
-    return planar_flow
