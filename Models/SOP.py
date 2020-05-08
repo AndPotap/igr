@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.keras.layers import Flatten, InputLayer, Dense, Reshape
 from Utils.Distributions import IGR_I, IGR_SB_Finite, IGR_Planar
 from Models.VAENet import PlanarFlowLayer
 
@@ -8,64 +9,71 @@ class SOP(tf.keras.Model):
         super(SOP, self).__init__()
         self.half_image_w_h = hyper['width_height']
         self.half_image_size = hyper['width_height'][0] * hyper['width_height'][1]
-        self.units_per_layer = 200
+        self.units_per_layer = hyper['units_per_layer']
         self.temp = hyper['temp']
         self.model_type = hyper['model_type']
         self.var_num = 1 if self.model_type == 'GS' else 2
         self.split_sizes_list = [self.units_per_layer for _ in range(self.var_num)]
 
-        self.layer0 = tf.keras.layers.Flatten()
-        self.layer1 = tf.keras.layers.Dense(units=self.units_per_layer * self.var_num)
-        self.layer2 = tf.keras.layers.Dense(units=self.units_per_layer * self.var_num)
-        self.layer3 = tf.keras.layers.Dense(units=self.half_image_size)
-        self.layer4 = tf.keras.layers.Reshape(self.half_image_w_h)
+        self.input_layer = InputLayer(input_shape=self.half_image_w_h)
+        self.flat_layer = Flatten()
+        # self.layer1 = tf.keras.layers.Dense(units=self.units_per_layer * self.var_num)
+        self.h1_dense = Dense(units=self.units_per_layer)
+        self.h2_dense = Dense(units=self.units_per_layer * self.var_num)
+        self.out_dense = Dense(units=self.half_image_size)
+        self.reshape_out = Reshape(self.half_image_w_h)
         if self.model_type == 'IGR_Planar':
-            self.planar_flow = generate_planar_flow(
-                disc_latent_in=1, disc_var_num=self.units_per_layer)
+            self.planar_flow = generate_planar_flow(disc_latent_in=1,
+                                                    disc_var_num=self.units_per_layer)
         else:
             self.planar_flow = None
 
-    def call(self, x_upper, sample_size=1, discretized=False):
+    @tf.function()
+    def call(self, x_upper, sample_size=1, use_one_hot=False):
         batch_n, width, height, rgb = x_upper.shape
         x_upper_broad = brodcast_to_sample_size(x_upper, sample_size=sample_size)
         x_upper_broad = tf.reshape(x_upper_broad, shape=(batch_n * sample_size, width, height, rgb))
 
-        out = self.layer1(self.layer0(x_upper_broad))
-        params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
-        z_1 = self.sample_bernoulli(params_1, discretized=discretized)
+        out = self.h1_dense(self.flat_layer(self.input_layer(x_upper_broad)))
+        # params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
+        # z_1 = self.sample_bernoulli(params_1, use_one_hot)
 
-        out = self.layer2(z_1)
+        # out = self.layer2(z_1)
+        out = self.h2_dense(out)
         params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
-        z_2 = self.sample_bernoulli(params_2, discretized=discretized)
+        z_2 = self.sample_binary(params_2, use_one_hot)
 
-        out = self.layer3(z_2)
-        logits = self.layer4(out)
+        out = self.out_dense(z_2)
+        logits = self.reshape_out(out)
         return logits
 
-    def sample_bernoulli(self, params, discretized):
+    def sample_binary(self, params, use_one_hot):
         if self.model_type == 'GS':
-            psi = sample_gs_bernoulli(params=params, temp=self.temp, discretized=discretized)
+            psi = sample_gs_binary(params=params, temp=self.temp)
         elif self.model_type in ['IGR_I', 'IGR_SB', 'IGR_Planar']:
             psi = sample_igr_bernoulli(model_type=self.model_type, params=params, temp=self.temp,
-                                       discretized=discretized, planar_flow=self.planar_flow)
+                                       use_one_hot=use_one_hot, planar_flow=self.planar_flow)
         else:
             raise RuntimeError
         return psi
 
 
-def sample_gs_bernoulli(params, temp, discretized):
-    log_alpha_broad = params[0]
-    unif = tf.random.uniform(shape=log_alpha_broad.shape)
-    gumbel = -tf.math.log(-tf.math.log(unif + 1.e-20))
-    lam = (log_alpha_broad + gumbel) / temp
-    psi = project_to_vertices(lam=lam, discretized=discretized)
+@tf.function()
+def sample_gs_binary(params, temp):
+    # TODO: add the latex formulas
+    log_alpha = params[0]
+    unif = tf.random.uniform(shape=log_alpha.shape)
+    logistic_sample = tf.math.log(unif) - tf.math.log(1. - unif)
+    lam = (log_alpha + logistic_sample) / temp
+    # making the output be in {-1, 1} as in Maddison et. al 2017
+    psi = 2. * tf.math.sigmoid(lam) - 1.
     return psi
 
 
-def sample_igr_bernoulli(model_type, params, temp, discretized, planar_flow):
+def sample_igr_bernoulli(model_type, params, temp, use_one_hot, planar_flow):
     dist = get_igr_dist(model_type, params, temp, planar_flow)
     dist.generate_sample()
-    psi = project_to_vertices(lam=dist.lam[:, 0, 0, :], discretized=discretized)
+    psi = project_to_vertices(lam=dist.lam[:, 0, 0, :], use_one_hot=use_one_hot)
     return psi
 
 
@@ -85,9 +93,9 @@ def get_igr_dist(model_type, params, temp, planar_flow):
     return dist
 
 
-def project_to_vertices(lam, discretized):
+def project_to_vertices(lam, use_one_hot):
     psi = tf.math.sigmoid(lam)
-    if discretized:
+    if use_one_hot:
         psi = tf.math.round(lam)
     return psi
 
