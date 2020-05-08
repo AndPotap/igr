@@ -2,10 +2,15 @@ from Utils.load_data import load_mnist_sop_data
 from Models.SOPOptimizer import run_sop
 import tensorflow as tf
 
-model_type = 'IGR_I'
+model_type = 'GS'
 hyper = {'width_height': (14, 28, 1),
+         'units_per_layer': 240,
          'model_type': model_type,
-         'batch_size': 64, 'learning_rate': 0.0003,
-         'epochs': 50, 'iter_per_epoch': 937, 'temp': tf.constant(0.5)}
+         'batch_size': 64,
+         # 'learning_rate': 0.0003,
+         'learning_rate': 0.003,
+         'epochs': 100,
+         'iter_per_epoch': 937,
+         'temp': tf.constant(0.67)}
 data = load_mnist_sop_data(batch_n=hyper['batch_size'])
 run_sop(hyper=hyper, results_path='./Log/', data=data)
