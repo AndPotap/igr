@@ -1,9 +1,42 @@
 import numpy as np
 import tensorflow as tf
 from Utils.load_data import load_mnist_sop_data
-from Models.SOP import SOP
-from Models.SOPOptimizer import SOPOptimizer
-from Models.SOPOptimizer import run_sop
+from Models.SOP import SOP, brodcast_samples_to_batch, revert_samples_to_last_dim
+from Models.SOPOptimizer import SOPOptimizer, run_sop, compute_loss
+
+
+def test_multisample_test_loss():
+    # batch_size, width, height, sample_size = 64, 14, 28, 10
+    # batch_size, width, height, sample_size = 4, 1, 2, 10
+    batch_size, width, height, sample_size = 1, 2, 3, 2
+    shape = (batch_size, width, height, 1)
+    x_upper, x_lower = create_upper_and_lower_dummy_data(shape=shape)
+    logits = np.arange(width * height * batch_size)
+    logits = np.reshape(logits, newshape=shape)
+    logits = tf.constant(logits, dtype=tf.float32)
+    logits = brodcast_samples_to_batch(logits, sample_size)
+    logits = revert_samples_to_last_dim(logits, sample_size)
+    breakpoint()
+    loss = compute_loss(x_lower, logits, sample_size)
+    print('\nTEST: Multi-sample test loss computation')
+    assert loss is not None
+
+
+def test_samples_shape():
+    tolerance = 1.e-10
+    batch_size, width, height, sample_size = 2, 3, 4, 2
+    shape = (batch_size, width, height, 1)
+    x_upper, x_lower = create_upper_and_lower_dummy_data(shape=shape)
+    logits = np.arange(width * height * batch_size)
+    logits = np.reshape(logits, newshape=shape)
+
+    logits_tf = tf.constant(logits, dtype=tf.float32)
+    logits_tf = brodcast_samples_to_batch(logits_tf, sample_size)
+    logits_tf = revert_samples_to_last_dim(logits_tf, sample_size)
+    diff = np.linalg.norm(logits_tf - logits)
+    print('\nTEST: Sample size broadcast and reversal')
+    print(f'Diff {diff:1.2e}')
+    assert diff < tolerance
 
 
 def test_fwd_pass_connections_and_gradient():
@@ -62,7 +95,7 @@ def test_optimizer_step():
     sop_opt = SOPOptimizer(model=sop, optimizer=optimizer)
     gradients, loss = sop_opt.compute_gradients_and_loss(x_upper=x_upper, x_lower=x_lower)
     sop_opt.apply_gradients(gradients=gradients)
-    print('\nTEST: Gradient Step from Optimizer')
+    print('\nTEST: Gradient step from optimizer')
     assert gradients is not None
 
 
