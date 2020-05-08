@@ -32,7 +32,8 @@ class SOPOptimizer:
         return gradients, loss
 
     def compute_loss_for_testing(self, x_upper, x_lower, discretized, sample_size):
-        logits = self.perform_fwd_pass(x_upper=x_upper, discretized=discretized, sample_size=sample_size)
+        logits = self.perform_fwd_pass(
+            x_upper=x_upper, discretized=discretized, sample_size=sample_size)
         loss = self.compute_loss(x_lower=x_lower, logits=logits)
         return loss
 
@@ -45,9 +46,10 @@ def run_sop(hyper, results_path, data):
 
     sop_optimizer = setup_sop_optimizer(hyper=hyper)
 
-    logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=results_path +
-                                                                 f'/loss_{sop_optimizer.model.model_type}.log',
-                                                                 termination='.log'))
+    logger = setup_logger(log_file_name=append_timestamp_to_file(
+        file_name=results_path +
+        f'/loss_{sop_optimizer.model.model_type}.log',
+        termination='.log'))
     log_all_hyperparameters(hyper=hyper, logger=logger)
     train_sop(sop_optimizer=sop_optimizer, hyper=hyper, train_dataset=train_dataset,
               test_dataset=test_dataset, logger=logger)
@@ -81,7 +83,8 @@ def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
             train_mean_loss(loss)
             iteration_counter += 1
         toc = time.time()
-        evaluate_progress_in_test_set(epoch=epoch, sop_optimizer=sop_optimizer, test_dataset=test_dataset,
+        evaluate_progress_in_test_set(epoch=epoch, sop_optimizer=sop_optimizer,
+                                      test_dataset=test_dataset,
                                       logger=logger, hyper=hyper, iteration_counter=iteration_counter,
                                       time_taken=toc - tic,
                                       train_mean_loss=train_mean_loss)
