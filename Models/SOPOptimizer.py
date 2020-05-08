@@ -14,14 +14,14 @@ class SOPOptimizer:
         self.optimizer = optimizer
 
     @tf.function()
-    def perform_fwd_pass(self, x_upper, use_one_hot=False, sample_size=1):
+    def perform_fwd_pass(self, x_upper, use_one_hot, sample_size=1):
         logits = self.model.call(x_upper=x_upper, use_one_hot=use_one_hot, sample_size=sample_size)
         return logits
 
     @tf.function()
     def compute_gradients_and_loss(self, x_upper, x_lower):
         with tf.GradientTape() as tape:
-            logits = self.perform_fwd_pass(x_upper=x_upper)
+            logits = self.perform_fwd_pass(x_upper=x_upper, use_one_hot=False)
             loss = compute_loss(x_lower=x_lower, logits=logits)
         gradients = tape.gradient(target=loss, sources=self.model.trainable_variables)
         return gradients, loss
@@ -112,7 +112,7 @@ def evaluate_progress_in_test_set(epoch, sop_optimizer, test_dataset, logger, hy
         x_test_lower = x_test[:, 14:, :, :]
         x_test_upper = x_test[:, :14, :, :]
         loss = sop_optimizer.compute_loss_for_testing(x_upper=x_test_upper,
-                                                      x_lower=x_test_lower, use_one_hot=False,
+                                                      x_lower=x_test_lower, use_one_hot=True,
                                                       sample_size=1)
         test_mean_loss(loss)
     logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.5e} || '
