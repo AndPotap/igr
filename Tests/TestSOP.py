@@ -18,7 +18,6 @@ def test_fwd_pass_connections_and_gradient():
     sop = SOP(hyper=hyper)
     with tf.GradientTape() as tape:
         logits = sop.call(x_upper=x_upper)
-        breakpoint()
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower, logits=logits)
     grad = tape.gradient(sources=sop.trainable_variables, target=loss)
     print('\nTEST: Forward pass and gradient computation')
@@ -46,36 +45,49 @@ def test_optimizer_step():
     batch_size = 64
     width = 14
     height = 28
-    hyper = {'width_height': (width, height, 1), 'model_type': 'IGR_Planar',
-             'batch_size': batch_size, 'learning_rate': 0.001,
+    hyper = {'width_height': (width, height, 1),
+             # 'model_type': 'IGR_Planar',
+             'model_type': 'GS',
+             'batch_size': batch_size,
+             'learning_rate': 0.0003,
+             'units_per_layer': 240,
              'temp': tf.constant(0.1)}
     shape = (batch_size, width, height, 1)
     x_upper, x_lower = create_upper_and_lower_dummy_data(shape=shape)
     sop = SOP(hyper=hyper)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
+    optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'],
+                                         beta_1=0.9,
+                                         beta_2=0.999,
+                                         decay=1.e-3)
     sop_opt = SOPOptimizer(model=sop, optimizer=optimizer)
     gradients, loss = sop_opt.compute_gradients_and_loss(x_upper=x_upper, x_lower=x_lower)
     sop_opt.apply_gradients(gradients=gradients)
+    print('\nTEST: Gradient Step from Optimizer')
     assert gradients is not None
 
 
 def test_in_mnist_sample():
-    batch_n = 6
-    epochs = 5
+    batch_n = 4
+    epochs = 3
     width = 14
     height = 28
-    hyper = {'width_height': (width, height, 1), 'model_type': 'GS',
-             'batch_size': batch_n, 'learning_rate': 0.001,
-             'epochs': epochs, 'iter_per_epoch': 10, 'temp': tf.constant(0.1)}
+    hyper = {'width_height': (width, height, 1),
+             'model_type': 'GS',
+             'units_per_layer': 240,
+             'batch_size': batch_n,
+             'learning_rate': 0.0003,
+             'epochs': epochs,
+             'iter_per_epoch': 10,
+             'temp': tf.constant(0.1)}
     results_path = './Log/'
     data = load_mnist_sop_data(batch_n=batch_n, run_with_sample=True)
     run_sop(hyper=hyper, results_path=results_path, data=data)
-    hyper['model_type'] = 'IGR_Planar'
-    run_sop(hyper=hyper, results_path=results_path, data=data)
-    hyper['model_type'] = 'IGR_I'
-    run_sop(hyper=hyper, results_path=results_path, data=data)
-    hyper['model_type'] = 'IGR_SB'
-    run_sop(hyper=hyper, results_path=results_path, data=data)
+    # hyper['model_type'] = 'IGR_Planar'
+    # run_sop(hyper=hyper, results_path=results_path, data=data)
+    # hyper['model_type'] = 'IGR_I'
+    # run_sop(hyper=hyper, results_path=results_path, data=data)
+    # hyper['model_type'] = 'IGR_SB'
+    # run_sop(hyper=hyper, results_path=results_path, data=data)
 
 
 def create_upper_and_lower_dummy_data(shape):
