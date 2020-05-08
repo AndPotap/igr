@@ -55,6 +55,7 @@ class SOP(tf.keras.Model):
                                        use_one_hot=use_one_hot, planar_flow=self.planar_flow)
         else:
             raise RuntimeError
+        psi = tf.math.round(psi) if use_one_hot else psi
         return psi
 
 
