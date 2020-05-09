@@ -2,7 +2,7 @@ import time
 import tensorflow as tf
 from matplotlib import pyplot as plt
 import numpy as np
-from Models.SOP import SOP
+from Models.SOP import SOP, revert_samples_to_last_dim, brodcast_to_sample_size
 from Utils.general import setup_logger
 from Utils.general import append_timestamp_to_file
 
@@ -22,7 +22,7 @@ class SOPOptimizer:
     def compute_gradients_and_loss(self, x_upper, x_lower):
         with tf.GradientTape() as tape:
             logits = self.perform_fwd_pass(x_upper=x_upper, use_one_hot=False)
-            loss = compute_loss(x_lower=x_lower, logits=logits)
+            loss = compute_loss(x_lower=x_lower, logits=logits, sample_size=1)
         gradients = tape.gradient(target=loss, sources=self.model.trainable_variables)
         return gradients, loss
 
@@ -30,7 +30,7 @@ class SOPOptimizer:
     def compute_loss_for_testing(self, x_upper, x_lower, use_one_hot, sample_size):
         logits = self.perform_fwd_pass(x_upper=x_upper,
                                        use_one_hot=use_one_hot, sample_size=sample_size)
-        loss = compute_loss(x_lower=x_lower, logits=logits)
+        loss = compute_loss(x_lower=x_lower, logits=logits, sample_size=sample_size)
         return loss
 
     @tf.function()
@@ -39,11 +39,15 @@ class SOPOptimizer:
 
 
 @tf.function()
-def compute_loss(x_lower, logits):
+def compute_loss(x_lower, logits, sample_size):
     width, height, rgb = 1, 2, 3
-    loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower, logits=logits)
-    loss = tf.math.reduce_sum(loss, axis=[width, height, rgb])
-    loss = tf.math.reduce_mean(loss)
+    logits = revert_samples_to_last_dim(logits, sample_size)
+    x_lower_broad = brodcast_to_sample_size(x_lower, sample_size)
+    log_pxl_z = tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower_broad, logits=logits)
+    loss = tf.math.reduce_sum(log_pxl_z, axis=[width, height, rgb])
+    loss = tf.math.reduce_mean(loss, axis=0)
+    loss = (tf.math.reduce_logsumexp(loss) -
+            tf.math.log(tf.constant(sample_size, dtype=tf.float32)))
     return loss
 
 
