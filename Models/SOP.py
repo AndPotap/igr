@@ -30,9 +30,7 @@ class SOP(tf.keras.Model):
 
     @tf.function()
     def call(self, x_upper, sample_size=1, use_one_hot=False):
-        batch_n, width, height, rgb = x_upper.shape
-        x_upper_broad = brodcast_to_sample_size(x_upper, sample_size=sample_size)
-        x_upper_broad = tf.reshape(x_upper_broad, shape=(batch_n, width, height, sample_size))
+        x_upper_broad = brodcast_samples_to_batch(x_upper, sample_size)
 
         out = self.h1_dense(self.flat_layer(self.input_layer(x_upper_broad)))
         # params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
@@ -101,10 +99,25 @@ def generate_planar_flow(disc_latent_in, disc_var_num):
     return planar_flow
 
 
+def revert_samples_to_last_dim(a, sample_size):
+    batch_n, width, height, rgb = a.shape
+    new_shape = (int(batch_n / sample_size), width, height, rgb, sample_size)
+    a = tf.reshape(a, shape=new_shape)
+    return a
+
+
+def brodcast_samples_to_batch(x_upper, sample_size):
+    batch_n, width, height, rgb = x_upper.shape
+    x_upper_broad = brodcast_to_sample_size(x_upper, sample_size=sample_size)
+    x_upper_broad = tf.reshape(x_upper_broad, shape=(batch_n * sample_size, width, height, rgb))
+    return x_upper_broad
+
+
 def brodcast_to_sample_size(a, sample_size):
     original_shape = a.shape
     newshape = original_shape + (1,)
     broad_shape = original_shape + (sample_size,)
+
     a = tf.reshape(a, shape=newshape)
     a = tf.broadcast_to(a, shape=broad_shape)
     return a
