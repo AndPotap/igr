@@ -7,30 +7,28 @@ from Models.SOPOptimizer import SOPOptimizer, run_sop, compute_loss
 
 
 def test_multisample_test_loss():
-    tolerance = 1.e-8
-    # batch_size, width, height, sample_size = 64, 14, 28, 10
-    batch_size, width, height, sample_size = 4, 1, 2, 10
-    shape = (batch_size, width, height, 1)
-    _, x_lower = create_upper_and_lower_dummy_data(shape=shape)
-    logits = tf.random.normal(shape=(batch_size * sample_size, width, height, 1))
+    tolerance = 1.e-5
+    batch_size, width, height, rgb, sample_size = 4, 5, 3, 1, 10
+    shape = (batch_size, width, height, rgb)
+    x_lower = tf.constant(np.random.binomial(n=1, p=0.5, size=shape), dtype=tf.float32)
+    logits = tf.random.normal(shape=(batch_size, width, height, rgb, sample_size))
     approx = compute_loss(x_lower, logits, sample_size)
-    logits = revert_samples_to_last_dim(logits, sample_size)
     theta = tf.math.sigmoid(logits)
     ans = compute_multisample_loss(x_lower.numpy(), theta.numpy())
     diff = np.abs(approx - ans) / np.abs(ans)
     print('\nTEST: Multi-sample test loss computation')
-    print(f'Diff {diff:1.2e}')
+    print(f'Approx {approx:1.5e} | Result {ans:1.5e} | Diff {diff:1.2e}')
     assert diff < tolerance
 
 
 def compute_multisample_loss(x, theta):
     batch_n, width, height, rgb, sample_size = theta.shape
-    px_theta = np.zeros(sample_size)
+    px_theta = np.zeros(shape=(batch_n, sample_size))
     for s in range(sample_size):
         aux = theta[:, :, :, :, s] ** x
-        aux *= 1 - theta[:, :, :, :, s] ** (1 - x)
-        px_theta[s] = np.prod(aux)
-    loss = -np.log(np.mean(px_theta))
+        aux *= (1 - theta[:, :, :, :, s]) ** (1 - x)
+        px_theta[:, s] = np.prod(aux, axis=(1, 2, 3))
+    loss = -np.mean(np.log(np.mean(px_theta, axis=1)))
     return loss
 
 
@@ -54,17 +52,18 @@ def test_samples_shape():
 
 
 def test_fwd_pass_connections_and_gradient():
-    batch_size, width, height = 64, 14, 28
+    batch_size, width, height, rgb, sample_size = 64, 14, 28, 1, 1
     hyper = {'width_height': (width, height, 1),
              'model_type': 'GS',
              'batch_size': batch_size,
              'units_per_layer': 240,
              'temp': tf.constant(0.1)}
-    shape = (batch_size, width, height, 1)
+    shape = (batch_size, width, height, rgb)
     x_upper, x_lower = create_upper_and_lower_dummy_data(shape=shape)
     sop = SOP(hyper=hyper)
     with tf.GradientTape() as tape:
         logits = sop.call(x_upper=x_upper)
+        x_lower = tf.reshape(x_lower, x_lower.shape + (sample_size,))
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower, logits=logits)
     grad = tape.gradient(sources=sop.trainable_variables, target=loss)
     print('\nTEST: Forward pass and gradient computation')
