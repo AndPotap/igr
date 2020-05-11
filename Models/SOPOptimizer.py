@@ -40,14 +40,13 @@ class SOPOptimizer:
 
 @tf.function()
 def compute_loss(x_lower, logits, sample_size):
-    width, height, rgb = 1, 2, 3
+    batch, width, height, rgb = 0, 1, 2, 3
     logits = revert_samples_to_last_dim(logits, sample_size)
     x_lower_broad = brodcast_to_sample_size(x_lower, sample_size)
-    log_pxl_z = tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower_broad, logits=logits)
-    loss = tf.math.reduce_sum(log_pxl_z, axis=[width, height, rgb])
-    loss = tf.math.reduce_mean(loss, axis=0)
-    loss = (tf.math.reduce_logsumexp(loss) -
-            tf.math.log(tf.constant(sample_size, dtype=tf.float32)))
+    log_pxl_z = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower_broad, logits=logits)
+    loss = tf.math.reduce_sum(log_pxl_z, axis=[batch, width, height, rgb])
+    loss = -(tf.math.reduce_logsumexp(loss) -
+             tf.math.log(tf.constant(sample_size, dtype=tf.float32)))
     return loss
 
 
