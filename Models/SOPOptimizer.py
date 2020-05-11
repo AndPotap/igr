@@ -66,7 +66,7 @@ def setup_sop_optimizer(hyper):
     optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'],
                                          beta_1=0.9,
                                          beta_2=0.999,
-                                         decay=1.e-3)
+                                         decay=hyper['weight_decay'])
     model = SOP(hyper=hyper)
     sop_optimizer = SOPOptimizer(model=model, optimizer=optimizer)
     return sop_optimizer
