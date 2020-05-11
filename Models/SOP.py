@@ -59,6 +59,7 @@ class SOP(tf.keras.Model):
             psi = sample_gs_binary(params=params, temp=self.temp, sample_size=sample_size)
         elif self.model_type in ['IGR_I', 'IGR_SB', 'IGR_Planar']:
             psi = sample_igr_binary(model_type=self.model_type, params=params, temp=self.temp,
+                                    sample_size=sample_size,
                                     planar_flow=self.planar_flow)
         else:
             raise RuntimeError
@@ -79,24 +80,27 @@ def sample_gs_binary(params, temp, sample_size):
     return psi
 
 
-def sample_igr_binary(model_type, params, temp, planar_flow):
-    dist = get_igr_dist(model_type, params, temp, planar_flow)
+@tf.function()
+def sample_igr_binary(model_type, params, temp, sample_size, planar_flow):
+    dist = get_igr_dist(model_type, params, temp, planar_flow, sample_size)
     dist.generate_sample()
-    psi = tf.math.sigmoid(lam=dist.lam[:, 0, 0, :])
+    lam = tf.transpose(dist.lam[:, 0, :, :], perm=[0, 2, 1])
+    psi = 2. * tf.math.sigmoid(lam) - 1.
     return psi
 
 
-def get_igr_dist(model_type, params, temp, planar_flow):
+def get_igr_dist(model_type, params, temp, planar_flow, sample_size):
     mu, xi = params
     batch_n, num_of_vars = mu.shape
     mu_broad = tf.reshape(mu, shape=(batch_n, 1, 1, num_of_vars))
     xi_broad = tf.reshape(xi, shape=(batch_n, 1, 1, num_of_vars))
     if model_type == 'IGR_I':
-        dist = IGR_I(mu=mu_broad, xi=xi_broad, temp=temp)
+        dist = IGR_I(mu=mu_broad, xi=xi_broad, temp=temp, sample_size=sample_size)
     elif model_type == 'IGR_Planar':
-        dist = IGR_Planar(mu=mu_broad, xi=xi_broad, temp=temp, planar_flow=planar_flow)
+        dist = IGR_Planar(mu=mu_broad, xi=xi_broad, temp=temp, sample_size=sample_size,
+                          planar_flow=planar_flow)
     elif model_type == 'IGR_SB':
-        dist = IGR_SB_Finite(mu=mu_broad, xi=xi_broad, temp=temp)
+        dist = IGR_SB_Finite(mu=mu_broad, xi=xi_broad, temp=temp, sample_size=sample_size)
     else:
         raise ValueError
     return dist
