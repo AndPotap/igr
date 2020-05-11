@@ -113,27 +113,22 @@ def test_optimizer_step():
 
 
 def test_in_mnist_sample():
-    batch_n = 4
-    epochs = 3
-    width = 14
-    height = 28
-    hyper = {'width_height': (width, height, 1),
-             'model_type': 'GS',
+    batch_n, epochs, width, height, rgb = 4, 3, 14, 28, 1
+    hyper = {'width_height': (width, height, rgb),
+             'model_type': '',
              'units_per_layer': 240,
              'batch_size': batch_n,
              'learning_rate': 0.0003,
+             'weight_decay': 1.e-3,
              'epochs': epochs,
              'iter_per_epoch': 10,
              'temp': tf.constant(0.1)}
     results_path = './Log/'
     data = load_mnist_sop_data(batch_n=batch_n, run_with_sample=True)
-    run_sop(hyper=hyper, results_path=results_path, data=data)
-    # hyper['model_type'] = 'IGR_Planar'
-    # run_sop(hyper=hyper, results_path=results_path, data=data)
-    # hyper['model_type'] = 'IGR_I'
-    # run_sop(hyper=hyper, results_path=results_path, data=data)
-    # hyper['model_type'] = 'IGR_SB'
-    # run_sop(hyper=hyper, results_path=results_path, data=data)
+    models = ['GS', 'IGR_I']
+    for model in models:
+        hyper['model_type'] = model
+        run_sop(hyper=hyper, results_path=results_path, data=data)
 
 
 def create_upper_and_lower_dummy_data(shape):
