@@ -30,24 +30,32 @@ class SOP(tf.keras.Model):
 
     @tf.function()
     def call(self, x_upper, sample_size=1, use_one_hot=False):
-        x_upper_broad = brodcast_samples_to_batch(x_upper, sample_size)
-
-        out = self.h1_dense(self.flat_layer(self.input_layer(x_upper_broad)))
+        out = self.h1_dense(self.flat_layer(self.input_layer(x_upper)))
         # params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
         # z_1 = self.sample_bernoulli(params_1, use_one_hot)
 
         # out = self.layer2(z_1)
         out = self.h2_dense(out)
         params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
-        z_2 = self.sample_binary(params_2, use_one_hot)
+        z_2 = self.sample_binary(params_2, use_one_hot, sample_size)
 
-        out = self.out_dense(z_2)
-        logits = self.reshape_out(out)
+        logits = self.get_samples_of_logits(z_2)
         return logits
 
-    def sample_binary(self, params, use_one_hot):
+    def get_samples_of_logits(self, z_2):
+        batch_n, _, sample_size = z_2.shape
+        width, height, rgb = self.half_image_w_h
+        logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
+                                element_shape=(batch_n, width, height, rgb))
+        for i in range(sample_size):
+            value = self.reshape_out(self.out_dense(z_2[:, :, i]))
+            logits = logits.write(index=i, value=value)
+        logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
+        return logits
+
+    def sample_binary(self, params, use_one_hot, sample_size):
         if self.model_type == 'GS':
-            psi = sample_gs_binary(params=params, temp=self.temp)
+            psi = sample_gs_binary(params=params, temp=self.temp, sample_size=sample_size)
         elif self.model_type in ['IGR_I', 'IGR_SB', 'IGR_Planar']:
             psi = sample_igr_binary(model_type=self.model_type, params=params, temp=self.temp,
                                     planar_flow=self.planar_flow)
@@ -58,11 +66,12 @@ class SOP(tf.keras.Model):
 
 
 @tf.function()
-def sample_gs_binary(params, temp):
+def sample_gs_binary(params, temp, sample_size):
     # TODO: add the latex formulas
     log_alpha = params[0]
-    unif = tf.random.uniform(shape=log_alpha.shape)
+    unif = tf.random.uniform(shape=log_alpha.shape + (sample_size,))
     logistic_sample = tf.math.log(unif) - tf.math.log(1. - unif)
+    log_alpha = tf.reshape(log_alpha, shape=log_alpha.shape + (1,))
     lam = (log_alpha + logistic_sample) / temp
     # making the output be in {-1, 1} as in Maddison et. al 2017
     psi = 2. * tf.math.sigmoid(lam) - 1.
