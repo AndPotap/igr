@@ -115,13 +115,13 @@ def evaluate_progress_in_test_set(epoch, sop_optimizer, test_dataset, logger, hy
         x_test_upper = x_test[:, :14, :, :]
         loss = sop_optimizer.compute_loss_for_testing(x_upper=x_test_upper,
                                                       x_lower=x_test_lower, use_one_hot=True,
-                                                      sample_size=100)
+                                                      sample_size=hyper['test_sample_size'])
         test_mean_loss(loss)
-    logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.5e} || '
-                f'Train_Recon {train_mean_loss.result().numpy():2.5e} || '
+    logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.3e} || '
+                f'Train_Recon {train_mean_loss.result().numpy():2.3e} || '
                 f'Temp {sop_optimizer.model.temp:2.1e} || '
                 f'{sop_optimizer.model.model_type} || '
-                f'Time {time_taken:4.1f} sec || i: {iteration_counter:6,d}')
+                f'Time {time_taken:4.1f} sec')
 
 
 def viz_reconstruction(test_image, model):
