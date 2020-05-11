@@ -2,7 +2,7 @@ import time
 import tensorflow as tf
 from matplotlib import pyplot as plt
 import numpy as np
-from Models.SOP import SOP, revert_samples_to_last_dim, brodcast_to_sample_size
+from Models.SOP import SOP, brodcast_to_sample_size
 from Utils.general import setup_logger
 from Utils.general import append_timestamp_to_file
 
@@ -40,13 +40,12 @@ class SOPOptimizer:
 
 @tf.function()
 def compute_loss(x_lower, logits, sample_size):
-    batch, width, height, rgb = 0, 1, 2, 3
-    logits = revert_samples_to_last_dim(logits, sample_size)
+    width_loc, height_loc, rgb_loc = 1, 2, 3
     x_lower_broad = brodcast_to_sample_size(x_lower, sample_size)
-    log_pxl_z = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower_broad, logits=logits)
-    loss = tf.math.reduce_sum(log_pxl_z, axis=[batch, width, height, rgb])
-    loss = -(tf.math.reduce_logsumexp(loss) -
-             tf.math.log(tf.constant(sample_size, dtype=tf.float32)))
+    log_pxl_z_broad = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower_broad, logits=logits)
+    log_pxl_z = tf.math.reduce_sum(log_pxl_z_broad, axis=[width_loc, height_loc, rgb_loc])
+    loss = -tf.math.reduce_logsumexp(log_pxl_z, axis=1)
+    loss = tf.math.reduce_mean(loss, axis=0) + tf.math.log(tf.constant(sample_size, dtype=tf.float32))
     return loss
 
 
@@ -116,7 +115,7 @@ def evaluate_progress_in_test_set(epoch, sop_optimizer, test_dataset, logger, hy
         x_test_upper = x_test[:, :14, :, :]
         loss = sop_optimizer.compute_loss_for_testing(x_upper=x_test_upper,
                                                       x_lower=x_test_lower, use_one_hot=True,
-                                                      sample_size=1)
+                                                      sample_size=100)
         test_mean_loss(loss)
     logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.5e} || '
                 f'Train_Recon {train_mean_loss.result().numpy():2.5e} || '
