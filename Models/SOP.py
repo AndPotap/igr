@@ -42,6 +42,7 @@ class SOP(tf.keras.Model):
         logits = self.get_samples_of_logits(z_2)
         return logits
 
+    @tf.function()
     def get_samples_of_logits(self, z_2):
         batch_n, _, sample_size = z_2.shape
         width, height, rgb = self.half_image_w_h
