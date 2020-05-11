@@ -9,7 +9,8 @@ hyper = {'width_height': (14, 28, 1),
          'batch_size': 64,
          # 'learning_rate': 0.003,
          'learning_rate': 0.01,
-         'epochs': 100,
+         'weight_decay': 1.e-3,
+         'epochs': 1 * int(1.e2),
          'iter_per_epoch': 937,
          'temp': tf.constant(0.67)}
 data = load_mnist_sop_data(batch_n=hyper['batch_size'])
