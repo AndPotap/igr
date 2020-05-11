@@ -12,7 +12,7 @@ class SOP(tf.keras.Model):
         self.units_per_layer = hyper['units_per_layer']
         self.temp = hyper['temp']
         self.model_type = hyper['model_type']
-        self.var_num = 1 if self.model_type == 'GS' else 2
+        self.var_num = 1 if self.model_type in ['GS', 'IGR_Iso'] else 2
         self.split_sizes_list = [self.units_per_layer for _ in range(self.var_num)]
 
         self.input_layer = InputLayer(input_shape=self.half_image_w_h)
@@ -57,6 +57,8 @@ class SOP(tf.keras.Model):
     def sample_binary(self, params, use_one_hot, sample_size):
         if self.model_type == 'GS':
             psi = sample_gs_binary(params=params, temp=self.temp, sample_size=sample_size)
+        elif self.model_type == 'IGR_Iso':
+            psi = sample_igr_binary_iso(params=params, temp=self.temp, sample_size=sample_size)
         elif self.model_type in ['IGR_I', 'IGR_SB', 'IGR_Planar']:
             psi = sample_igr_binary(model_type=self.model_type, params=params, temp=self.temp,
                                     sample_size=sample_size,
@@ -81,13 +83,37 @@ def sample_gs_binary(params, temp, sample_size):
 
 
 @tf.function()
-def sample_igr_binary(model_type, params, temp, sample_size, planar_flow):
-    dist = get_igr_dist(model_type, params, temp, planar_flow, sample_size)
-    dist.generate_sample()
-    lam = tf.transpose(dist.lam[:, 0, :, :], perm=[0, 2, 1])
-    psi = 2. * tf.math.sigmoid(lam) - 1.
+def sample_igr_binary_iso(params, temp, sample_size):
+    mu = params[0]
+    eps = tf.random.normal(shape=(mu.shape + (sample_size,)))
+    # unif = tf.random.uniform(shape=mu.shape + (sample_size,))
+    # eps = tf.math.log(unif) - tf.math.log(1. - unif)
+    mu_broad = tf.reshape(mu, shape=mu.shape + (1,))
+    lam = mu_broad + eps
+    psi = 2. * tf.math.sigmoid(lam / temp) - 1.
     return psi
 
+
+@tf.function()
+def sample_igr_binary(model_type, params, temp, sample_size, planar_flow):
+    mu, xi = params
+    mu_broad = tf.reshape(mu, shape=mu.shape + (1,))
+    xi_broad = tf.reshape(xi, shape=xi.shape + (1,))
+    eps = tf.random.normal(shape=(mu.shape + (sample_size,)))
+    lam = mu_broad + tf.math.exp(xi_broad) * eps
+    lam = mu_broad + eps
+    psi = 2. * tf.math.sigmoid(lam / temp) - 1.
+    return psi
+
+
+# @tf.function()
+# def sample_igr_binary(model_type, params, temp, sample_size, planar_flow):
+#     dist = get_igr_dist(model_type, params, temp, planar_flow, sample_size)
+#     dist.generate_sample()
+#     lam = tf.transpose(dist.lam[:, 0, :, :], perm=[0, 2, 1])
+#     psi = 2. * tf.math.sigmoid(lam / temp) - 1.
+#     return psi
+#
 
 def get_igr_dist(model_type, params, temp, planar_flow, sample_size):
     mu, xi = params
