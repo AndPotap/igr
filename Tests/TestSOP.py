@@ -92,7 +92,6 @@ def test_optimizer_step():
     width = 14
     height = 28
     hyper = {'width_height': (width, height, 1),
-             # 'model_type': 'IGR_Planar',
              'model_type': 'GS',
              'batch_size': batch_size,
              'learning_rate': 0.0003,
@@ -122,10 +121,12 @@ def test_in_mnist_sample():
              'weight_decay': 1.e-3,
              'epochs': epochs,
              'iter_per_epoch': 10,
+             'test_sample_size': 1,
              'temp': tf.constant(0.1)}
     results_path = './Log/'
     data = load_mnist_sop_data(batch_n=batch_n, run_with_sample=True)
-    models = ['GS', 'IGR_I']
+    models = ['GS', 'IGR_I', 'IGR_Planar']
+    # models = ['GS', 'IGR_I']
     for model in models:
         hyper['model_type'] = model
         run_sop(hyper=hyper, results_path=results_path, data=data)
