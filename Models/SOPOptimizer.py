@@ -65,8 +65,7 @@ def run_sop(hyper, results_path, data):
 def setup_sop_optimizer(hyper):
     optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'],
                                          beta_1=0.9,
-                                         beta_2=0.999,
-                                         decay=hyper['weight_decay'])
+                                         beta_2=0.999)
     model = SOP(hyper=hyper)
     sop_optimizer = SOPOptimizer(model=model, optimizer=optimizer)
     return sop_optimizer
@@ -89,7 +88,9 @@ def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
 
             gradients, loss = sop_optimizer.compute_gradients_and_loss(x_upper=x_train_upper,
                                                                        x_lower=x_train_lower)
+            lr = get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hyper)
             sop_optimizer.apply_gradients(gradients=gradients)
+            sop_optimizer.optimizer.learning_rate = lr
             train_mean_loss(loss)
             iteration_counter += 1
         toc = time.time()
@@ -107,6 +108,14 @@ def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
     sop_optimizer.model.save_weights(filepath=results_file)
 
 
+def get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hyper):
+    lr = sop_optimizer.optimizer.learning_rate.numpy()
+    lr = hyper['learning_rate'] * (1 / (1 + hyper['weight_decay'] * iteration_counter))
+    lr = np.max((np.array(1.e-5), lr))
+    lr = tf.constant(lr, dtype=tf.float32)
+    return lr
+
+
 def evaluate_progress_in_test_set(epoch, sop_optimizer, test_dataset, logger, hyper, iteration_counter,
                                   time_taken, train_mean_loss):
     test_mean_loss = tf.keras.metrics.Mean()
@@ -117,10 +126,12 @@ def evaluate_progress_in_test_set(epoch, sop_optimizer, test_dataset, logger, hy
                                                       x_lower=x_test_lower, use_one_hot=True,
                                                       sample_size=hyper['test_sample_size'])
         test_mean_loss(loss)
+        lr = sop_optimizer.optimizer.learning_rate.numpy()
     logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.3e} || '
                 f'Train_Recon {train_mean_loss.result().numpy():2.3e} || '
                 f'Temp {sop_optimizer.model.temp:2.1e} || '
                 f'{sop_optimizer.model.model_type} || '
+                f'{lr:1.1e} || '
                 f'Time {time_taken:4.1f} sec')
 
 
