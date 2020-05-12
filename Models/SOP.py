@@ -12,14 +12,15 @@ class SOP(tf.keras.Model):
         self.units_per_layer = hyper['units_per_layer']
         self.temp = hyper['temp']
         self.model_type = hyper['model_type']
-        # self.var_num = 1 if self.model_type in ['GS', 'IGR_Iso'] else 2
         self.var_num = 1
         self.split_sizes_list = [self.units_per_layer for _ in range(self.var_num)]
 
         self.input_layer = InputLayer(input_shape=self.half_image_w_h)
         self.flat_layer = Flatten()
         self.h1_dense = Dense(units=self.units_per_layer)
-        self.h2_dense = Dense(units=self.units_per_layer * self.var_num)
+        self.h2_dense = Dense(units=self.units_per_layer)
+        # if self.model_type in ['IGR_I']:
+        #     self.h2_dense_xi = Dense(units=self.units_per_layer)
         self.out_dense = Dense(units=self.half_image_size)
         self.reshape_out = Reshape(self.half_image_w_h)
         if self.model_type == 'IGR_Planar':
@@ -31,8 +32,11 @@ class SOP(tf.keras.Model):
     @tf.function()
     def call(self, x_upper, sample_size=1, use_one_hot=False):
         out = self.h1_dense(self.flat_layer(self.input_layer(x_upper)))
-        out = self.h2_dense(out)
-        params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
+        out1 = self.h2_dense(out)
+        # params_2 = [out1]
+        # if self.model_type in ['IGR_I']:
+        #     params_2.append(self.h2_dense_xi(out))
+        params_2 = tf.split(out1, num_or_size_splits=self.split_sizes_list, axis=1)
         z_2 = self.sample_binary(params_2, use_one_hot, sample_size)
 
         logits = self.get_samples_of_logits(z_2)
@@ -89,9 +93,9 @@ def get_igr_dist(model_type, params, temp, planar_flow, sample_size):
     # mu, xi = params
     mu = params[0]
     batch_n, num_of_vars = mu.shape
+    xi_broad = tf.zeros(shape=(batch_n, 1, 1, num_of_vars))
     mu_broad = tf.reshape(mu, shape=(batch_n, 1, 1, num_of_vars))
     # xi_broad = tf.reshape(xi, shape=(batch_n, 1, 1, num_of_vars))
-    xi_broad = tf.zeros(shape=(batch_n, 1, 1, num_of_vars))
     if model_type == 'IGR_I':
         dist = IGR_I(mu=mu_broad, xi=xi_broad, temp=temp, sample_size=sample_size)
     elif model_type == 'IGR_Planar':
