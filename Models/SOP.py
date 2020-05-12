@@ -12,8 +12,8 @@ class SOP(tf.keras.Model):
         self.units_per_layer = hyper['units_per_layer']
         self.temp = hyper['temp']
         self.model_type = hyper['model_type']
-        # self.var_num = 1
-        self.var_num = 1 if self.model_type == 'GS' else 2
+        self.var_num = 1
+        # self.var_num = 1 if self.model_type == 'GS' else 2
         self.split_sizes_list = [self.units_per_layer for _ in range(self.var_num)]
 
         self.input_layer = InputLayer(input_shape=self.half_image_w_h)
@@ -38,49 +38,20 @@ class SOP(tf.keras.Model):
         out = self.h1_dense(self.flat_layer(self.input_layer(x_upper)))
         params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
         for i in range(sample_size):
-            z_1 = self.sample_binary(params_1, use_one_hot, sample_size)
+            z_1 = self.sample_binary(params_1, use_one_hot)
             out = self.h2_dense(z_1)
             params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
-            z_2 = self.sample_binary(params_2, use_one_hot, sample_size)
+            z_2 = self.sample_binary(params_2, use_one_hot)
             value = self.reshape_out(self.out_dense(z_2))
             logits = logits.write(index=i, value=value)
         logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
         return logits
 
-    # @tf.function()
-    # def call(self, x_upper, sample_size=1, use_one_hot=False):
-    #     out = self.h1_dense(self.flat_layer(self.input_layer(x_upper)))
-    #     params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
-    #     z_1 = self.sample_binary(params_1, use_one_hot, sample_size)
-    #     # params_2 = [out1]
-    #     # if self.model_type in ['IGR_I']:
-    #     #     params_2.append(self.h2_dense_xi(out))
-    #     out = self.h2_dense(z_1[:, :, 0])
-    #     out = self.h2_dense(z_1)
-    #     params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
-    #     z_2 = self.sample_binary(params_2, use_one_hot, sample_size)
-
-    #     logits = self.get_samples_of_logits(z_2)
-    #     return logits
-
-    @tf.function()
-    def get_samples_of_logits(self, z_2):
-        batch_n, _, sample_size = z_2.shape
-        width, height, rgb = self.half_image_w_h
-        logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
-                                element_shape=(batch_n, width, height, rgb))
-        for i in range(sample_size):
-            value = self.reshape_out(self.out_dense(z_2[:, :, i]))
-            logits = logits.write(index=i, value=value)
-        logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
-        return logits
-
-    def sample_binary(self, params, use_one_hot, sample_size):
+    def sample_binary(self, params, use_one_hot):
         if self.model_type == 'GS':
-            psi = sample_gs_binary(params=params, temp=self.temp, sample_size=sample_size)
+            psi = sample_gs_binary(params=params, temp=self.temp)
         elif self.model_type in ['IGR_I', 'IGR_SB', 'IGR_Planar']:
             psi = sample_igr_binary(model_type=self.model_type, params=params, temp=self.temp,
-                                    sample_size=sample_size,
                                     planar_flow=self.planar_flow)
         else:
             raise RuntimeError
@@ -89,7 +60,7 @@ class SOP(tf.keras.Model):
 
 
 @tf.function()
-def sample_gs_binary(params, temp, sample_size):
+def sample_gs_binary(params, temp):
     # TODO: add the latex formulas
     log_alpha = params[0]
     # unif = tf.random.uniform(shape=log_alpha.shape + (sample_size,))
@@ -103,29 +74,28 @@ def sample_gs_binary(params, temp, sample_size):
 
 
 @tf.function()
-def sample_igr_binary(model_type, params, temp, sample_size, planar_flow):
-    dist = get_igr_dist(model_type, params, temp, planar_flow, sample_size)
+def sample_igr_binary(model_type, params, temp, planar_flow):
+    dist = get_igr_dist(model_type, params, temp, planar_flow)
     dist.generate_sample()
     # lam = tf.transpose(dist.lam[:, 0, :, :], perm=[0, 2, 1])
-    lam = tf.transpose(dist.lam[:, 0, 0, :])
+    lam = tf.transpose(dist.lam[:, 0, 0, :], perm=[0, 1])
     psi = 2. * tf.math.sigmoid(lam / temp) - 1.
     return psi
 
 
-def get_igr_dist(model_type, params, temp, planar_flow, sample_size):
-    mu, xi = params
-    # mu = params[0]
+def get_igr_dist(model_type, params, temp, planar_flow):
+    # mu, xi = params
+    mu = params[0]
     batch_n, num_of_vars = mu.shape
-    # xi_broad = tf.zeros(shape=(batch_n, 1, 1, num_of_vars))
+    xi_broad = tf.zeros(shape=(batch_n, 1, 1, num_of_vars))
     mu_broad = tf.reshape(mu, shape=(batch_n, 1, 1, num_of_vars))
-    xi_broad = tf.reshape(xi, shape=(batch_n, 1, 1, num_of_vars))
+    # xi_broad = tf.reshape(xi, shape=(batch_n, 1, 1, num_of_vars))
     if model_type == 'IGR_I':
-        dist = IGR_I(mu=mu_broad, xi=xi_broad, temp=temp, sample_size=sample_size)
+        dist = IGR_I(mu=mu_broad, xi=xi_broad, temp=temp)
     elif model_type == 'IGR_Planar':
-        dist = IGR_Planar(mu=mu_broad, xi=xi_broad, temp=temp, sample_size=sample_size,
-                          planar_flow=planar_flow)
+        dist = IGR_Planar(mu=mu_broad, xi=xi_broad, temp=temp, planar_flow=planar_flow)
     elif model_type == 'IGR_SB':
-        dist = IGR_SB_Finite(mu=mu_broad, xi=xi_broad, temp=temp, sample_size=sample_size)
+        dist = IGR_SB_Finite(mu=mu_broad, xi=xi_broad, temp=temp)
     else:
         raise ValueError
     return dist
