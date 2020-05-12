@@ -111,7 +111,7 @@ def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
 def get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hyper):
     lr = sop_optimizer.optimizer.learning_rate.numpy()
     lr = hyper['learning_rate'] * (1 / (1 + hyper['weight_decay'] * iteration_counter))
-    lr = np.max((np.array(1.e-5), lr))
+    lr = np.max((hyper['min_learning_rate'], lr))
     lr = tf.constant(lr, dtype=tf.float32)
     return lr
 
