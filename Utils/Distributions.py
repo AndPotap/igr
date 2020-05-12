@@ -56,10 +56,12 @@ class IGR_I(Distributions):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         epsilon = self.sample_noise(shape=mu_broad.shape)
         sigma_broad = tf.math.exp(xi_broad)
+        # sigma_broad = tf.math.softplus(xi_broad + tf.constant(1.))
         self.kappa = mu_broad + sigma_broad * epsilon
         self.lam = self.transform()
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
         self.psi = project_to_vertices_via_softmax_pp(self.lam / self.temp)
+
         # self.psi = tf.math.softmax(self.lam / self.temp, axis=1)
         # Check in train_model for the hyperparameter addition of 1 category
         # Look for the line:
