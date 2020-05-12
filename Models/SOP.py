@@ -12,7 +12,8 @@ class SOP(tf.keras.Model):
         self.units_per_layer = hyper['units_per_layer']
         self.temp = hyper['temp']
         self.model_type = hyper['model_type']
-        self.var_num = 1 if self.model_type in ['GS', 'IGR_Iso'] else 2
+        # self.var_num = 1 if self.model_type in ['GS', 'IGR_Iso'] else 2
+        self.var_num = 1
         self.split_sizes_list = [self.units_per_layer for _ in range(self.var_num)]
 
         self.input_layer = InputLayer(input_shape=self.half_image_w_h)
@@ -94,32 +95,34 @@ def sample_igr_binary_iso(params, temp, sample_size):
     return psi
 
 
+# @tf.function()
+# def sample_igr_binary(model_type, params, temp, sample_size, planar_flow):
+#     mu, xi = params
+#     mu_broad = tf.reshape(mu, shape=mu.shape + (1,))
+#     xi_broad = tf.reshape(xi, shape=xi.shape + (1,))
+#     eps = tf.random.normal(shape=(mu.shape + (sample_size,)))
+#     lam = mu_broad + tf.math.exp(xi_broad) * eps
+#     lam = mu_broad + eps
+#     psi = 2. * tf.math.sigmoid(lam / temp) - 1.
+#     return psi
+#
+#
 @tf.function()
 def sample_igr_binary(model_type, params, temp, sample_size, planar_flow):
-    mu, xi = params
-    mu_broad = tf.reshape(mu, shape=mu.shape + (1,))
-    xi_broad = tf.reshape(xi, shape=xi.shape + (1,))
-    eps = tf.random.normal(shape=(mu.shape + (sample_size,)))
-    lam = mu_broad + tf.math.exp(xi_broad) * eps
-    lam = mu_broad + eps
+    dist = get_igr_dist(model_type, params, temp, planar_flow, sample_size)
+    dist.generate_sample()
+    lam = tf.transpose(dist.lam[:, 0, :, :], perm=[0, 2, 1])
     psi = 2. * tf.math.sigmoid(lam / temp) - 1.
     return psi
 
 
-# @tf.function()
-# def sample_igr_binary(model_type, params, temp, sample_size, planar_flow):
-#     dist = get_igr_dist(model_type, params, temp, planar_flow, sample_size)
-#     dist.generate_sample()
-#     lam = tf.transpose(dist.lam[:, 0, :, :], perm=[0, 2, 1])
-#     psi = 2. * tf.math.sigmoid(lam / temp) - 1.
-#     return psi
-#
-
 def get_igr_dist(model_type, params, temp, planar_flow, sample_size):
-    mu, xi = params
+    # mu, xi = params
+    mu = params[0]
     batch_n, num_of_vars = mu.shape
     mu_broad = tf.reshape(mu, shape=(batch_n, 1, 1, num_of_vars))
-    xi_broad = tf.reshape(xi, shape=(batch_n, 1, 1, num_of_vars))
+    # xi_broad = tf.reshape(xi, shape=(batch_n, 1, 1, num_of_vars))
+    xi_broad = tf.zeros(shape=(batch_n, 1, 1, num_of_vars))
     if model_type == 'IGR_I':
         dist = IGR_I(mu=mu_broad, xi=xi_broad, temp=temp, sample_size=sample_size)
     elif model_type == 'IGR_Planar':
