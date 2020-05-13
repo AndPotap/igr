@@ -56,6 +56,8 @@ class SOP(tf.keras.Model):
         else:
             raise RuntimeError
         psi = tf.math.round(psi) if use_one_hot else psi
+        # making the output be in {-1, 1} as in Maddison et. al 2017
+        psi = 2 * psi - 1
         return psi
 
 
@@ -63,13 +65,10 @@ class SOP(tf.keras.Model):
 def sample_gs_binary(params, temp):
     # TODO: add the latex formulas
     log_alpha = params[0]
-    # unif = tf.random.uniform(shape=log_alpha.shape + (sample_size,))
     unif = tf.random.uniform(shape=log_alpha.shape)
     logistic_sample = tf.math.log(unif) - tf.math.log(1. - unif)
-    # log_alpha = tf.reshape(log_alpha, shape=log_alpha.shape + (1,))
     lam = (log_alpha + logistic_sample) / temp
-    # making the output be in {-1, 1} as in Maddison et. al 2017
-    psi = 2. * tf.math.sigmoid(lam) - 1.
+    psi = tf.math.sigmoid(lam)
     return psi
 
 
@@ -77,9 +76,8 @@ def sample_gs_binary(params, temp):
 def sample_igr_binary(model_type, params, temp, planar_flow):
     dist = get_igr_dist(model_type, params, temp, planar_flow)
     dist.generate_sample()
-    # lam = tf.transpose(dist.lam[:, 0, :, :], perm=[0, 2, 1])
     lam = tf.transpose(dist.lam[:, 0, 0, :], perm=[0, 1])
-    psi = 2. * tf.math.sigmoid(lam / temp) - 1.
+    psi = tf.math.sigmoid(lam)
     return psi
 
 
