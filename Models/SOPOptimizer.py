@@ -45,8 +45,8 @@ def compute_loss(x_lower, logits, sample_size):
     log_pxl_z_broad = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower_broad, logits=logits)
     log_pxl_z = tf.math.reduce_sum(log_pxl_z_broad, axis=[width_loc, height_loc, rgb_loc])
     loss = -tf.math.reduce_logsumexp(log_pxl_z, axis=1)
-    loss = tf.math.reduce_mean(loss, axis=0) + \
-        tf.math.log(tf.constant(sample_size, dtype=tf.float32))
+    loss = tf.math.reduce_mean(loss, axis=0)
+    loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
     return loss
 
 
