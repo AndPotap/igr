@@ -3,7 +3,6 @@ import tensorflow as tf
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
-# from Utils.general import initialize_mu_and_xi_for_logistic
 from Utils.general import initialize_mu_and_xi_equally
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -73,7 +72,7 @@ class OptVAE:
             x_logit = self.decode_bernoulli(z=z)
         return x_logit
 
-    # @tf.function()
+    @tf.function()
     def decode_bernoulli(self, z):
         z = reshape_and_stack_z(z=z)
         batch_n, sample_size = z.shape[0], z.shape[2]
@@ -447,6 +446,7 @@ class OptSB(OptSBFinite):
 
 
 # =================================================================================================
+@tf.function()
 def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
                  gamma=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
     if run_jv:
@@ -454,11 +454,17 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
                                - gamma * tf.math.abs(kl_dis - discrete_c))
     else:
         kl = kl_norm + kl_dis
-        elbo = tf.reduce_mean(log_px_z) - tf.reduce_mean(kl)
-        loss = -elbo
+        sample_size = kl.shape[1]
+        elbo = log_px_z - kl
+        elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
+        loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
+        loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
+        # elbo = tf.reduce_mean(log_px_z) - tf.reduce_mean(kl)
+        # loss = -elbo
     return loss
 
 
+@tf.function()
 def compute_log_bernoulli_pdf(x, x_logit):
     x_broad = infer_shape_from(v=x_logit, x=x)
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
