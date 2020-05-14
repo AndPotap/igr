@@ -285,9 +285,10 @@ def get_ending_with_timestamp(termination: str = '.pkl') -> str:
     current_time = str(datetime.datetime.now())
     parts_of_date = current_time.split(sep=' ')
     year_month_day = parts_of_date[0].replace('-', '')
-    hour_min = parts_of_date[1].replace(':', '')
-    hour_min = hour_min[:4]
-    ending = year_month_day + '_' + hour_min + termination
+    hour_min_sec = parts_of_date[1].replace(':', '')
+    hour_min = hour_min_sec[:4]
+    sec = hour_min_sec[7:10]
+    ending = year_month_day + '_' + hour_min + '_' + sec + termination
     return ending
 
 
