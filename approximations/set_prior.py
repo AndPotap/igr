@@ -7,8 +7,8 @@ from Models.VAENet import offload_weights_planar_flow
 from Models.VAENet import generate_random_planar_flow_weights
 
 sample_size = int(1.e4)
-total_iterations = 1 * int(1.e3)
-# total_iterations = 2 * int(1.e1)
+# total_iterations = 1 * int(1.e3)
+total_iterations = 2 * int(1.e1)
 learning_rate = 1.e-2
 
 samples_plot_n = int(1.e3)
