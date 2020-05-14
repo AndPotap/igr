@@ -7,8 +7,8 @@ from Models.VAENet import offload_weights_planar_flow
 from Models.VAENet import generate_random_planar_flow_weights
 
 sample_size = int(1.e4)
-# total_iterations = 3 * int(1.e1)
-total_iterations = 2 * int(1.e1)
+total_iterations = 1 * int(1.e3)
+# total_iterations = 2 * int(1.e1)
 learning_rate = 1.e-2
 
 samples_plot_n = int(1.e3)
@@ -31,7 +31,7 @@ run_against = 'uniform'
 x_lim_max, y_lim_max = 10, 0.2
 # run_against = 'poisson'
 # xlim_max, y_lim_max = 70, 0.2
-save_parameters = False
+save_parameters = True
 
 probs, p_samples, results_file = get_for_approx(run_against, categories_n, samples_plot_n)
 
