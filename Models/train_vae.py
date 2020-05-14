@@ -64,18 +64,11 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
     for epoch in range(1, hyper['epochs'] + 1):
         t0 = time.time()
         train_loss_mean = tf.keras.metrics.Mean()
-        # elbo_var_mean = tf.keras.metrics.Mean()
         for x_train in train_dataset.take(hyper['iter_per_epoch']):
             vae_opt, iteration_counter = perform_train_step(x_train, vae_opt, train_loss_mean,
                                                             iteration_counter, disc_c_linspace,
                                                             cont_c_linspace)
-        #     if monitor_variance and epoch % 1 == 0:
-        #         elbo_var = vae_opt.compute_loss_variance(x_train)
-        #         elbo_var_mean(elbo_var)
-        # res = elbo_var_mean.result().numpy()
-        # logger.info(f'ELBO variance {res:1.2e}')
         t1 = time.time()
-        # noinspection PyUnboundLocalVariable
         monitor_vanishing_grads(monitor_gradients, x_train, vae_opt,
                                 iteration_counter, grad_monitor_dict, epoch)
 
@@ -169,7 +162,7 @@ def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_count
 
 def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, iteration_counter,
                                   time_taken, train_loss_mean, check_every=10):
-    if epoch % check_every == 0:
+    if epoch % check_every == 0 or epoch == 1 or epoch == hyper['epochs']:
         test_progress = create_test_progress_tracker(run_jv=hyper['run_jv'])
         for x_test in test_dataset.take(hyper['iter_per_epoch']):
             test_progress = update_test_progress(x_test, vae_opt, test_progress)
