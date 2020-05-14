@@ -3,7 +3,7 @@ import tensorflow as tf
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
-from Utils.general import initialize_mu_and_xi_equally
+# from Utils.general import initialize_mu_and_xi_equally
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -12,7 +12,7 @@ class OptVAE:
     def __init__(self, nets, optimizer, hyper):
         self.nets = nets
         self.optimizer = optimizer
-        self.batch_size = hyper['sample_size']
+        self.batch_size = hyper['batch_n']
         self.n_required = hyper['n_required']
         self.sample_size = hyper['sample_size']
         self.sample_size_training = hyper['sample_size']
@@ -44,6 +44,7 @@ class OptVAE:
         else:
             self.sample_size = self.sample_size_training
 
+    @tf.function()
     def decode_w_or_wo_one_hot(self, z, test_with_one_hot):
         if test_with_one_hot:
             batch_n, categories_n, sample_size, var_num = z[-1].shape
@@ -52,8 +53,8 @@ class OptVAE:
                 one_hot = tf.transpose(tf.one_hot(tf.argmax(z[idx], axis=1), depth=categories_n),
                                        perm=[0, 3, 1, 2])
                 # below is to use only one sample when evaluating
-                if self.model_type == 'IGR_I_Dis':
-                    one_hot = tf.slice(one_hot, [0, 0, 0, 0], [batch_n, categories_n, 1, var_num])
+                # if self.model_type == 'IGR_I_Dis':
+                #     one_hot = tf.slice(one_hot, [0, 0, 0, 0], [batch_n, categories_n, 1, var_num])
                 zz.append(one_hot)
             x_logit = self.decode(z=zz)
         else:
@@ -253,6 +254,7 @@ class OptIGR(OptVAE):
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.dist = IGR_I(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
         self.use_continuous = True
+        self.prior_file = hyper['prior_file']
 
     def reparameterize(self, params_broad):
         mean, log_var, mu, xi = params_broad
@@ -286,9 +288,8 @@ class OptIGR(OptVAE):
             batch_n, categories_n, sample_size, var_num = z[-1].shape
             one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
                                    perm=[0, 3, 1, 2])
+            # tf.math.reduce_mean(p_discrete, axis=(0, 2, 3))
             p_discrete = tf.reduce_mean(one_hot, axis=2, keepdims=True)
-            # p_discrete = tf.reduce_mean(z[-1], axis=2, keepdims=True)
-            # p_discrete = tf.math.abs(p_discrete)  # not necessary if samples are one-hot
             kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
         else:
             kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
@@ -322,11 +323,34 @@ class OptIGR(OptVAE):
         xi_disc_prior = self.xi_0[:current_batch_n, :, :]
         return mu_disc_prior, xi_disc_prior
 
+    # def load_prior_values(self):
+    #     shape = (self.batch_size, self.nets.disc_latent_in,
+    #              self.sample_size, self.nets.disc_var_num)
+    #     # self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
+    #     self.mu_0, self.xi_0 = initialize_mu_and_xi_equally(shape=shape)
+
     def load_prior_values(self):
-        shape = (self.batch_size, self.nets.disc_latent_in,
-                 self.sample_size, self.nets.disc_var_num)
-        # self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
-        self.mu_0, self.xi_0 = initialize_mu_and_xi_equally(shape=shape)
+        with open(file=self.prior_file, mode='rb') as f:
+            parameters = pickle.load(f)
+
+        mu_0 = tf.constant(parameters['mu'], dtype=tf.float32)
+        xi_0 = tf.constant(parameters['xi'], dtype=tf.float32)
+        categories_n = mu_0.shape[1]
+        # TODO: check if this idea is valid
+        prior_shape = mu_0.shape
+        # mu_0 = tf.math.reduce_mean(mu_0 - 0.075, keepdims=True)
+        mu_0 = tf.math.reduce_mean(mu_0 + 0.05, keepdims=True)
+        mu_0 = tf.broadcast_to(mu_0, shape=prior_shape)
+        # xi_0 = tf.math.reduce_mean(xi_0 - 0.05, keepdims=True)
+        xi_0 = tf.math.reduce_mean(xi_0 + 0.05, keepdims=True)
+        xi_0 = tf.broadcast_to(xi_0, shape=prior_shape)
+
+        self.mu_0 = shape_prior_to_sample_size_and_discrete_var_num(
+            prior_param=mu_0, batch_size=self.batch_size, categories_n=categories_n,
+            sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
+        self.xi_0 = shape_prior_to_sample_size_and_discrete_var_num(
+            prior_param=xi_0, batch_size=self.batch_size, categories_n=categories_n,
+            sample_size=self.sample_size, discrete_var_num=self.nets.disc_var_num)
 
 
 class OptIGRDis(OptIGR):
@@ -336,8 +360,10 @@ class OptIGRDis(OptIGR):
         self.use_continuous = False
 
     def reparameterize(self, params_broad):
-        mu, xi = params_broad
         self.load_prior_values()
+        mu, xi = params_broad
+        # mu += self.mu_0
+        # xi += self.xi_0
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
         z_discrete = [self.dist.psi]
@@ -454,7 +480,7 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
                                - gamma * tf.math.abs(kl_dis - discrete_c))
     else:
         kl = kl_norm + kl_dis
-        sample_size = kl.shape[1]
+        sample_size = log_px_z.shape[1]
         elbo = log_px_z - kl
         elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
         loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
@@ -480,8 +506,8 @@ def compute_log_gaussian_pdf(x, x_logit):
 
     x_broad = infer_shape_from(v=mu, x=x)
 
-    log_pixel = - 0.5 * ((x_broad - mu) / xi) ** 2. - 0.5 * \
-        tf.math.log(2 * pi) - tf.math.log(1.e-8 + xi)
+    log_pixel = (- 0.5 * ((x_broad - mu) / xi) ** 2. -
+                 0.5 * tf.math.log(2 * pi) - tf.math.log(1.e-8 + xi))
     log_px_z = tf.reduce_sum(log_pixel, axis=[1, 2, 3])
     return log_px_z
 
