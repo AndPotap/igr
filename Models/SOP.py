@@ -20,8 +20,6 @@ class SOP(tf.keras.Model):
         self.flat_layer = Flatten()
         self.h1_dense = Dense(units=self.units_per_layer * self.var_num)
         self.h2_dense = Dense(units=self.units_per_layer * self.var_num)
-        # if self.model_type in ['IGR_I']:
-        #     self.h2_dense_xi = Dense(units=self.units_per_layer)
         self.out_dense = Dense(units=self.half_image_size)
         self.reshape_out = Reshape(self.half_image_w_h)
         if self.model_type == 'IGR_Planar':
