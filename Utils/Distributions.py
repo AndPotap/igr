@@ -168,12 +168,13 @@ def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> t
     return log_p_concrete
 
 
+@tf.function()
 def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> tf.Tensor:
     categories_n = tf.constant(log_psi.shape[1], dtype=tf.float32)
     log_cons = tf.math.lgamma(categories_n) + (categories_n - 1) * tf.math.log(temp)
     aux = logits - temp * log_psi
-    log_sums = tf.math.reduce_sum(aux, axis=1) - categories_n * \
-        tf.math.reduce_logsumexp(aux, axis=1)
+    log_sums = tf.math.reduce_sum(aux, axis=1)
+    log_sums -= categories_n * tf.math.reduce_logsumexp(aux, axis=1)
     log_exp_gs_dist = log_cons + log_sums
     return log_exp_gs_dist
 
