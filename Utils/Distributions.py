@@ -25,6 +25,7 @@ class Distributions:
         self.log_psi = tf.constant(0., dtype=tf.float32)
         self.psi = tf.constant(0., dtype=tf.float32)
 
+    @tf.function()
     def broadcast_params_to_sample_size(self, params: list):
         params_broad = []
         for param in params:
@@ -153,7 +154,7 @@ class GS(Distributions):
 
 
 # Distribution functions
-# =========================================================================================================
+# ====================================================================================================
 def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> tf.Tensor:
     n_required = tf.constant(value=psi.shape[1], dtype=tf.float32)
     offset = tf.constant(1.e-20)
@@ -178,7 +179,7 @@ def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tens
 
 
 # Optimization functions for the Expectation Minimization Loss
-# ================================================================================================
+# ====================================================================================================
 def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dist_type: str = 'sb',
                  sample_size: int = 1, threshold: float = 0.99, run_iteratively=False, run_kl=True,
                  planar_flow: str = None):
