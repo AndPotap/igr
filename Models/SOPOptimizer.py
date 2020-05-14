@@ -45,7 +45,8 @@ def compute_loss(x_lower, logits, sample_size):
     log_pxl_z_broad = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_lower_broad, logits=logits)
     log_pxl_z = tf.math.reduce_sum(log_pxl_z_broad, axis=[width_loc, height_loc, rgb_loc])
     loss = -tf.math.reduce_logsumexp(log_pxl_z, axis=1)
-    loss = tf.math.reduce_mean(loss, axis=0) + tf.math.log(tf.constant(sample_size, dtype=tf.float32))
+    loss = tf.math.reduce_mean(loss, axis=0) + \
+        tf.math.log(tf.constant(sample_size, dtype=tf.float32))
     return loss
 
 
@@ -88,24 +89,36 @@ def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
 
             gradients, loss = sop_optimizer.compute_gradients_and_loss(x_upper=x_train_upper,
                                                                        x_lower=x_train_lower)
-            lr = get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hyper)
             sop_optimizer.apply_gradients(gradients=gradients)
-            sop_optimizer.optimizer.learning_rate = lr
+            update_learning_rate(sop_optimizer, epoch, iteration_counter, hyper)
             train_mean_loss(loss)
             iteration_counter += 1
-        toc = time.time()
-        evaluate_progress_in_test_set(epoch=epoch, sop_optimizer=sop_optimizer,
-                                      test_dataset=test_dataset,
-                                      logger=logger, hyper=hyper,
-                                      iteration_counter=iteration_counter,
-                                      time_taken=toc - tic,
-                                      train_mean_loss=train_mean_loss)
+        time_taken = time.time() - tic
+        if epoch % hyper['check_every'] == 0 or epoch == (hyper['epochs'] - 1):
+            evaluate_progress(epoch=epoch, sop_optimizer=sop_optimizer,
+                              test_dataset=test_dataset,
+                              train_dataset=train_dataset,
+                              logger=logger, hyper=hyper,
+                              iteration_counter=iteration_counter,
+                              tic=tic)
+        else:
+            logger.info(f'Epoch {epoch:4d} || Test_Recon 0.000e+00 || '
+                        f'Train_Recon {train_mean_loss.result().numpy():2.3e} || '
+                        f'Temp {sop_optimizer.model.temp:2.1e} || '
+                        f'{sop_optimizer.model.model_type} || '
+                        f'{sop_optimizer.optimizer.learning_rate.numpy():1.1e} || '
+                        f'Time {time_taken:4.1f} sec')
 
     final_time = time.time()
     logger.info(f'Total training time {final_time - initial_time: 4.1f} secs')
     results_file = f'./Log/model_weights_{sop_optimizer.model.model_type}.h5'
     results_file = append_timestamp_to_file(file_name=results_file, termination='.h5')
     sop_optimizer.model.save_weights(filepath=results_file)
+
+
+def update_learning_rate(sop_optimizer, epoch, iteration_counter, hyper):
+    lr = get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hyper)
+    sop_optimizer.optimizer.learning_rate = lr
 
 
 def get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hyper):
@@ -116,23 +129,35 @@ def get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hy
     return lr
 
 
-def evaluate_progress_in_test_set(epoch, sop_optimizer, test_dataset, logger, hyper, iteration_counter,
-                                  time_taken, train_mean_loss):
-    test_mean_loss = tf.keras.metrics.Mean()
-    for x_test in test_dataset.take(hyper['iter_per_epoch']):
-        x_test_lower = x_test[:, 14:, :, :]
-        x_test_upper = x_test[:, :14, :, :]
-        loss = sop_optimizer.compute_loss_for_testing(x_upper=x_test_upper,
-                                                      x_lower=x_test_lower, use_one_hot=True,
-                                                      sample_size=hyper['test_sample_size'])
-        test_mean_loss(loss)
-        lr = sop_optimizer.optimizer.learning_rate.numpy()
+def evaluate_progress(epoch, sop_optimizer, test_dataset, train_dataset,
+                      logger, hyper, iteration_counter, tic):
+    test_mean_loss = evaluate_loss_on_dataset(test_dataset, sop_optimizer, hyper)
+    train_mean_loss = evaluate_loss_on_dataset(train_dataset, sop_optimizer, hyper)
+    lr = sop_optimizer.optimizer.learning_rate.numpy()
+    time_taken = time.time() - tic
     logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.3e} || '
                 f'Train_Recon {train_mean_loss.result().numpy():2.3e} || '
                 f'Temp {sop_optimizer.model.temp:2.1e} || '
                 f'{sop_optimizer.model.model_type} || '
                 f'{lr:1.1e} || '
                 f'Time {time_taken:4.1f} sec')
+
+
+def evaluate_loss_on_dataset(dataset, sop_optimizer, hyper):
+    mean_loss = tf.keras.metrics.Mean()
+    for x in dataset.take(hyper['iter_per_epoch']):
+        loss = evaluate_loss_on_batch(x, sop_optimizer, hyper)
+        mean_loss(loss)
+    return mean_loss
+
+
+def evaluate_loss_on_batch(x, sop_optimizer, hyper):
+    x_lower = x[:, 14:, :, :]
+    x_upper = x[:, :14, :, :]
+    loss = sop_optimizer.compute_loss_for_testing(x_upper=x_upper,
+                                                  x_lower=x_lower, use_one_hot=True,
+                                                  sample_size=hyper['test_sample_size'])
+    return loss
 
 
 def viz_reconstruction(test_image, model):
