@@ -3,18 +3,19 @@ from Models.train_vae import run_vae_for_all_cases
 
 run_with_sample = True
 num_of_repetitions = 1
-temps = [0.15]
+temps = [0.67]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
 model_cases = {
-    1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
-        'prior_file': './Results/mu_xi_unif_' + str(round(temps[0] * 100)) + '_IGR_I.pkl'},
+    # 1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
+    #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
+    # 'prior_file': './Results/mu_xi_unif_' + str(round(temps[0] * 100)) + '_IGR_I.pkl'},
     # 2: {'model_type': 'IGR_Planar_Dis', 'n_required': 9},
     # 3: {'model_type': 'IGR_SB_Finite_Dis', 'n_required': 9,
     #     'prior_file': './Results/mu_xi_unif_10_IGR_SB_Finite.pkl'},
     # 4: {'model_type': 'IGR_SB_Dis', 'n_required': 49,
     #     'prior_file': './Results/mu_xi_unif_50_IGR_SB_Finite.pkl',
     #     'threshold': 0.9, 'truncation_option': 'quantile'},
-    # 5: {'model_type': 'GS_Dis', 'n_required': 10},
+    5: {'model_type': 'GS_Dis', 'n_required': 10},
 }
 dataset_cases = {
     1: {'dataset_name': 'mnist', 'architecture': 'dense'},
