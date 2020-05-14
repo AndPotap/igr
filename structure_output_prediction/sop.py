@@ -13,6 +13,7 @@ hyper = {'width_height': (14, 28, 1),
          'weight_decay': 1.e-3,
          'min_learning_rate': 1.e-4,
          'epochs': 1 * int(1.e2),
+         'check_every': 1,
          'iter_per_epoch': 937,
          'test_sample_size': 100,
          'temp': tf.constant(1.0)}
