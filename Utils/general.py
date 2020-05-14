@@ -18,7 +18,7 @@ os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 # Approximating Discrete Distributions
-#  ====================================================================================================================
+#  =====================================================================================================
 def offload_case(case):
     run_against = case['run_against']
     categories_n = case['categories_n']
@@ -292,7 +292,8 @@ def get_ending_with_timestamp(termination: str = '.pkl') -> str:
 
 
 #  Evaluating Simplex Proximity
-#  ====================================================================================================================
+#  =====================================================================================================
+
 def load_parameter_values(prior_file):
     with open(file=prior_file, mode='rb') as f:
         parameters = pickle.load(f)
@@ -400,7 +401,8 @@ def create_placeholders_for_statistical_results(stats, models, samples_per_stat)
 
 
 # Initializing Parameters
-# ====================================================================================================================
+#  =====================================================================================================
+
 def get_uniform_mix_probs(initial_point: int, middle_point: int, final_point: int, mass_in_beginning,
                           max_size: int) -> np.ndarray:
     probs = np.zeros(shape=max_size)
@@ -426,9 +428,9 @@ def sample_from_uniform_mix(size: int, initial_point: int, middle_point: int, fi
     return mixture_samples
 
 
-def initialize_mu_and_xi_equally(shape):
-    mu = tf.constant(0., dtype=tf.float32, shape=shape)
-    xi = tf.constant(0., dtype=tf.float32, shape=shape)
+def initialize_mu_and_xi_equally(shape, value_mean=0., value_xi=0.):
+    mu = tf.constant(value_mean, dtype=tf.float32, shape=shape)
+    xi = tf.constant(value_xi, dtype=tf.float32, shape=shape)
     mu = tf.Variable(mu)
     xi = tf.Variable(xi)
     return mu, xi
