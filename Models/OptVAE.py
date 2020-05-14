@@ -73,6 +73,7 @@ class OptVAE:
             x_logit = self.decode_bernoulli(z=z)
         return x_logit
 
+    @tf.function()
     def decode_bernoulli(self, z):
         z = reshape_and_stack_z(z=z)
         batch_n, sample_size = z.shape[0], z.shape[2]
@@ -109,6 +110,7 @@ class OptVAE:
         kl_dis = tf.constant(0.) if sample_from_disc_kl else tf.constant(0.)
         return kl_norm, kl_dis
 
+    @tf.function()
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
@@ -201,6 +203,7 @@ class OptExpGS(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
+    @tf.function()
     def compute_kl_elements(self, z, params_broad,
                             sample_from_cont_kl, sample_from_disc_kl,
                             test_with_one_hot):
@@ -220,6 +223,7 @@ class OptExpGS(OptVAE):
         kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl)
         return kl_norm, kl_dis
 
+    @tf.function()
     def compute_discrete_kl(self, log_alpha, sample_from_disc_kl):
         if sample_from_disc_kl:
             kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
@@ -477,7 +481,7 @@ def compute_log_gaussian_pdf(x, x_logit):
 
 
 def infer_shape_from(v, x):
-    batch_size, image_size, sample_size = v.shape[0], v.numpy().shape[1:4], v.shape[4]
+    batch_size, image_size, sample_size = v.shape[0], v.shape[1:4], v.shape[4]
     x_w_extra_col = tf.reshape(x, shape=(batch_size,) + image_size + (1,))
     x_broad = tf.broadcast_to(x_w_extra_col, shape=(batch_size,) + image_size + (sample_size,))
     return x_broad
@@ -539,6 +543,7 @@ def compute_log_normal_pdf(sample, mean, log_var):
     return log_normal_pdf
 
 
+@tf.function()
 def calculate_categorical_closed_kl(log_alpha, normalize=True):
     offset = 1.e-20
     categories_n = tf.constant(log_alpha.shape[1], dtype=tf.float32)
@@ -548,9 +553,13 @@ def calculate_categorical_closed_kl(log_alpha, normalize=True):
     return kl_discrete
 
 
+@tf.function()
 def sample_kl_exp_gs(log_psi, log_pi, temp):
     uniform_probs = get_broadcasted_uniform_probs(shape=log_psi.shape)
-    log_pz = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(uniform_probs), temp=temp)
+    # log_pz = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(uniform_probs), temp=temp)
+    temp_prior = tf.constant(0.5, dtype=tf.float32)
+    log_pz = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(uniform_probs),
+                                     temp=temp_prior)
     log_qz_x = compute_log_exp_gs_dist(log_psi=log_psi, logits=log_pi, temp=temp)
     kl_discrete = tf.math.reduce_sum(log_qz_x - log_pz, axis=2)
     return kl_discrete
