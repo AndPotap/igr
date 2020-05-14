@@ -56,7 +56,8 @@ class MinimizeEmpiricalLoss:
     def take_gradient_step_and_compute_loss(self, optimizer, probs):
         grad, loss, n_required = compute_gradients(params=self.params, temp=self.temp,
                                                    probs=probs, dist_type=self.model_type,
-                                                   sample_size=self.sample_size, threshold=self.threshold,
+                                                   sample_size=self.sample_size,
+                                                   threshold=self.threshold,
                                                    run_iteratively=self.run_iteratively,
                                                    run_kl=self.run_kl,
                                                    planar_flow=self.planar_flow)
@@ -98,7 +99,8 @@ def get_initial_params_for_model_type(model_type, shape):
     elif model_type in ['IGR_I', 'IGR_SB', 'IGR_SB_Finite', 'IGR_Planar']:
         shape_igr = (batch_size, categories_n - 1, sample_size, num_of_vars)
         if model_type in ['IGR_I', 'IGR_Planar']:
-            mu, xi = initialize_mu_and_xi_equally(shape_igr)
+            # mu, xi = initialize_mu_and_xi_equally(shape_igr)
+            mu, xi = initialize_mu_and_xi_equally(shape_igr, value_mean=-0.55, value_xi=-0.26)
         else:
             mu, xi = initialize_mu_and_xi_for_logistic(shape_igr, seed=21)
         params_init = [tf.constant(mu.numpy().copy()), tf.constant(xi.numpy().copy())]
