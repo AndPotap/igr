@@ -174,6 +174,7 @@ def create_test_progress_tracker(run_jv):
     if run_jv:
         vars_to_track = {'TeJV': True, 'TeJVC': False, 'N': ()}
     else:
+        # vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'NLL': (), 'N': ()}
         vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'N': ()}
         # vars_to_track = {'TeELBO': True, 'N': ()}
     test_track = {'vars_to_track': vars_to_track}
@@ -185,11 +186,13 @@ def create_test_progress_tracker(run_jv):
 def update_test_progress(x_test, vae_opt, test_progress):
     test_progress['N'](vae_opt.n_required)
     for k, v in test_progress['vars_to_track'].items():
-        if k != 'N':
+        if k != 'N' and k != 'NLL':
             loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test,
                                                                   sample_from_cont_kl=v,
                                                                   sample_from_disc_kl=v)
-
+            test_progress[k](loss)
+        elif k == 'NLL':
+            loss = vae_opt.compute_negative_log_likelihood(x=x_test)
             test_progress[k](loss)
     return test_progress
 
