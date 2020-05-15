@@ -234,12 +234,14 @@ class OptExpGS(OptVAE):
 
     def compute_negative_log_likelihood(self, x, test_with_one_hot=True):
         batch_n = x.shape[0]
-        sample_size = int(1.e4)
-        params = tf.constant(value=0., dtype=tf.float32,
-                             shape=(batch_n, 10, 1, 20))
-        self.dist = GS(log_pi=params, sample_size=sample_size, temp=self.temp)
-        self.dist.generate_sample()
-        z = [self.dist.psi]
+        sample_size = int(1.e3)
+        # params = tf.constant(value=0., dtype=tf.float32,
+        #                      shape=(batch_n, 10, 1, 20))
+        # self.dist = GS(log_pi=params, sample_size=sample_size, temp=self.temp)
+        # self.dist.generate_sample()
+        # z = [self.dist.psi]
+        # z = [(1 / 10) * tf.random.uniform(shape=(batch_n, 10, sample_size, 20))]
+        z = [tf.random.uniform(shape=(batch_n, 10, sample_size, 20))]
         x_logit = self.decode_w_or_wo_one_hot(z, test_with_one_hot)
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
         nll = tf.math.reduce_logsumexp(log_px_z, axis=1)
