@@ -284,7 +284,7 @@ class OptIGR(OptVAE):
                 mu_disc = tf.stop_gradient(mu_disc)
                 xi_disc = tf.stop_gradient(xi_disc)
             kl_norm = 0.
-        if test_with_one_hot:
+        if test_with_one_hot and not sample_from_disc_kl:
             batch_n, categories_n, sample_size, var_num = z[-1].shape
             one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
                                    perm=[0, 3, 1, 2])
