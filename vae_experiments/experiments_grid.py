@@ -1,7 +1,7 @@
 import tensorflow as tf
 from Models.train_vae import run_vae_for_all_cases
 
-run_with_sample = True
+run_with_sample = False
 num_of_repetitions = 1
 temps = [0.15]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
@@ -23,8 +23,8 @@ dataset_cases = {
     # 3: {'dataset_name': 'celeb_a', 'architecture': 'conv_jointvae'},
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
-         'sample_size_testing': 1 * int(1.e2),
-         'check_every': 10,
+         'sample_size_testing': 1 * int(1.e3),
+         'check_every': 25,
          'sample_from_disc_kl': False,
          'test_with_one_hot': True,
          'learning_rate': 3 * 1.e-4,
