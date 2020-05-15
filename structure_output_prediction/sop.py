@@ -13,9 +13,10 @@ hyper = {'width_height': (14, 28, 1),
          'weight_decay': 1.e-3,
          'min_learning_rate': 1.e-4,
          'epochs': 1 * int(1.e2),
-         'check_every': 10,
+         'check_every': 25,
          'iter_per_epoch': 937,
          'test_sample_size': 100,
+         'sample_size': 1,
          'temp': tf.constant(1.0)}
 data = load_mnist_sop_data(batch_n=hyper['batch_size'])
 run_sop(hyper=hyper, results_path='./Log/', data=data)
