@@ -480,13 +480,13 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
                                - gamma * tf.math.abs(kl_dis - discrete_c))
     else:
         kl = kl_norm + kl_dis
-        sample_size = log_px_z.shape[1]
         elbo = log_px_z - kl
-        elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
-        loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
-        loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
-        # elbo = tf.reduce_mean(log_px_z) - tf.reduce_mean(kl)
-        # loss = -elbo
+        # sample_size = log_px_z.shape[1]
+        # elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
+        # loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
+        # loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
+        elbo = tf.reduce_mean(log_px_z) - tf.reduce_mean(kl)
+        loss = -elbo
     return loss
 
 
