@@ -102,6 +102,7 @@ def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
                               test_dataset=test_dataset,
                               train_dataset=train_dataset,
                               logger=logger, hyper=hyper,
+                              train_mean_loss=train_mean_loss,
                               iteration_counter=iteration_counter,
                               tic=tic)
         else:
@@ -132,7 +133,7 @@ def get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hy
     return lr
 
 
-def evaluate_progress(epoch, sop_optimizer, test_dataset, train_dataset,
+def evaluate_progress(epoch, sop_optimizer, test_dataset, train_dataset, train_mean_loss,
                       logger, hyper, iteration_counter, tic):
     test_mean_loss = evaluate_loss_on_dataset(test_dataset, sop_optimizer, hyper)
     if epoch == hyper['epochs']:
