@@ -18,8 +18,13 @@ class SOP(tf.keras.Model):
 
         self.input_layer = InputLayer(input_shape=self.half_image_w_h)
         self.flat_layer = Flatten()
-        self.h1_dense = Dense(units=self.units_per_layer * self.var_num)
-        self.h2_dense = Dense(units=self.units_per_layer * self.var_num)
+        self.h1_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+        self.h2_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+        self.h3_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+        # self.h11_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+        # self.h12_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+        # self.h21_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+        # self.h22_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
         self.out_dense = Dense(units=self.half_image_size)
         self.reshape_out = Reshape(self.half_image_w_h)
         if self.model_type == 'IGR_Planar':
@@ -34,13 +39,21 @@ class SOP(tf.keras.Model):
         logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
                                 element_shape=(batch_n, width, height, rgb))
         out = self.h1_dense(self.flat_layer(self.input_layer(x_upper)))
+        # out = self.h12_dense(self.h11_dense(self.flat_layer(self.input_layer(x_upper))))
         params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
         for i in range(sample_size):
             z_1 = self.sample_binary(params_1, use_one_hot)
             out = self.h2_dense(z_1)
+            # out = self.h22_dense(self.h21_dense(z_1))
             params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
             z_2 = self.sample_binary(params_2, use_one_hot)
-            value = self.reshape_out(self.out_dense(z_2))
+
+            out = self.h3_dense(z_2)
+            params_3 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
+            z_3 = self.sample_binary(params_3, use_one_hot)
+
+            # value = self.reshape_out(self.out_dense(z_2))
+            value = self.reshape_out(self.out_dense(z_3))
             logits = logits.write(index=i, value=value)
         logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
         return logits
