@@ -232,6 +232,22 @@ class OptExpGS(OptVAE):
             kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
         return kl_dis
 
+    def compute_negative_log_likelihood(self, x, test_with_one_hot=True):
+        batch_n = x.shape[0]
+        sample_size = int(1.e4)
+        params = tf.constant(value=0., dtype=tf.float32,
+                             shape=(batch_n, 10, 1, 20))
+        self.dist = GS(log_pi=params, sample_size=sample_size, temp=self.temp)
+        self.dist.generate_sample()
+        z = [self.dist.psi]
+        x_logit = self.decode_w_or_wo_one_hot(z, test_with_one_hot)
+        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
+        nll = tf.math.reduce_logsumexp(log_px_z, axis=1)
+        nll = -tf.math.reduce_mean(nll, axis=0)
+        nll += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
+        # nll = tf.math.reduce_mean(-log_px_z)
+        return nll
+
 
 class OptExpGSDis(OptExpGS):
     def __init__(self, nets, optimizer, hyper):
