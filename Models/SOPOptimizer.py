@@ -19,10 +19,11 @@ class SOPOptimizer:
         return logits
 
     @tf.function()
-    def compute_gradients_and_loss(self, x_upper, x_lower):
+    def compute_gradients_and_loss(self, x_upper, x_lower, sample_size):
         with tf.GradientTape() as tape:
-            logits = self.perform_fwd_pass(x_upper=x_upper, use_one_hot=False)
-            loss = compute_loss(x_lower=x_lower, logits=logits, sample_size=1)
+            logits = self.perform_fwd_pass(x_upper=x_upper, use_one_hot=False,
+                                           sample_size=sample_size)
+            loss = compute_loss(x_lower=x_lower, logits=logits, sample_size=sample_size)
         gradients = tape.gradient(target=loss, sources=self.model.trainable_variables)
         return gradients, loss
 
@@ -80,6 +81,7 @@ def log_all_hyperparameters(hyper, logger):
 def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
     initial_time = time.time()
     iteration_counter = 0
+    sample_size = hyper['sample_size']
     for epoch in range(1, hyper['epochs'] + 1):
         train_mean_loss = tf.keras.metrics.Mean()
         tic = time.time()
@@ -88,13 +90,14 @@ def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
             x_train_upper = x_train[:, :14, :, :]
 
             gradients, loss = sop_optimizer.compute_gradients_and_loss(x_upper=x_train_upper,
-                                                                       x_lower=x_train_lower)
+                                                                       x_lower=x_train_lower,
+                                                                       sample_size=sample_size)
             sop_optimizer.apply_gradients(gradients=gradients)
             update_learning_rate(sop_optimizer, epoch, iteration_counter, hyper)
             train_mean_loss(loss)
             iteration_counter += 1
         time_taken = time.time() - tic
-        if epoch % hyper['check_every'] == 0 or epoch == (hyper['epochs'] - 1):
+        if epoch % hyper['check_every'] == 0 or epoch == hyper['epochs']:
             evaluate_progress(epoch=epoch, sop_optimizer=sop_optimizer,
                               test_dataset=test_dataset,
                               train_dataset=train_dataset,
@@ -132,7 +135,8 @@ def get_learning_rate_from_scheduler(sop_optimizer, epoch, iteration_counter, hy
 def evaluate_progress(epoch, sop_optimizer, test_dataset, train_dataset,
                       logger, hyper, iteration_counter, tic):
     test_mean_loss = evaluate_loss_on_dataset(test_dataset, sop_optimizer, hyper)
-    train_mean_loss = evaluate_loss_on_dataset(train_dataset, sop_optimizer, hyper)
+    if epoch == hyper['epochs']:
+        train_mean_loss = evaluate_loss_on_dataset(train_dataset, sop_optimizer, hyper)
     lr = sop_optimizer.optimizer.learning_rate.numpy()
     time_taken = time.time() - tic
     logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.3e} || '
