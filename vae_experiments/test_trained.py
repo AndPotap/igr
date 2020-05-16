@@ -1,8 +1,10 @@
+import time
 import pickle
 import tensorflow as tf
 from Models.train_vae import construct_nets_and_optimizer
 from Utils.load_data import load_vae_dataset
 
+tic = time.time()
 dataset_name = 'mnist'
 # path_to_trained_models = './Results/trained_models/' + dataset_name + '/'
 path_to_trained_models = './Results/trained_models/' + '/'
@@ -22,7 +24,7 @@ with open(file=path_to_trained_models + hyper_file, mode='rb') as f:
     hyper = pickle.load(f)
 batch_n = hyper['batch_n']
 # batch_n = int(1.e4)
-hyper['sample_size_testing'] = int(1.e3)
+hyper['sample_size_testing'] = 1 * int(1.e3)
 # hyper['sample_size_testing'] = int(1.e0)
 data = load_vae_dataset(dataset_name=dataset_name, batch_n=batch_n, epochs=hyper['epochs'],
                         run_with_sample=run_with_sample,
@@ -48,4 +50,6 @@ for x_test in test_dataset:
 evaluation_print = f'Epoch {epoch:4d} || '
 evaluation_print += f'TeELBOC {-test_loss_mean.result():2.5e} || '
 # evaluation_print += f'Train Loss {train_loss_mean.result():2.5e} || '
+toc = time.time()
+evaluation_print += f'Time: {toc - tic:2.2e} sec'
 print(evaluation_print)
