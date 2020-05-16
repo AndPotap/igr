@@ -44,7 +44,7 @@ class OptVAE:
         else:
             self.sample_size = self.sample_size_training
 
-    @tf.function()
+    # @tf.function()
     def decode_w_or_wo_one_hot(self, z, test_with_one_hot):
         if test_with_one_hot:
             batch_n, categories_n, sample_size, var_num = z[-1].shape
@@ -73,7 +73,7 @@ class OptVAE:
             x_logit = self.decode_bernoulli(z=z)
         return x_logit
 
-    @tf.function()
+    # @tf.function()
     def decode_bernoulli(self, z):
         z = reshape_and_stack_z(z=z)
         batch_n, sample_size = z.shape[0], z.shape[2]
@@ -499,18 +499,19 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
     else:
         kl = kl_norm + kl_dis
         elbo = log_px_z - kl
-        # sample_size = log_px_z.shape[1]
-        # elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
-        # loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
-        # loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
-        elbo = tf.reduce_mean(log_px_z) - tf.reduce_mean(kl)
-        loss = -elbo
+        sample_size = log_px_z.shape[1]
+        elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
+        loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
+        loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
+
+        # elbo = tf.reduce_mean(log_px_z) - tf.reduce_mean(kl)
+        # loss = -elbo
     return loss
 
 
 @tf.function()
 def compute_log_bernoulli_pdf(x, x_logit):
-    x_broad = infer_shape_from(v=x_logit, x=x)
+    x_broad = infer_shape(fromm=x_logit, tto=x)
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
     log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
     return log_px_z
@@ -522,7 +523,7 @@ def compute_log_gaussian_pdf(x, x_logit):
     xi = 1.e-6 + tf.math.softplus(xi)
     pi = 3.141592653589793
 
-    x_broad = infer_shape_from(v=mu, x=x)
+    x_broad = infer_shape(fromm=mu, tto=x)
 
     log_pixel = (- 0.5 * ((x_broad - mu) / xi) ** 2. -
                  0.5 * tf.math.log(2 * pi) - tf.math.log(1.e-8 + xi))
@@ -530,9 +531,9 @@ def compute_log_gaussian_pdf(x, x_logit):
     return log_px_z
 
 
-def infer_shape_from(v, x):
-    batch_size, image_size, sample_size = v.shape[0], v.shape[1:4], v.shape[4]
-    x_w_extra_col = tf.reshape(x, shape=(batch_size,) + image_size + (1,))
+def infer_shape(fromm, tto):
+    batch_size, image_size, sample_size = fromm.shape[0], fromm.shape[1:4], fromm.shape[4]
+    x_w_extra_col = tf.reshape(tto, shape=(batch_size,) + image_size + (1,))
     x_broad = tf.broadcast_to(x_w_extra_col, shape=(batch_size,) + image_size + (sample_size,))
     return x_broad
 
@@ -644,11 +645,25 @@ def reshape_and_stack_z(z):
     return z
 
 
+@tf.function()
 def flatten_discrete_variables(original_z):
     batch_n, disc_latent_n, sample_size, disc_var_num = original_z.shape
-    z_discrete = tf.reshape(original_z, shape=(batch_n, disc_var_num * disc_latent_n, sample_size))
+    z_discrete = tf.TensorArray(dtype=tf.float32, size=sample_size,
+                                element_shape=(batch_n, disc_var_num * disc_latent_n))
+    for i in tf.range(sample_size):
+        value = tf.reshape(original_z[:, :, i, :],
+                           shape=(batch_n, disc_var_num * disc_latent_n))
+        z_discrete = z_discrete.write(index=i, value=value)
+    z_discrete = tf.transpose(z_discrete.stack(), perm=[1, 2, 0])
     return z_discrete
 
+
+# def flatten_discrete_variables(original_z):
+#     batch_n, disc_latent_n, sample_size, disc_var_num = original_z.shape
+#     z_discrete = tf.transpose(original_z, perm=[0, 1, 3, 2])
+#     z_discrete = tf.reshape(original_z, shape=(batch_n, disc_var_num * disc_latent_n, sample_size))
+#     return z_discrete
+#
 
 def make_one_hot(z_dis):
     categories_n = z_dis.shape[1]
