@@ -21,7 +21,9 @@ path_to_trained_models += models[select_case]['model_dir'] + '/'
 with open(file=path_to_trained_models + hyper_file, mode='rb') as f:
     hyper = pickle.load(f)
 batch_n = hyper['batch_n']
-batch_n = int(1.e4)
+# batch_n = int(1.e4)
+hyper['sample_size_testing'] = int(1.e3)
+# hyper['sample_size_testing'] = int(1.e0)
 data = load_vae_dataset(dataset_name=dataset_name, batch_n=batch_n, epochs=hyper['epochs'],
                         run_with_sample=run_with_sample,
                         architecture=hyper['architecture'], hyper=hyper)
@@ -36,6 +38,14 @@ for x_test in test_dataset:
                                                           sample_from_cont_kl=False,
                                                           sample_from_disc_kl=False)
     test_loss_mean(loss)
-test_print = f'Epoch {epoch:4d} || '
-test_print += f'TeELBOC{-test_loss_mean.result():2.5e} || '
-print(test_print)
+# train_loss_mean = tf.keras.metrics.Mean()
+# for x_train in train_dataset:
+#     loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x_train,
+#                                                           sample_from_cont_kl=False,
+#                                                           sample_from_disc_kl=False)
+#     train_loss_mean(loss)
+
+evaluation_print = f'Epoch {epoch:4d} || '
+evaluation_print += f'TeELBOC {-test_loss_mean.result():2.5e} || '
+# evaluation_print += f'Train Loss {train_loss_mean.result():2.5e} || '
+print(evaluation_print)
