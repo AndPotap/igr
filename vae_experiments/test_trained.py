@@ -20,8 +20,9 @@ path_to_trained_models += models[select_case]['model_dir'] + '/'
 
 with open(file=path_to_trained_models + hyper_file, mode='rb') as f:
     hyper = pickle.load(f)
-
-data = load_vae_dataset(dataset_name=dataset_name, batch_n=hyper['batch_n'], epochs=hyper['epochs'],
+batch_n = hyper['batch_n']
+batch_n = int(1.e4)
+data = load_vae_dataset(dataset_name=dataset_name, batch_n=batch_n, epochs=hyper['epochs'],
                         run_with_sample=run_with_sample,
                         architecture=hyper['architecture'], hyper=hyper)
 train_dataset, test_dataset, np_test_images, hyper = data
