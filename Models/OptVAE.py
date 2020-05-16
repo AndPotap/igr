@@ -658,13 +658,6 @@ def flatten_discrete_variables(original_z):
     return z_discrete
 
 
-# def flatten_discrete_variables(original_z):
-#     batch_n, disc_latent_n, sample_size, disc_var_num = original_z.shape
-#     z_discrete = tf.transpose(original_z, perm=[0, 1, 3, 2])
-#     z_discrete = tf.reshape(original_z, shape=(batch_n, disc_var_num * disc_latent_n, sample_size))
-#     return z_discrete
-#
-
 def make_one_hot(z_dis):
     categories_n = z_dis.shape[1]
     idx = tf.argmax(z_dis, axis=1)
