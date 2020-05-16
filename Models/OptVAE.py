@@ -44,7 +44,7 @@ class OptVAE:
         else:
             self.sample_size = self.sample_size_training
 
-    # @tf.function()
+    @tf.function()
     def decode_w_or_wo_one_hot(self, z, test_with_one_hot):
         if test_with_one_hot:
             batch_n, categories_n, sample_size, var_num = z[-1].shape
@@ -73,12 +73,14 @@ class OptVAE:
             x_logit = self.decode_bernoulli(z=z)
         return x_logit
 
-    # @tf.function()
+    @tf.function()
     def decode_bernoulli(self, z):
+        batch_n, sample_size = z[0].shape[0], z[0].shape[2]
         z = reshape_and_stack_z(z=z)
-        batch_n, sample_size = z.shape[0], z.shape[2]
         x_logit = tf.TensorArray(dtype=tf.float32, size=sample_size,
                                  element_shape=(batch_n,) + self.nets.image_shape)
+        # x_logit = tf.TensorArray(dtype=tf.float32, size=self.sample_size,
+        #                          element_shape=(self.batch_size,) + self.nets.image_shape)
         for i in tf.range(sample_size):
             x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i])[0])
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0])
