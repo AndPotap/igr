@@ -31,6 +31,8 @@ class OptVAE:
         self.discrete_c = tf.constant(0.)
         self.continuous_c = tf.constant(0.)
 
+        # self.pass_one_sample = True
+
     def perform_fwd_pass(self, x, test_with_one_hot=False):
         self.set_hyper_for_testing(test_with_one_hot)
         params = self.nets.encode(x)
@@ -53,8 +55,8 @@ class OptVAE:
                 one_hot = tf.transpose(tf.one_hot(tf.argmax(z[idx], axis=1), depth=categories_n),
                                        perm=[0, 3, 1, 2])
                 # below is to use only one sample when evaluating
-                if self.model_type == 'IGR_I_Dis':
-                    one_hot = tf.slice(one_hot, [0, 0, 0, 0], [batch_n, categories_n, 1, var_num])
+                # if self.model_type == 'IGR_I_Dis':
+                #     one_hot = tf.slice(one_hot, [0, 0, 0, 0], [batch_n, categories_n, 1, var_num])
                 zz.append(one_hot)
             x_logit = self.decode(z=zz)
         else:
