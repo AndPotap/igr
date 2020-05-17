@@ -1,18 +1,40 @@
 import unittest
+import time
 import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
-from Utils.Distributions import IGR_SB, IGR_SB_Finite
+from Utils.Distributions import IGR_SB, IGR_SB_Finite, IGR_I
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
 
 
 class TestDistributions(unittest.TestCase):
 
+    def test_sample_speed(self):
+        test_tolerance = 1.e-0
+        test_times = 10
+        batch_size, categories_n, sample_size, num_of_vars = 2, 10, 1, 3
+        temp = tf.constant(value=0.6, dtype=tf.float32)
+        sample_size = int(1.e3)
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(
+            batch_size, categories_n, 1, num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(
+            batch_size, categories_n, 1, num_of_vars))
+        igr = IGR_I(mu, xi, temp, sample_size)
+        igr.generate_sample()
+        track_times = np.zeros(test_times)
+        for j in range(test_times):
+            tic = time.time()
+            igr.generate_sample()
+            toc = time.time()
+            track_times[j] = toc - tic
+        print(f'Mean time {np.mean(track_times):2.2e}')
+        self.assertTrue(np.mean(track_times) < test_tolerance)
+
     def test_softmaxpp(self):
         test_tolerance = 1.e-4
         batch_size, categories_n, sample_size, num_of_vars = 2, 3, 4, 5
         lam = tf.constant(0., shape=(batch_size, categories_n - 1, sample_size, num_of_vars))
-        psi_ans = compute_softmaxpp_for_all(lam=lam.numpy(), delta=0.1)
+        psi_ans = compute_softmaxpp_for_all(lam=lam.numpy(), delta=1.0)
         psi = project_to_vertices_via_softmax_pp(lam).numpy()
         relative_diff = np.linalg.norm(psi - psi_ans) / np.linalg.norm(psi_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
@@ -27,14 +49,17 @@ class TestDistributions(unittest.TestCase):
         gumbel_sample = tf.constant(-np.log(-np.log(uniform_sample)), dtype=tf.float32)
         y = (log_pi + gumbel_sample) / temp
         log_psi = y.numpy() - logsumexp(y.numpy(), keepdims=True)
-        log_exp_gs_ans = calculate_log_exp_concrete_for_tensor(log_psi=log_psi, alpha=tf.math.exp(log_pi), temp=temp)
+        log_exp_gs_ans = calculate_log_exp_concrete_for_tensor(log_psi=log_psi,
+                                                               alpha=tf.math.exp(log_pi),
+                                                               temp=temp)
         log_exp_gs = compute_log_exp_gs_dist(log_psi=log_psi, logits=log_pi, temp=temp)
 
         relative_diff = tf.linalg.norm(log_exp_gs.numpy() - log_exp_gs_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
         pi = tf.constant(np.random.dirichlet(alpha=np.array([i + 1 for i in range(categories_n)]),
-                                             size=(batch_n, sample_size, num_of_vars)), dtype=tf.float32)
+                                             size=(batch_n, sample_size, num_of_vars)),
+                         dtype=tf.float32)
         pi = tf.transpose(pi, perm=[0, 3, 1, 2])
         y = (tf.math.log(pi) + gumbel_sample) / temp
         log_psi = y.numpy() - logsumexp(y.numpy(), keepdims=True)
@@ -58,9 +83,12 @@ class TestDistributions(unittest.TestCase):
 
     def test_perform_finite_stick_break_with_manual_input(self):
         test_tolerance = 1.e-7
-        eta_ans = broadcast_sample_and_num(self.eta_ans, self.eta_ans.shape, self.sample_size, self.num_of_vars)
-        mu = tf.constant(value=1, dtype=tf.float32, shape=(self.batch_size, self.max_size, 1, self.num_of_vars))
-        xi = tf.constant(value=1, dtype=tf.float32, shape=(self.batch_size, self.max_size, 1, self.num_of_vars))
+        eta_ans = broadcast_sample_and_num(
+            self.eta_ans, self.eta_ans.shape, self.sample_size, self.num_of_vars)
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(
+            self.batch_size, self.max_size, 1, self.num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(
+            self.batch_size, self.max_size, 1, self.num_of_vars))
 
         sb = IGR_SB_Finite(mu, xi, self.temp, sample_size=self.sample_size)
         eta_matrix = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=False)
@@ -76,10 +104,13 @@ class TestDistributions(unittest.TestCase):
         test_tolerance = 1.e-7
         threshold = 0.8
         n_required_ans = 2 + 1
-        eta_ans = broadcast_sample_and_num(self.eta_ans, self.eta_ans.shape, self.sample_size, self.num_of_vars)
+        eta_ans = broadcast_sample_and_num(
+            self.eta_ans, self.eta_ans.shape, self.sample_size, self.num_of_vars)
         eta_ans = eta_ans[:, :n_required_ans, :]
-        mu = tf.constant(value=1, dtype=tf.float32, shape=(self.batch_size, self.max_size, 1, self.num_of_vars))
-        xi = tf.constant(value=1, dtype=tf.float32, shape=(self.batch_size, self.max_size, 1, self.num_of_vars))
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(
+            self.batch_size, self.max_size, 1, self.num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(
+            self.batch_size, self.max_size, 1, self.num_of_vars))
 
         sb = IGR_SB(mu, xi, self.temp, sample_size=self.sample_size, threshold=threshold)
         eta_matrix = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=False)
@@ -103,7 +134,8 @@ class TestDistributions(unittest.TestCase):
             sb_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
             kappa = np.array([1 / (2 ** (i + 1)) for i in range(max_size)])
             kappa = np.broadcast_to(kappa, shape=(batch_size, max_size))
-            kappa = broadcast_sample_and_num(kappa, shape=(batch_size, max_size), sample_size=sample_size,
+            kappa = broadcast_sample_and_num(kappa, shape=(batch_size, max_size),
+                                             sample_size=sample_size,
                                              num_of_vars=num_of_vars)
             eta_ans = calculate_eta_from_kappa(kappa)
 
@@ -117,10 +149,10 @@ class TestDistributions(unittest.TestCase):
                 self.assertTrue(expr=relative_diff < test_tolerance)
 
 
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ===========================================================================================================
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ====================================================================================================
 # Test Functions
-# ===========================================================================================================
+# ====================================================================================================
 def compute_softmaxpp_for_all(lam, delta=1.):
     batch_n, categories_n, sample_size, num_of_vars = lam.shape
     psi = np.zeros(shape=(batch_n, categories_n + 1, sample_size, num_of_vars))
