@@ -6,10 +6,10 @@ num_of_repetitions = 1
 temps = [0.15]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
 model_cases = {
-    1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
+    # 1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
+    #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
+    2: {'model_type': 'IGR_Planar_Dis', 'n_required': 9,
         'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
-    # 'prior_file': './Results/mu_xi_unif_' + str(round(temps[0] * 100)) + '_IGR_I.pkl'},
-    # 2: {'model_type': 'IGR_Planar_Dis', 'n_required': 9},
     # 3: {'model_type': 'IGR_SB_Finite_Dis', 'n_required': 9,
     #     'prior_file': './Results/mu_xi_unif_10_IGR_SB_Finite.pkl'},
     # 4: {'model_type': 'IGR_SB_Dis', 'n_required': 49,
@@ -23,12 +23,12 @@ dataset_cases = {
     # 3: {'dataset_name': 'celeb_a', 'architecture': 'conv_jointvae'},
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
-         'sample_size_testing': 1 * int(1.e3),
+         'sample_size_testing': 1 * int(1.e0),
          'check_every': 25,
          'sample_from_disc_kl': False,
          'test_with_one_hot': True,
          'learning_rate': 3 * 1.e-4,
-         'batch_n': 100, 'epochs': 100,
+         'batch_n': 100, 'epochs': 500,
          'sample_from_cont_kl': True, 'num_of_discrete_var': 20,
          'sample_size': 1, 'stick_the_landing': False,
          'run_jv': False, 'gamma': tf.constant(30.),
