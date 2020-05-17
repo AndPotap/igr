@@ -34,13 +34,13 @@ class Distributions:
             params_broad.append(param_w_samples)
         return params_broad
 
-    def sample_noise(self, shape) -> tf.Tensor:
+    def sample_noise(self, tf_shape):
         if self.noise_type == 'normal':
-            epsilon = tf.random.normal(shape=shape)
+            epsilon = tf.random.normal(shape=tf_shape)
         elif self.noise_type == 'trunc_normal':
-            epsilon = tf.random.truncated_normal(shape=shape)
+            epsilon = tf.random.truncated_normal(shape=tf_shape)
         else:
-            raise RuntimeError
+            RuntimeError
         return epsilon
 
 
@@ -53,9 +53,10 @@ class IGR_I(Distributions):
         self.mu = mu
         self.xi = xi
 
+    @tf.function()
     def generate_sample(self):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
-        epsilon = self.sample_noise(shape=mu_broad.shape)
+        epsilon = tf.random.normal(shape=mu_broad.shape)
         sigma_broad = tf.math.exp(xi_broad)
         # sigma_broad = tf.math.softplus(xi_broad + tf.constant(1.))
         self.kappa = mu_broad + sigma_broad * epsilon
@@ -68,6 +69,7 @@ class IGR_I(Distributions):
         # Look for the line:
         # hyper_copy['latent_discrete_n'] += 1
 
+    @tf.function()
     def transform(self):
         lam = self.kappa
         return lam
@@ -222,7 +224,7 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 
 # Utils
 # =================================================================================================
-# @tf.function
+@tf.function
 def project_to_vertices_via_softmax_pp(lam):
     r'''
     \delta = \exp(\mu + \sigma \bar{\epsilon})
