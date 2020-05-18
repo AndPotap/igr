@@ -12,9 +12,10 @@ models = {
     1: {'model_dir': 'igr', 'model_type': 'IGR_I_Dis'},
     2: {'model_dir': 'gs', 'model_type': 'GS_Dis'},
     3: {'model_dir': 'gs_mad', 'model_type': 'GS_Dis'},
+    4: {'model_dir': 'pf', 'model_type': 'IGR_Planar_Dis'},
 }
-select_case = 1
-run_with_sample = False
+select_case = 4
+run_with_sample = True
 samples_n = 1 * int(1.e3)
 
 hyper_file = 'hyper.pkl'
