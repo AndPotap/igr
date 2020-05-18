@@ -25,12 +25,12 @@ dataset_cases = {
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_size_testing': 1 * int(1.e0),
          'check_every': 25,
-         'sample_from_disc_kl': False,
+         'sample_from_disc_kl': True,
          'test_with_one_hot': True,
          'learning_rate': 3 * 1.e-4,
-         'batch_n': 100, 'epochs': 500,
+         'batch_n': 100, 'epochs': 200,
          'sample_from_cont_kl': True, 'num_of_discrete_var': 20,
-         'sample_size': 1, 'stick_the_landing': False,
+         'sample_size': 1, 'stick_the_landing': True,
          'run_jv': False, 'gamma': tf.constant(30.),
          'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
 
