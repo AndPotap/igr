@@ -81,6 +81,7 @@ class IGR_Planar(IGR_I):
         super().__init__(mu, xi, temp, sample_size, noise_type)
         self.planar_flow = planar_flow
 
+    # @tf.function() -- makes the planar flow take forever
     def transform(self):
         lam = (self.planar_flow(self.kappa))
         return lam
