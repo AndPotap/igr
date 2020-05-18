@@ -14,7 +14,7 @@ models = {
     3: {'model_dir': 'gs_mad', 'model_type': 'GS_Dis'},
     4: {'model_dir': 'pf', 'model_type': 'IGR_Planar_Dis'},
 }
-select_case = 4
+select_case = 3
 run_with_sample = True
 samples_n = 1 * int(1.e3)
 
