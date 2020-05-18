@@ -53,7 +53,7 @@ class IGR_I(Distributions):
         self.mu = mu
         self.xi = xi
 
-    @tf.function()
+    # @tf.function()
     def generate_sample(self):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         epsilon = tf.random.normal(shape=mu_broad.shape)
