@@ -12,10 +12,10 @@ models = {
     1: {'model_dir': 'igr', 'model_type': 'IGR_I_Dis'},
     2: {'model_dir': 'gs', 'model_type': 'GS_Dis'},
     3: {'model_dir': 'gs_mad', 'model_type': 'GS_Dis'},
-    4: {'model_dir': 'pf', 'model_type': 'IGR_Planar_Dis'},
+    4: {'model_dir': 'pf_10', 'model_type': 'IGR_Planar_Dis'},
 }
-select_case = 3
-run_with_sample = True
+select_case = 4
+run_with_sample = False
 samples_n = 1 * int(1.e3)
 
 hyper_file = 'hyper.pkl'
@@ -53,6 +53,7 @@ for x_test in test_dataset:
 evaluation_print = f'Epoch {epoch:4d} || '
 evaluation_print += f'TeELBOC {-test_loss_mean.result():2.5e} || '
 # evaluation_print += f'Train Loss {train_loss_mean.result():2.5e} || '
+evaluation_print += f'{model_type} || '
 toc = time.time()
 evaluation_print += f'Time: {toc - tic:2.2e} sec'
 print(evaluation_print)
