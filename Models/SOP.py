@@ -12,19 +12,25 @@ class SOP(tf.keras.Model):
         self.units_per_layer = hyper['units_per_layer']
         self.temp = hyper['temp']
         self.model_type = hyper['model_type']
+        self.architecture = hyper['architecture']
         self.var_num = 1
         # self.var_num = 1 if self.model_type == 'GS' else 2
         self.split_sizes_list = [self.units_per_layer for _ in range(self.var_num)]
+        self.create_layers_based_on_architecture()
 
+    def create_layers_based_on_architecture(self):
         self.input_layer = InputLayer(input_shape=self.half_image_w_h)
         self.flat_layer = Flatten()
-        self.h1_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
-        self.h2_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
-        self.h3_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
-        # self.h11_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
-        # self.h12_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
-        # self.h21_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
-        # self.h22_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+        if self.architecture.find('linear') > 0:
+            self.h1_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+            self.h2_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+            if self.architecture == 'triple_linear':
+                self.h3_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+        else:
+            self.h11_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+            self.h12_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+            self.h21_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+            self.h22_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
         self.out_dense = Dense(units=self.half_image_size)
         self.reshape_out = Reshape(self.half_image_w_h)
         if self.model_type == 'IGR_Planar':
@@ -35,16 +41,24 @@ class SOP(tf.keras.Model):
 
     @tf.function()
     def call(self, x_upper, sample_size=1, use_one_hot=False):
+        if self.architecture == 'double_linear':
+            logits = self.use_double_linear(x_upper, sample_size, use_one_hot)
+        elif self.architecture == 'triple_linear':
+            logits = self.use_triple_linear(x_upper, sample_size, use_one_hot)
+        else:
+            logits = self.use_nonlinear(x_upper, sample_size, use_one_hot)
+        return logits
+
+    @tf.function()
+    def use_triple_linear(self, x_upper, sample_size, use_one_hot):
         batch_n, width, height, rgb = x_upper.shape
         logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
                                 element_shape=(batch_n, width, height, rgb))
         out = self.h1_dense(self.flat_layer(self.input_layer(x_upper)))
-        # out = self.h12_dense(self.h11_dense(self.flat_layer(self.input_layer(x_upper))))
         params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
         for i in range(sample_size):
             z_1 = self.sample_binary(params_1, use_one_hot)
             out = self.h2_dense(z_1)
-            # out = self.h22_dense(self.h21_dense(z_1))
             params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
             z_2 = self.sample_binary(params_2, use_one_hot)
 
@@ -52,8 +66,43 @@ class SOP(tf.keras.Model):
             params_3 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
             z_3 = self.sample_binary(params_3, use_one_hot)
 
-            # value = self.reshape_out(self.out_dense(z_2))
             value = self.reshape_out(self.out_dense(z_3))
+            logits = logits.write(index=i, value=value)
+        logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
+        return logits
+
+    @tf.function()
+    def use_double_linear(self, x_upper, sample_size, use_one_hot):
+        batch_n, width, height, rgb = x_upper.shape
+        logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
+                                element_shape=(batch_n, width, height, rgb))
+        out = self.h1_dense(self.flat_layer(self.input_layer(x_upper)))
+        params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
+        for i in range(sample_size):
+            z_1 = self.sample_binary(params_1, use_one_hot)
+            out = self.h2_dense(z_1)
+            params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
+            z_2 = self.sample_binary(params_2, use_one_hot)
+
+            value = self.reshape_out(self.out_dense(z_2))
+            logits = logits.write(index=i, value=value)
+        logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
+        return logits
+
+    @tf.function()
+    def use_nonlinear(self, x_upper, sample_size, use_one_hot):
+        batch_n, width, height, rgb = x_upper.shape
+        logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
+                                element_shape=(batch_n, width, height, rgb))
+        out = self.h12_dense(self.h11_dense(self.flat_layer(self.input_layer(x_upper))))
+        params_1 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
+        for i in range(sample_size):
+            z_1 = self.sample_binary(params_1, use_one_hot)
+            out = self.h22_dense(self.h21_dense(z_1))
+            params_2 = tf.split(out, num_or_size_splits=self.split_sizes_list, axis=1)
+            z_2 = self.sample_binary(params_2, use_one_hot)
+
+            value = self.reshape_out(self.out_dense(z_2))
             logits = logits.write(index=i, value=value)
         logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
         return logits
