@@ -21,16 +21,18 @@ class SOP(tf.keras.Model):
     def create_layers_based_on_architecture(self):
         self.input_layer = InputLayer(input_shape=self.half_image_w_h)
         self.flat_layer = Flatten()
-        if self.architecture.find('linear') > 0:
+        if self.architecture == 'double_linear':
             self.h1_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
             self.h2_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
-            if self.architecture == 'triple_linear':
-                self.h3_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
-        else:
+        elif self.architecture == 'triple_linear':
+            self.h1_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+            self.h2_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+            self.h3_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
+        elif self.architecture == 'nonlinear':
             self.h11_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
-            self.h12_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+            self.h12_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
             self.h21_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
-            self.h22_dense = Dense(units=self.units_per_layer * self.var_num, activation='tanh')
+            self.h22_dense = Dense(units=self.units_per_layer * self.var_num, activation='linear')
         self.out_dense = Dense(units=self.half_image_size)
         self.reshape_out = Reshape(self.half_image_w_h)
         if self.model_type == 'IGR_Planar':
