@@ -53,7 +53,6 @@ class IGR_I(Distributions):
         self.mu = mu
         self.xi = xi
 
-    # @tf.function()
     def generate_sample(self):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
         epsilon = tf.random.normal(shape=mu_broad.shape)
@@ -69,7 +68,6 @@ class IGR_I(Distributions):
         # Look for the line:
         # hyper_copy['latent_discrete_n'] += 1
 
-    @tf.function()
     def transform(self):
         lam = self.kappa
         return lam
@@ -81,7 +79,6 @@ class IGR_Planar(IGR_I):
         super().__init__(mu, xi, temp, sample_size, noise_type)
         self.planar_flow = planar_flow
 
-    # @tf.function() -- makes the planar flow take forever
     def transform(self):
         lam = (self.planar_flow(self.kappa))
         return lam
@@ -171,7 +168,6 @@ def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> t
     return log_p_concrete
 
 
-@tf.function()
 def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> tf.Tensor:
     categories_n = tf.constant(log_psi.shape[1], dtype=tf.float32)
     log_cons = tf.math.lgamma(categories_n) + (categories_n - 1) * tf.math.log(temp)
