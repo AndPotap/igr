@@ -165,6 +165,21 @@ def evaluate_loss_on_batch(x, sop_optimizer, hyper):
     return loss
 
 
+def run_sop_for_all_cases(baseline_hyper, variant_hyper, data, num_of_repetitions):
+    for _, variant in variant_hyper.items():
+        hyper_copy = dict(baseline_hyper)
+        hyper_copy = fill_in_dict(hyper_copy, variant)
+
+        for rep in range(num_of_repetitions):
+            run_sop(hyper=hyper_copy, results_path='./Log/', data=data)
+
+
+def fill_in_dict(hyper, cases):
+    for k, v in cases.items():
+        hyper[k] = v
+    return hyper
+
+
 def viz_reconstruction(test_image, model):
     x_test_upper = test_image[:, :14, :, :]
     logits = model.call(x_upper=x_test_upper)
