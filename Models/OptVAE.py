@@ -46,7 +46,6 @@ class OptVAE:
         else:
             self.sample_size = self.sample_size_training
 
-    @tf.function()
     def decode_w_or_wo_one_hot(self, z, test_with_one_hot):
         if test_with_one_hot:
             batch_n, categories_n, sample_size, var_num = z[-1].shape
@@ -75,14 +74,11 @@ class OptVAE:
             x_logit = self.decode_bernoulli(z=z)
         return x_logit
 
-    @tf.function()
     def decode_bernoulli(self, z):
         batch_n, sample_size = z[0].shape[0], z[0].shape[2]
         z = reshape_and_stack_z(z=z)
         x_logit = tf.TensorArray(dtype=tf.float32, size=sample_size,
                                  element_shape=(batch_n,) + self.nets.image_shape)
-        # x_logit = tf.TensorArray(dtype=tf.float32, size=self.sample_size,
-        #                          element_shape=(self.batch_size,) + self.nets.image_shape)
         for i in tf.range(sample_size):
             x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i])[0])
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0])
@@ -114,7 +110,7 @@ class OptVAE:
         kl_dis = tf.constant(0.) if sample_from_disc_kl else tf.constant(0.)
         return kl_norm, kl_dis
 
-    # @tf.function() -- messes up all the computations
+    # @tf.function() -- messes up all the computations. I'm not sure why this goes so wrong
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
@@ -160,6 +156,7 @@ class OptVAE:
         self.sample_size_training = aux
         return elbo_var
 
+    @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
@@ -207,7 +204,6 @@ class OptExpGS(OptVAE):
         z = [z_norm, z_discrete]
         return z
 
-    # @tf.function()
     def compute_kl_elements(self, z, params_broad,
                             sample_from_cont_kl, sample_from_disc_kl,
                             test_with_one_hot):
@@ -227,7 +223,6 @@ class OptExpGS(OptVAE):
         kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl)
         return kl_norm, kl_dis
 
-    # @tf.function()
     def compute_discrete_kl(self, log_alpha, sample_from_disc_kl):
         if sample_from_disc_kl:
             kl_dis = sample_kl_exp_gs(log_psi=self.log_psi, log_pi=log_alpha,
@@ -380,9 +375,9 @@ class OptIGRDis(OptIGR):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.use_continuous = False
+        self.load_prior_values()
 
     def reparameterize(self, params_broad):
-        self.load_prior_values()
         mu, xi = params_broad
         # mu += self.mu_0
         # xi += self.xi_0
@@ -494,7 +489,6 @@ class OptSB(OptSBFinite):
 
 
 # =================================================================================================
-@tf.function()
 def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
                  gamma=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
     if run_jv:
@@ -503,7 +497,8 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
     else:
         kl = kl_norm + kl_dis
         elbo = log_px_z - kl
-        sample_size = log_px_z.shape[1]
+        # sample_size = log_px_z.shape[1]
+        sample_size = 1
         elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
         loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
         loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
@@ -513,7 +508,6 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
     return loss
 
 
-@tf.function()
 def compute_log_bernoulli_pdf(x, x_logit):
     x_broad = infer_shape(fromm=x_logit, tto=x)
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
@@ -536,7 +530,8 @@ def compute_log_gaussian_pdf(x, x_logit):
 
 
 def infer_shape(fromm, tto):
-    batch_size, image_size, sample_size = fromm.shape[0], fromm.shape[1:4], fromm.shape[4]
+    # batch_size, image_size, sample_size = fromm.shape[0], fromm.shape[1:4], fromm.shape[4]
+    batch_size, image_size, sample_size = fromm.shape[0], fromm.shape[1:4], 1
     x_w_extra_col = tf.reshape(tto, shape=(batch_size,) + image_size + (1,))
     x_broad = tf.broadcast_to(x_w_extra_col, shape=(batch_size,) + image_size + (sample_size,))
     return x_broad
@@ -598,7 +593,6 @@ def compute_log_normal_pdf(sample, mean, log_var):
     return log_normal_pdf
 
 
-# @tf.function()
 def calculate_categorical_closed_kl(log_alpha, normalize=True):
     offset = 1.e-20
     categories_n = tf.constant(log_alpha.shape[1], dtype=tf.float32)
@@ -608,7 +602,6 @@ def calculate_categorical_closed_kl(log_alpha, normalize=True):
     return kl_discrete
 
 
-# @tf.function()
 def sample_kl_exp_gs(log_psi, log_pi, temp):
     uniform_probs = get_broadcasted_uniform_probs(shape=log_psi.shape)
     # log_pz = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(uniform_probs), temp=temp)
@@ -649,7 +642,6 @@ def reshape_and_stack_z(z):
     return z
 
 
-@tf.function()
 def flatten_discrete_variables(original_z):
     batch_n, disc_latent_n, sample_size, disc_var_num = original_z.shape
     z_discrete = tf.TensorArray(dtype=tf.float32, size=sample_size,
