@@ -3,7 +3,6 @@ import tensorflow as tf
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
-# from Utils.general import initialize_mu_and_xi_equally
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -31,8 +30,6 @@ class OptVAE:
         self.discrete_c = tf.constant(0.)
         self.continuous_c = tf.constant(0.)
 
-        # self.pass_one_sample = True
-
     def perform_fwd_pass(self, x, test_with_one_hot=False):
         self.set_hyper_for_testing(test_with_one_hot)
         params = self.nets.encode(x)
@@ -53,9 +50,6 @@ class OptVAE:
             for idx in range(len(z)):
                 one_hot = tf.transpose(tf.one_hot(tf.argmax(z[idx], axis=1), depth=categories_n),
                                        perm=[0, 3, 1, 2])
-                # below is to use only one sample when evaluating
-                # if self.model_type == 'IGR_I_Dis':
-                #     one_hot = tf.slice(one_hot, [0, 0, 0, 0], [batch_n, categories_n, 1, var_num])
                 zz.append(one_hot)
             x_logit = self.decode(z=zz)
         else:
@@ -176,7 +170,6 @@ class OptVAE:
         with tf.GradientTape() as tape:
             tape.watch(params[0])
             _ = self.reparameterize(params)
-            # noinspection PyUnresolvedReferences
             psi = tf.math.softmax(self.dist.lam, axis=1)
         gradients = tape.gradient(target=psi, sources=params[0])
         gradients_norm = tf.linalg.norm(gradients, axis=1)
@@ -230,24 +223,6 @@ class OptExpGS(OptVAE):
         else:
             kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
         return kl_dis
-
-    def compute_negative_log_likelihood(self, x, test_with_one_hot=True):
-        batch_n = x.shape[0]
-        sample_size = int(1.e3)
-        # params = tf.constant(value=0., dtype=tf.float32,
-        #                      shape=(batch_n, 10, 1, 20))
-        # self.dist = GS(log_pi=params, sample_size=sample_size, temp=self.temp)
-        # self.dist.generate_sample()
-        # z = [self.dist.psi]
-        # z = [(1 / 10) * tf.random.uniform(shape=(batch_n, 10, sample_size, 20))]
-        z = [tf.random.uniform(shape=(batch_n, 10, sample_size, 20))]
-        x_logit = self.decode_w_or_wo_one_hot(z, test_with_one_hot)
-        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        nll = tf.math.reduce_logsumexp(log_px_z, axis=1)
-        nll = -tf.math.reduce_mean(nll, axis=0)
-        nll += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
-        # nll = tf.math.reduce_mean(-log_px_z)
-        return nll
 
 
 class OptExpGSDis(OptExpGS):
@@ -305,7 +280,6 @@ class OptIGR(OptVAE):
             batch_n, categories_n, sample_size, var_num = z[-1].shape
             one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
                                    perm=[0, 3, 1, 2])
-            # tf.math.reduce_mean(p_discrete, axis=(0, 2, 3))
             p_discrete = tf.reduce_mean(one_hot, axis=2, keepdims=True)
             kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
         else:
@@ -339,12 +313,6 @@ class OptIGR(OptVAE):
         mu_disc_prior = self.mu_0[:current_batch_n, :, :]
         xi_disc_prior = self.xi_0[:current_batch_n, :, :]
         return mu_disc_prior, xi_disc_prior
-
-    # def load_prior_values(self):
-    #     shape = (self.batch_size, self.nets.disc_latent_in,
-    #              self.sample_size, self.nets.disc_var_num)
-    #     # self.mu_0, self.xi_0 = initialize_mu_and_xi_for_logistic(shape=shape)
-    #     self.mu_0, self.xi_0 = initialize_mu_and_xi_equally(shape=shape)
 
     def load_prior_values(self):
         with open(file=self.prior_file, mode='rb') as f:
@@ -502,9 +470,6 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
         elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
         loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
         loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
-
-        # elbo = tf.reduce_mean(log_px_z) - tf.reduce_mean(kl)
-        # loss = -elbo
     return loss
 
 
