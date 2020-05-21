@@ -65,7 +65,7 @@ class VAENet(tf.keras.Model):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=self.latent_dim_in),
+            tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1'),
         ])
 
     def generate_dense_generative_net(self, activation='linear'):
@@ -74,7 +74,8 @@ class VAENet(tf.keras.Model):
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
             tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
                                   self.image_shape[2] *
-                                  self.log_px_z_params_num, activation=activation_type),
+                                  self.log_px_z_params_num, activation=activation_type,
+                                  name='decoder_1'),
             tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
                                                   self.image_shape[2] * self.log_px_z_params_num))
         ])
@@ -83,23 +84,24 @@ class VAENet(tf.keras.Model):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
-                                  self.image_shape[2],
-                                  activation=activation),
-            tf.keras.layers.Dense(units=512, activation=activation),
-            tf.keras.layers.Dense(units=256, activation=activation),
-            tf.keras.layers.Dense(units=self.latent_dim_in),
+            # tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
+            #                       self.image_shape[2],
+            #                       activation=activation, name='encoder_1'),
+            tf.keras.layers.Dense(units=512, activation=activation, name='encoder_1'),
+            tf.keras.layers.Dense(units=256, activation=activation, name='encoder_2'),
+            tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_3'),
         ])
 
     def generate_dense_nonlinear_generative_net(self, activation='relu'):
         activation_type = self.determine_activation_from_case()
         self.generative_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
-            tf.keras.layers.Dense(units=256, activation=activation),
-            tf.keras.layers.Dense(units=512, activation=activation),
+            tf.keras.layers.Dense(units=256, activation=activation, name='decoder_1'),
+            tf.keras.layers.Dense(units=512, activation=activation, name='decoder_2'),
             tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
                                   self.image_shape[2] *
-                                  self.log_px_z_params_num, activation=activation_type),
+                                  self.log_px_z_params_num, activation=activation_type,
+                                  name='decoder_3'),
             tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
                                                   self.image_shape[2] * self.log_px_z_params_num))
         ])
