@@ -6,6 +6,7 @@ from Utils.load_data import load_vae_dataset
 from Models.VAENet import construct_networks, determine_path_to_save_results
 from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBFinite, OptExpGS
 from Models.OptVAE import OptIGRDis, OptExpGSDis, OptPlanarNFDis, OptPlanarNF
+from Models.OptVAE import OptRELAXGSDis
 from Utils.viz_vae import plot_originals, plot_reconstructions_samples_and_traversals
 from Utils.general import setup_logger, append_timestamp_to_file
 
@@ -47,6 +48,12 @@ def construct_nets_and_optimizer(hyper, model_type):
         vae_opt = OptPlanarNFDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_Planar':
         vae_opt = OptPlanarNF(nets=nets, optimizer=optimizer, hyper=hyper)
+    elif model_type == 'Relax_GS_Dis':
+        optimizer_encoder = optimizer
+        optimizer_decoder = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
+        optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
+        optimizers = (optimizer_encoder, optimizer_decoder, optimizer_var)
+        vae_opt = OptRELAXGSDis(nets=nets, optimizers=optimizers, hyper=hyper)
     else:
         raise RuntimeError
     return vae_opt
