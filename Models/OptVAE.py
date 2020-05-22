@@ -3,6 +3,7 @@ import tensorflow as tf
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
+from Models.VAENet import RelaxCovNet
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -217,35 +218,67 @@ class OptRELAXGSDis(OptExpGSDis):
         self.optimizer_encoder = self.optimizer
         self.optimizer_decoder = optimizers[1]
         self.optimizer_var = optimizers[2]
+        cov_net_shape = (self.n_required, self.sample_size, self.num_of_vars)
+        self.relax_cov = RelaxCovNet(cov_net_shape)
 
-    def compute_loss(self, x, x_logit, d, params_broad):
+    def compute_loss(self, x, x_logit, one_hot, params_broad):
         log_alpha = params_broad[0]
-        breakpoint()
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        log_p = compute_log_categorical_pmf(d, tf.zeros_like(log_alpha))
-        log_qz_x = compute_log_categorical_pmf(d, log_alpha)
+        log_p = compute_log_categorical_pmf(one_hot, tf.zeros_like(log_alpha))
+        log_qz_x = compute_log_categorical_pmf(one_hot, log_alpha)
         loss = tf.math.reduce_sum(log_qz_x - log_p - log_px_z, axis=(1, 2))
+        loss = tf.math.reduce_mean(loss, axis=0)
         return loss
 
     # @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
-            params = self.nets.encode(x)
-        encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
-        encoder_grads = tape.gradient(target=params, sources=encoder_vars)
-
-        with tf.GradientTape() as tape:
-            z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
-            output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad)
-            # output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-            #                            sample_from_cont_kl=self.sample_from_cont_kl,
-            #                            sample_from_disc_kl=self.sample_from_disc_kl,
-            #                            test_with_one_hot=False)
-            loss, recon, kl, kl_n, kl_d = output
+            one_hot, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=True)
+            loss = self.compute_loss(x, x_logit, one_hot[0], params_broad)
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         decoder_grads = tape.gradient(target=loss, sources=decoder_vars)
-        gradients = (encoder_grads, decoder_grads)
-        return gradients, loss, recon, kl, kl_n, kl_d
+
+        encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
+        log_alpha = self.nets.encode(x)[0]
+        with tf.GradientTape(persistent=True) as tape:
+            tape.watch(log_alpha)
+            z = self.reparameterize(params_broad=[log_alpha])[0]
+            c_phi = self.relax_cov.net(z)
+            c_phi = tf.math.reduce_mean(self.relax_cov.net(z), axis=0)
+
+            # z_tilde = self.reparameterize(params_broad=[log_alpha])[0]
+            z_tilde = z
+            c_phi_tilde = self.relax_cov.net(z_tilde)
+            c_phi_tilde = tf.math.reduce_mean(self.relax_cov.net(z_tilde), axis=0)
+        c_phi_z_grad = tape.gradient(target=c_phi, sources=log_alpha)
+        c_phi_z_tilde_grad = tape.gradient(target=c_phi_tilde, sources=log_alpha)
+
+        with tf.GradientTape() as tape:
+            tape.watch(log_alpha)
+            z = self.reparameterize(params_broad=[log_alpha])
+            batch_n, categories_n, sample_size, var_num = z[-1].shape
+            one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
+                                   perm=[0, 3, 1, 2])
+            log_qz_x = compute_log_categorical_pmf(one_hot[0], log_alpha)
+            log_qz_x = tf.math.reduce_sum(log_qz_x, axis=2)
+            log_qz_x = tf.math.reduce_mean(log_qz_x)
+        log_qz_x_grad = tape.gradient(target=log_qz_x, sources=log_alpha)
+
+        one_hot, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=True)
+        relax_grad = (self.compute_loss(x, x_logit, one_hot[0], params_broad)
+                      - self.relax_cov.net(z_tilde))
+        relax_grad = tf.reshape(relax_grad, shape=relax_grad.shape + (1, 1))
+        relax_grad *= log_qz_x_grad
+        relax_grad += c_phi_z_grad
+        relax_grad -= c_phi_z_tilde_grad
+
+        with tf.GradientTape() as tape:
+            variance = tf.math.square(relax_grad)
+        cov_net_grad = tape.gradient(target=variance,
+                                     sources=self.relax_cov.net.trainable_variables)
+
+        gradients = (decoder_grads, relax_grad, cov_net_grad)
+        return gradients
 
     def apply_gradients(self, gradients):
         encoder_grads, decoder_grads = gradients
