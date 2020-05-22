@@ -235,11 +235,11 @@ class VAENet(tf.keras.Model):
         for idx, param in enumerate(params):
             batch_size = param.shape[0]
             if self.disc_var_num > 1:
-                param = tf.reshape(param, shape=(
-                    batch_size, self.disc_latent_in, 1, self.disc_var_num))
+                param = tf.reshape(param,
+                                   shape=(batch_size, self.disc_latent_in, 1, self.disc_var_num))
             else:
-                param = tf.reshape(param, shape=(
-                    batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
+                param = tf.reshape(param,
+                                   shape=(batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
             reshaped_params.append(param)
         return reshaped_params
 
@@ -293,6 +293,19 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
     def get_config(self):
         base_config = super().get_config()
         return {**base_config, 'units': self.units, 'var_num': self.var_num}
+
+
+class RelaxCovNet(tf.keras.Model):
+
+    def __init__(self, cov_net_shape):
+        super(RelaxCovNet, self).__init__()
+        self.cov_net_shape = cov_net_shape
+        self.net = tf.keras.Sequential([
+            tf.keras.layers.InputLayer(input_shape=self.cov_net_shape),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(units=50, name='cov_net_1', activation='relu'),
+            tf.keras.layers.Dense(units=1, name='cov_net_2'),
+        ])
 
 
 def create_nested_planar_flow(nested_layers, latent_n, var_num, initializer='random_normal'):
