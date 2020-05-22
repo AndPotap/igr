@@ -133,23 +133,6 @@ class OptVAE:
         loss, recon, kl, kl_norm, kl_dis = output
         return loss, recon, kl, kl_norm, kl_dis
 
-    def compute_loss_variance(self, x):
-        aux = self.sample_size_training
-        self.sample_size_training = int(1.e2)
-
-        z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
-        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        kl_norm, kl_dis = self.compute_kl_elements(z=z, params_broad=params_broad,
-                                                   sample_from_cont_kl=self.sample_from_cont_kl,
-                                                   sample_from_disc_kl=self.sample_from_disc_kl,
-                                                   test_with_one_hot=False)
-        kl = kl_norm + kl_dis
-        elbo = tf.reduce_mean(log_px_z, axis=0) - tf.reduce_mean(kl, axis=0)
-        elbo_var = tf.math.reduce_variance(elbo)
-
-        self.sample_size_training = aux
-        return elbo_var
-
     @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
@@ -164,17 +147,6 @@ class OptVAE:
 
     def apply_gradients(self, gradients):
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
-
-    def monitor_parameter_gradients_at_psi(self, x):
-        params = self.nets.encode(x)
-        with tf.GradientTape() as tape:
-            tape.watch(params[0])
-            _ = self.reparameterize(params)
-            psi = tf.math.softmax(self.dist.lam, axis=1)
-        gradients = tape.gradient(target=psi, sources=params[0])
-        gradients_norm = tf.linalg.norm(gradients, axis=1)
-
-        return gradients_norm
 
 
 class OptExpGS(OptVAE):
@@ -237,6 +209,50 @@ class OptExpGSDis(OptExpGS):
         self.log_psi = self.dist.log_psi
         z_discrete = [self.dist.psi]
         return z_discrete
+
+
+class OptRELAXGSDis(OptExpGSDis):
+    def __init__(self, nets, optimizers, hyper):
+        super().__init__(nets=nets, optimizer=optimizers[0], hyper=hyper)
+        self.optimizer_encoder = self.optimizer
+        self.optimizer_decoder = optimizers[1]
+        self.optimizer_var = optimizers[2]
+
+    def compute_loss(self, x, x_logit, d, params_broad):
+        log_alpha = params_broad[0]
+        breakpoint()
+        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
+        log_p = compute_log_categorical_pmf(d, tf.zeros_like(log_alpha))
+        log_qz_x = compute_log_categorical_pmf(d, log_alpha)
+        loss = tf.math.reduce_sum(log_qz_x - log_p - log_px_z, axis=(1, 2))
+        return loss
+
+    # @tf.function()
+    def compute_gradients(self, x):
+        with tf.GradientTape() as tape:
+            params = self.nets.encode(x)
+        encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
+        encoder_grads = tape.gradient(target=params, sources=encoder_vars)
+
+        with tf.GradientTape() as tape:
+            z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
+            output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad)
+            # output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
+            #                            sample_from_cont_kl=self.sample_from_cont_kl,
+            #                            sample_from_disc_kl=self.sample_from_disc_kl,
+            #                            test_with_one_hot=False)
+            loss, recon, kl, kl_n, kl_d = output
+        decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
+        decoder_grads = tape.gradient(target=loss, sources=decoder_vars)
+        gradients = (encoder_grads, decoder_grads)
+        return gradients, loss, recon, kl, kl_n, kl_d
+
+    def apply_gradients(self, gradients):
+        encoder_grads, decoder_grads = gradients
+        encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
+        decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
+        self.optimizer_encoder.apply_gradients(zip(encoder_grads, encoder_vars))
+        self.optimizer_decoder.apply_gradients(zip(decoder_grads, decoder_vars))
 
 
 class OptIGR(OptVAE):
@@ -478,6 +494,12 @@ def compute_log_bernoulli_pdf(x, x_logit):
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
     log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
     return log_px_z
+
+
+def compute_log_categorical_pmf(d, log_alpha):
+    log_normalized = log_alpha - tf.reduce_logsumexp(log_alpha, axis=1, keepdims=True)
+    log_categorical_pmf = tf.math.reduce_sum(d * log_normalized, axis=1)
+    return log_categorical_pmf
 
 
 def compute_log_gaussian_pdf(x, x_logit):
