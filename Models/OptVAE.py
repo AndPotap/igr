@@ -221,14 +221,21 @@ class OptRELAXGSDis(OptExpGSDis):
         cov_net_shape = (self.n_required, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
 
-    def compute_loss(self, x, x_logit, one_hot, params_broad):
+    def compute_loss(self, x, x_logit, z, params_broad,
+                     sample_from_cont_kl=None, sample_from_disc_kl=None,
+                     test_with_one_hot=False):
         log_alpha = params_broad[0]
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        log_p = compute_log_categorical_pmf(one_hot, tf.zeros_like(log_alpha))
-        log_qz_x = compute_log_categorical_pmf(one_hot, log_alpha)
+        log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
+        log_qz_x = compute_log_categorical_pmf(z, log_alpha)
         loss = tf.math.reduce_sum(log_qz_x - log_p - log_px_z, axis=(1, 2))
         loss = tf.math.reduce_mean(loss, axis=0)
         return loss
+
+    def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
+        loss, recon, = tf.constant(0.), tf.constant(0.)
+        kl, kl_norm, kl_dis = tf.constant(0.), tf.constant(0.), tf.constant(0.)
+        return loss, recon, kl, kl_norm, kl_dis
 
     @tf.function()
     def compute_gradients(self, x):
@@ -238,64 +245,93 @@ class OptRELAXGSDis(OptExpGSDis):
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         decoder_grads = tape.gradient(target=loss, sources=decoder_vars)
 
+        cov_net_grad = self.compute_cov_net_grad(x)
+
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
+        with tf.GradientTape(persistent=True) as tape:
+            log_alpha = self.nets.encode(x)[0]
+            output = self.get_relax_variables_from_params(log_alpha)
+            z, z_tilde, one_hot, x_logit = output
+            output = self.compute_relax_ingredients(z, z_tilde, one_hot[0], log_alpha)
+            c_phi, c_phi_tilde, log_qz_x = output
+
+        c_phi_z_grad = tape.gradient(target=c_phi, sources=encoder_vars)
+        c_phi_z_tilde_grad = tape.gradient(target=c_phi_tilde, sources=encoder_vars)
+        log_qz_x_grad = tape.gradient(target=log_qz_x, sources=encoder_vars)
+
+        encoder_grads = []
+        diff = self.compute_loss(x, x_logit, one_hot[0], [log_alpha]) - c_phi_tilde
+        for idx in range(len(encoder_vars)):
+            relax_grad = diff
+            relax_grad *= log_qz_x_grad[idx]
+            relax_grad += c_phi_z_grad[idx]
+            relax_grad -= c_phi_z_tilde_grad[idx]
+            encoder_grads.append(relax_grad)
+
+        gradients = (encoder_grads, decoder_grads, cov_net_grad)
+        output = gradients, loss, tf.constant(0.), tf.constant(0.), tf.constant(0.), tf.constant(0.)
+        return output
+
+    def compute_cov_net_grad(self, x):
         with tf.GradientTape() as tape_cov:
             log_alpha = self.nets.encode(x)[0]
             with tf.GradientTape(persistent=True) as tape:
                 tape.watch(log_alpha)
-                z = self.reparameterize(params_broad=[log_alpha])[0]
-                c_phi = self.relax_cov.net(z)
-                c_phi = tf.math.reduce_mean(self.relax_cov.net(z), axis=0)
+                output = self.get_relax_variables_from_params(log_alpha)
+                z, z_tilde, one_hot, x_logit = output
+                output = self.compute_relax_ingredients(z, z_tilde, one_hot[0], log_alpha)
+                c_phi, c_phi_tilde, log_qz_x = output
 
-                # z_tilde = self.reparameterize(params_broad=[log_alpha])[0]
-                z_tilde = z
-                c_phi_tilde = self.relax_cov.net(z_tilde)
-                c_phi_tilde = tf.math.reduce_mean(self.relax_cov.net(z_tilde), axis=0)
             c_phi_z_grad = tape.gradient(target=c_phi, sources=log_alpha)
             c_phi_z_tilde_grad = tape.gradient(target=c_phi_tilde, sources=log_alpha)
-
-            with tf.GradientTape() as tape:
-                tape.watch(log_alpha)
-                z = self.reparameterize(params_broad=[log_alpha])
-                batch_n, categories_n, sample_size, var_num = z[-1].shape
-                one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
-                                       perm=[0, 3, 1, 2])
-                log_qz_x = compute_log_categorical_pmf(one_hot[0], log_alpha)
-                log_qz_x = tf.math.reduce_sum(log_qz_x, axis=2)
-                log_qz_x = tf.math.reduce_mean(log_qz_x)
             log_qz_x_grad = tape.gradient(target=log_qz_x, sources=log_alpha)
 
-            one_hot, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=True)
-            relax_grad = (self.compute_loss(x, x_logit, one_hot[0], params_broad)
-                          - self.relax_cov.net(z_tilde))
-            relax_grad = tf.reshape(relax_grad, shape=relax_grad.shape + (1, 1))
+            relax_grad = (self.compute_loss(x, x_logit, one_hot[0], [log_alpha]) - c_phi_tilde)
             relax_grad *= log_qz_x_grad
             relax_grad += c_phi_z_grad
             relax_grad -= c_phi_z_tilde_grad
-            variance = tf.math.square(relax_grad)
+            variance = self.compute_relax_grad_variance(relax_grad)
         cov_net_grad = tape_cov.gradient(target=variance,
                                          sources=self.relax_cov.net.trainable_variables)
-        shape = (self.batch_size, self.n_required * self.sample_size * self.num_of_vars)
-        relax_grad_flattened = tf.transpose(tf.reshape(relax_grad, shape=shape), perm=[1, 0])
+        return cov_net_grad
 
-        with tf.GradientTape() as tape:
-            log_alpha = self.nets.encode(x)[0]
-        encoder_grads_truncated = tape.gradient(target=log_alpha, sources=encoder_vars)
-        encoder_grads = []
-        for encoder_grad in encoder_grads_truncated:
-            encoder_grads.append(tf.tensordot(encoder_grad, relax_grad_flattened, axes=1))
-        gradients = (decoder_grads, encoder_grads, cov_net_grad)
-        output = gradients, loss, tf.constant(0.), tf.constant(0.), tf.constant(0.), tf.constant(0.)
-        return output
+    def get_relax_variables_from_params(self, log_alpha):
+        z = self.reparameterize(params_broad=[log_alpha])[0]
+        batch_n, categories_n, sample_size, var_num = z.shape
+        one_hot = tf.transpose(tf.one_hot(tf.argmax(z, axis=1), depth=categories_n),
+                               perm=[0, 3, 1, 2])
+        x_logit = self.decode([one_hot])
+        z_tilde = z
+        return z, z_tilde, one_hot, x_logit
+
+    def compute_relax_ingredients(self, z, z_tilde, one_hot, log_alpha):
+        c_phi = self.relax_cov.net(z)
+        c_phi = tf.math.reduce_mean(self.relax_cov.net(z), axis=0)
+
+        c_phi_tilde = self.relax_cov.net(z_tilde)
+        c_phi_tilde = tf.math.reduce_mean(self.relax_cov.net(z_tilde), axis=0)
+
+        log_qz_x = compute_log_categorical_pmf(one_hot[0], log_alpha)
+        log_qz_x = tf.math.reduce_sum(log_qz_x, axis=2)
+        log_qz_x = tf.math.reduce_mean(log_qz_x)
+        return (c_phi, c_phi_tilde, log_qz_x)
+
+    @staticmethod
+    def compute_relax_grad_variance(relax_grad):
+        # TODO: check on paper how to implement the dimensionality reduction for variance
+        variance = tf.math.square(relax_grad)
+        variance = tf.math.reduce_sum(variance, axis=(1, 2, 3))
+        variance = tf.math.reduce_mean(variance, axis=0)
+        return variance
 
     def apply_gradients(self, gradients):
-        breakpoint()
         encoder_grads, decoder_grads, cov_net_grad = gradients
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         self.optimizer_encoder.apply_gradients(zip(encoder_grads, encoder_vars))
         self.optimizer_decoder.apply_gradients(zip(decoder_grads, decoder_vars))
-        self.optimizer_var.apply_gradients(zip(cov_net_grad, self.relax_cov.net.trainable_variables))
+        self.optimizer_var.apply_gradients(
+            zip(cov_net_grad, self.relax_cov.net.trainable_variables))
 
 
 class OptIGR(OptVAE):
