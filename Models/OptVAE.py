@@ -226,10 +226,10 @@ class OptRELAXGSDis(OptExpGSDis):
                      test_with_one_hot=False):
         log_alpha = params_broad[0]
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        # log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
-        # log_qz_x = compute_log_categorical_pmf(z, log_alpha)
-        # kl = tf.math.reduce_sum(log_p - log_qz_x, axis=(1, 2))
-        kl = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
+        log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
+        log_qz_x = compute_log_categorical_pmf(z, log_alpha)
+        kl = tf.math.reduce_sum(log_p - log_qz_x, axis=(1, 2))
+        # kl = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
         loss = -tf.math.reduce_mean(log_px_z) - tf.math.reduce_mean(kl)
         return loss
 
@@ -240,10 +240,11 @@ class OptRELAXGSDis(OptExpGSDis):
         kl, kl_norm, kl_dis = tf.constant(0.), tf.constant(0.), tf.constant(0.)
         return loss, recon, kl, kl_norm, kl_dis
 
-    @tf.function()
+    # @tf.function()
     def compute_gradients(self, x):
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
+        con_net_vars = self.relax_cov.net.trainable_variables
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
                 log_alpha = self.nets.encode(x)[0]
@@ -273,8 +274,7 @@ class OptRELAXGSDis(OptExpGSDis):
             relax_grad_theta = self.compute_relax_grad(diff, log_qz_x_grad_theta,
                                                        c_phi_z_grad_theta, c_phi_z_tilde_grad_theta)
             variance = self.compute_relax_grad_variance(relax_grad_theta)
-        cov_net_grad = tape_cov.gradient(target=variance,
-                                         sources=self.relax_cov.net.trainable_variables)
+        cov_net_grad = tape_cov.gradient(target=variance, sources=con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
         output = (gradients, loss, tf.constant(0.), tf.constant(0.), tf.constant(0.),
@@ -305,7 +305,7 @@ class OptRELAXGSDis(OptExpGSDis):
         c_phi_tilde = tf.math.reduce_mean(self.relax_cov.net(z_tilde), axis=0)
 
         log_qz_x = compute_log_categorical_pmf(one_hot[0], log_alpha)
-        log_qz_x = tf.math.reduce_sum(log_qz_x, axis=2)
+        log_qz_x = tf.math.reduce_sum(log_qz_x, axis=(1, 2))
         log_qz_x = tf.math.reduce_mean(log_qz_x)
         return (c_phi, c_phi_tilde, log_qz_x)
 
