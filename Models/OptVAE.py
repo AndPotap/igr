@@ -228,8 +228,8 @@ class OptRELAXGSDis(OptExpGSDis):
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
         log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
         log_qz_x = compute_log_categorical_pmf(z, log_alpha)
-        loss = tf.math.reduce_sum(log_qz_x - log_p - log_px_z, axis=(1, 2))
-        loss = tf.math.reduce_mean(loss, axis=0)
+        kl = tf.math.reduce_sum(log_p - log_qz_x, axis=(1, 2))
+        loss = -tf.math.reduce_mean(log_px_z) - tf.math.reduce_mean(kl)
         return loss
 
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
@@ -241,38 +241,22 @@ class OptRELAXGSDis(OptExpGSDis):
 
     @tf.function()
     def compute_gradients(self, x):
+        decoder_grads = self.compute_decoder_grads(x)
+        cov_net_grad = self.compute_cov_net_grad(x)
+        encoder_grads = self.compute_encoder_gradients(x)
+
+        gradients = (encoder_grads, decoder_grads, cov_net_grad)
+        output = (gradients, tf.constant(0.), tf.constant(0.), tf.constant(0.), tf.constant(0.),
+                  tf.constant(0.))
+        return output
+
+    def compute_decoder_grads(self, x):
         with tf.GradientTape() as tape:
             one_hot, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=True)
             loss = self.compute_loss(x, x_logit, one_hot[0], params_broad)
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         decoder_grads = tape.gradient(target=loss, sources=decoder_vars)
-
-        cov_net_grad = self.compute_cov_net_grad(x)
-
-        encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
-        with tf.GradientTape(persistent=True) as tape:
-            log_alpha = self.nets.encode(x)[0]
-            output = self.get_relax_variables_from_params(log_alpha)
-            z, z_tilde, one_hot, x_logit = output
-            output = self.compute_relax_ingredients(z, z_tilde, one_hot[0], log_alpha)
-            c_phi, c_phi_tilde, log_qz_x = output
-
-        c_phi_z_grad = tape.gradient(target=c_phi, sources=encoder_vars)
-        c_phi_z_tilde_grad = tape.gradient(target=c_phi_tilde, sources=encoder_vars)
-        log_qz_x_grad = tape.gradient(target=log_qz_x, sources=encoder_vars)
-
-        encoder_grads = []
-        diff = self.compute_loss(x, x_logit, one_hot[0], [log_alpha]) - c_phi_tilde
-        for idx in range(len(encoder_vars)):
-            relax_grad = diff
-            relax_grad *= log_qz_x_grad[idx]
-            relax_grad += c_phi_z_grad[idx]
-            relax_grad -= c_phi_z_tilde_grad[idx]
-            encoder_grads.append(relax_grad)
-
-        gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        output = gradients, loss, tf.constant(0.), tf.constant(0.), tf.constant(0.), tf.constant(0.)
-        return output
+        return decoder_grads
 
     def compute_cov_net_grad(self, x):
         with tf.GradientTape() as tape_cov:
@@ -317,6 +301,29 @@ class OptRELAXGSDis(OptExpGSDis):
         log_qz_x = tf.math.reduce_sum(log_qz_x, axis=2)
         log_qz_x = tf.math.reduce_mean(log_qz_x)
         return (c_phi, c_phi_tilde, log_qz_x)
+
+    def compute_encoder_gradients(self, x):
+        encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
+        with tf.GradientTape(persistent=True) as tape:
+            log_alpha = self.nets.encode(x)[0]
+            output = self.get_relax_variables_from_params(log_alpha)
+            z, z_tilde, one_hot, x_logit = output
+            output = self.compute_relax_ingredients(z, z_tilde, one_hot[0], log_alpha)
+            c_phi, c_phi_tilde, log_qz_x = output
+
+        c_phi_z_grad = tape.gradient(target=c_phi, sources=encoder_vars)
+        c_phi_z_tilde_grad = tape.gradient(target=c_phi_tilde, sources=encoder_vars)
+        log_qz_x_grad = tape.gradient(target=log_qz_x, sources=encoder_vars)
+
+        encoder_grads = []
+        diff = self.compute_loss(x, x_logit, one_hot[0], [log_alpha]) - c_phi_tilde
+        for idx in range(len(encoder_vars)):
+            relax_grad = diff
+            relax_grad *= log_qz_x_grad[idx]
+            relax_grad += c_phi_z_grad[idx]
+            relax_grad -= c_phi_z_tilde_grad[idx]
+            encoder_grads.append(relax_grad)
+        return encoder_grads
 
     @staticmethod
     def compute_relax_grad_variance(relax_grad):
