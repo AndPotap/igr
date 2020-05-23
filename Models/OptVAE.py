@@ -233,7 +233,9 @@ class OptRELAXGSDis(OptExpGSDis):
         return loss
 
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
-        loss, recon, = tf.constant(0.), tf.constant(0.)
+        one_hot, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=True)
+        loss = self.compute_loss(x, x_logit, one_hot, params_broad)
+        recon = tf.constant(0.)
         kl, kl_norm, kl_dis = tf.constant(0.), tf.constant(0.), tf.constant(0.)
         return loss, recon, kl, kl_norm, kl_dis
 
