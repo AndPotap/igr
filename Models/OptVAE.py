@@ -321,10 +321,10 @@ class OptRELAXGSDis(OptExpGSDis):
         encoder_grads, decoder_grads, cov_net_grad = gradients
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
+        con_net_vars = self.relax_cov.net.trainable_variables
         self.optimizer_encoder.apply_gradients(zip(encoder_grads, encoder_vars))
         self.optimizer_decoder.apply_gradients(zip(decoder_grads, decoder_vars))
-        self.optimizer_var.apply_gradients(
-            zip(cov_net_grad, self.relax_cov.net.trainable_variables))
+        self.optimizer_var.apply_gradients(zip(cov_net_grad, con_net_vars))
 
 
 class OptIGR(OptVAE):
