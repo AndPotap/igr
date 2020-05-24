@@ -37,7 +37,7 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          # 'batch_n': 64,
          # 'num_of_discrete_var': 30,
          'sample_from_cont_kl': True,
-         'sample_size': 1, 'stick_the_landing': True,
+         'sample_size': 1, 'stick_the_landing': False,
          'run_jv': False, 'gamma': tf.constant(30.),
          'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
 
