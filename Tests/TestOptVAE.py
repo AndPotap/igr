@@ -4,11 +4,47 @@ import tensorflow as tf
 from Models.OptVAE import calculate_simple_closed_gauss_kl, calculate_categorical_closed_kl
 from Models.OptVAE import calculate_general_closed_form_gauss_kl
 from Models.OptVAE import calculate_planar_flow_log_determinant
+from Models.OptVAE import sample_z_tilde
 from Models.VAENet import create_nested_planar_flow
 from Tests.TestVAENet import calculate_pf_log_det_np_all
 
 
-class TestSBDist(unittest.TestCase):
+class TestOptandDist(unittest.TestCase):
+
+    def test_sample_z_tilde(self):
+        tolerance = 1.e-2
+        sample_size, num_of_vars = int(1.e3), 2
+        temp = tf.constant(1.)
+
+        one_hot_np = np.array([[1., 0., 0.], [0., 1., 0.]])
+        one_hot_np = broadcast_to_shape(one_hot_np, sample_size, num_of_vars)
+        one_hot = tf.constant(one_hot_np, dtype=tf.float32)
+
+        # log_alpha_np = np.array([[0., -1., -2.], [0.5, -5, -4.]]) # non-intuitive case
+        log_alpha_np = np.array([[2., -1., 0.], [-4., 0.5, -5.]])  # easy case
+        log_alpha_np = broadcast_to_shape(log_alpha_np, sample_size, num_of_vars)
+        log_alpha = tf.constant(log_alpha_np, dtype=tf.float32)
+
+        z_tilde = sample_z_tilde(one_hot, log_alpha)
+        z_tilde = tf.math.softmax(z_tilde / temp, axis=1)
+        correct_max = tf.math.argmax(z_tilde, axis=1)
+        correct_max = tf.math.reduce_mean(correct_max, axis=1).numpy()
+        z_tilde_dist = tf.reduce_mean(z_tilde, axis=2).numpy()
+
+        z = sample_conditional_gs_all(log_alpha_np, one_hot_np)
+        z_max = np.argmax(z, axis=1)
+        correct_max_np = np.mean(z_max, axis=1)
+        z_dist_np = np.mean(z, axis=2)
+
+        print(f'\nTEST: z_tilde Sampling Correct One-Hot')
+        diff = np.linalg.norm(correct_max - correct_max_np) / np.linalg.norm(correct_max_np)
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(diff < tolerance)
+
+        print(f'\nTEST: z_tilde Sampling Correct Distribution')
+        diff = np.linalg.norm(z_tilde_dist - z_dist_np) / np.linalg.norm(z_dist_np)
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(diff < tolerance)
 
     def test_planar_flow_log_det_broadcasted(self):
         tolerance = 1.e-5
@@ -201,6 +237,38 @@ def broadcast_to_shape(v, samples_n, num_of_vars):
     v = np.broadcast_to(v, shape=original_shape + (samples_n, 1))
     v = np.broadcast_to(v, shape=original_shape + (samples_n, num_of_vars))
     return v
+
+
+def sample_conditional_gs_all(log_alpha, one_hot):
+    batch_n, categories_n, sample_size, num_of_vars = log_alpha.shape
+    z = np.zeros(log_alpha.shape)
+    for b in range(batch_n):
+        for n in range(num_of_vars):
+            argmax = np.argmax(one_hot[b, :, 0, n])
+            z[b, :, :, n] = sample_conditional_gs(log_alpha[b, :, 0, n],
+                                                  sample_size=sample_size,
+                                                  argmax=argmax)
+    return z
+
+
+def sample_conditional_gs(log_alpha, sample_size, argmax):
+    categories_n = log_alpha.shape[0]
+    k = 0
+    total = 0
+    z = []
+    while total < sample_size:
+        unif = np.random.uniform(size=categories_n)
+        gumbel = -np.log(-np.log(unif))
+        sample = log_alpha + gumbel
+        if np.argmax(sample) == argmax:
+            sample_exp = np.exp(sample)
+            norm = np.sum(sample_exp)
+            sigmoid = sample_exp / norm
+            z.append(sigmoid)
+            k += 1
+            total += 1
+    output = np.array(z)
+    return output.T
 
 
 if __name__ == '__main__':
