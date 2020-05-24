@@ -240,7 +240,7 @@ class OptRELAXGSDis(OptExpGSDis):
         kl, kl_norm, kl_dis = tf.constant(0.), tf.constant(0.), tf.constant(0.)
         return loss, recon, kl, kl_norm, kl_dis
 
-    # @tf.function()
+    @tf.function()
     def compute_gradients(self, x):
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
@@ -250,8 +250,8 @@ class OptRELAXGSDis(OptExpGSDis):
                 log_alpha = self.nets.encode(x)[0]
                 tape.watch(log_alpha)
                 output = self.get_relax_variables_from_params(log_alpha)
-                z, z_tilde, one_hot, x_logit = output
-                output = self.compute_relax_ingredients(z, z_tilde, one_hot[0], log_alpha)
+                z, one_hot, x_logit = output
+                output = self.compute_relax_ingredients(one_hot[0], log_alpha)
                 c_phi, c_phi_tilde, log_qz_x = output
                 loss = self.compute_loss(x, x_logit, one_hot[0], [log_alpha])
 
@@ -289,38 +289,28 @@ class OptRELAXGSDis(OptExpGSDis):
         return relax_grad
 
     def get_relax_variables_from_params(self, log_alpha):
+        # TODO: break
+        # aux = tf.cast(tf.math.is_nan(log_alpha), tf.float32)
+        # if tf.reduce_sum(aux) > 0:
+        #     breakpoint()
         z = self.reparameterize(params_broad=[log_alpha])[0]
-        batch_n, categories_n, sample_size, var_num = z.shape
-        one_hot = tf.transpose(tf.one_hot(tf.argmax(z, axis=1), depth=categories_n),
+        one_hot = tf.transpose(tf.one_hot(tf.argmax(z, axis=1), depth=self.n_required),
                                perm=[0, 3, 1, 2])
-        z_tilde = self.sample_z_tilde(one_hot, log_alpha)
-        # z_tilde = self.reparameterize(params_broad=[log_alpha])[0]
         x_logit = self.decode([one_hot])
-        return z, z_tilde, one_hot, x_logit
+        return z, one_hot, x_logit
 
-    @staticmethod
-    def sample_z_tilde(one_hot, log_alpha):
-        bool_one_hot = tf.cast(one_hot, dtype=tf.bool)
-        theta = tf.math.softmax(log_alpha, axis=1)
-        v = tf.random.uniform(shape=log_alpha.shape)
-        # TODO: verify that the reshaping is done properly, I do not think so
-        v_b = tf.where(bool_one_hot, v, 0.)
-        v_b = tf.math.reduce_max(v_b, axis=1, keepdims=True)
-        # v_b = v[bool_one_hot]
-        # v_b = tf.reshape(v[bool_one_hot], shape=shape)
-        v_b = tf.broadcast_to(v_b, shape=v.shape)
+    def compute_relax_ingredients(self, one_hot, log_alpha):
+        u = tf.random.uniform(shape=log_alpha.shape)
+        offset = 1.e-20
+        z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+        z_tilde_un = sample_z_tilde(one_hot, log_alpha)
+        # z_tilde_un = z_un
 
-        z_other = -tf.math.log(-tf.math.log(v) / theta - tf.math.log(v_b))
-        z_b = -tf.math.log(-tf.math.log(v_b))
-        z_tilde = tf.where(bool_one_hot, z_b, z_other)
-        return z_tilde
+        c_phi = self.relax_cov.net(z_un)
+        c_phi = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
 
-    def compute_relax_ingredients(self, z, z_tilde, one_hot, log_alpha):
-        c_phi = self.relax_cov.net(z)
-        c_phi = tf.math.reduce_mean(self.relax_cov.net(z), axis=0)
-
-        c_phi_tilde = self.relax_cov.net(z_tilde)
-        c_phi_tilde = tf.math.reduce_mean(self.relax_cov.net(z_tilde), axis=0)
+        c_phi_tilde = self.relax_cov.net(z_tilde_un)
+        c_phi_tilde = tf.math.reduce_mean(self.relax_cov.net(z_tilde_un), axis=0)
 
         log_qz_x = compute_log_categorical_pmf(one_hot[0], log_alpha)
         log_qz_x = tf.math.reduce_sum(log_qz_x, axis=(1, 2))
@@ -612,6 +602,21 @@ def infer_shape(fromm, tto):
     x_w_extra_col = tf.reshape(tto, shape=(batch_size,) + image_size + (1,))
     x_broad = tf.broadcast_to(x_w_extra_col, shape=(batch_size,) + image_size + (sample_size,))
     return x_broad
+
+
+def sample_z_tilde(one_hot, log_alpha):
+    offset = 1.e-10
+    bool_one_hot = tf.cast(one_hot, dtype=tf.bool)
+    theta = tf.math.softmax(log_alpha, axis=1)
+    v = tf.random.uniform(shape=log_alpha.shape)
+    v_b = tf.where(bool_one_hot, v, 0.)
+    v_b = tf.math.reduce_max(v_b, axis=1, keepdims=True)
+    v_b = tf.broadcast_to(v_b, shape=v.shape)
+
+    z_other = -tf.math.log(-tf.math.log(v + offset) / theta - tf.math.log(v_b + offset) + offset)
+    z_b = -tf.math.log(-tf.math.log(v_b) + offset)
+    z_tilde = tf.where(bool_one_hot, z_b, z_other)
+    return z_tilde
 
 
 def sample_normal(mean, log_var):
