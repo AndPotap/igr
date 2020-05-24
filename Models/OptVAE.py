@@ -240,7 +240,7 @@ class OptRELAXGSDis(OptExpGSDis):
         kl, kl_norm, kl_dis = tf.constant(0.), tf.constant(0.), tf.constant(0.)
         return loss, recon, kl, kl_norm, kl_dis
 
-    @tf.function()
+    # @tf.function()
     def compute_gradients(self, x):
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
@@ -293,18 +293,21 @@ class OptRELAXGSDis(OptExpGSDis):
         batch_n, categories_n, sample_size, var_num = z.shape
         one_hot = tf.transpose(tf.one_hot(tf.argmax(z, axis=1), depth=categories_n),
                                perm=[0, 3, 1, 2])
-        # z_tilde = self.sample_z_tilde(one_hot, z, log_alpha)
-        z_tilde = self.reparameterize(params_broad=[log_alpha])[0]
+        z_tilde = self.sample_z_tilde(one_hot, log_alpha)
+        # z_tilde = self.reparameterize(params_broad=[log_alpha])[0]
         x_logit = self.decode([one_hot])
         return z, z_tilde, one_hot, x_logit
 
-    def sample_z_tilde(self, one_hot, log_alpha):
+    @staticmethod
+    def sample_z_tilde(one_hot, log_alpha):
         bool_one_hot = tf.cast(one_hot, dtype=tf.bool)
         theta = tf.math.softmax(log_alpha, axis=1)
         v = tf.random.uniform(shape=log_alpha.shape)
         # TODO: verify that the reshaping is done properly, I do not think so
-        shape = (self.batch_size, 1, self.sample_size, self.num_of_vars)
-        v_b = tf.reshape(v[bool_one_hot], shape=shape)
+        v_b = tf.where(bool_one_hot, v, 0.)
+        v_b = tf.math.reduce_max(v_b, axis=1, keepdims=True)
+        # v_b = v[bool_one_hot]
+        # v_b = tf.reshape(v[bool_one_hot], shape=shape)
         v_b = tf.broadcast_to(v_b, shape=v.shape)
 
         z_other = -tf.math.log(-tf.math.log(v) / theta - tf.math.log(v_b))
