@@ -303,8 +303,11 @@ class RelaxCovNet(tf.keras.Model):
         self.net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.cov_net_shape),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=50, name='cov_net_1', activation='relu'),
-            tf.keras.layers.Dense(units=1, name='cov_net_2'),
+            # tf.keras.layers.Dense(units=50, activation='relu'),
+            tf.keras.layers.Dense(units=200, activation='relu'),
+            tf.keras.layers.Dense(units=200, activation='relu'),
+            tf.keras.layers.Dense(units=200, activation='relu'),
+            tf.keras.layers.Dense(units=1),
         ])
 
 
