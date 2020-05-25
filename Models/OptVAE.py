@@ -222,10 +222,9 @@ class OptRELAXGSDis(OptVAE):
         self.relax_cov = RelaxCovNet(cov_net_shape)
         self.log_temp = tf.Variable(tf.math.log(self.temp), name='temp', trainable=True)
 
-    def compute_loss(self, x, x_logit, z, params_broad,
+    def compute_loss(self, x, x_logit, z, log_alpha,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
                      test_with_one_hot=False):
-        log_alpha = params_broad[0]
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
         log_p = self.compute_log_pmf(z, tf.zeros_like(log_alpha))
         log_qz_x = self.compute_log_pmf(z, log_alpha)
@@ -260,7 +259,7 @@ class OptRELAXGSDis(OptVAE):
                 output = self.compute_relax_ingredients(x=x, x_logit=x_logit, log_alpha=log_alpha,
                                                         one_hot=one_hot[0])
                 c_phi, c_phi_tilde, log_qz_x = output
-                loss = self.compute_loss(x=x, x_logit=x_logit, params_broad=[log_alpha], z=one_hot)
+                loss = self.compute_loss(x=x, x_logit=x_logit, log_alpha=log_alpha, z=one_hot)
 
             c_phi_z_grad_theta = tape.gradient(target=c_phi, sources=log_alpha)
             c_phi_z_tilde_grad_theta = tape.gradient(target=c_phi_tilde, sources=log_alpha)
@@ -293,7 +292,6 @@ class OptRELAXGSDis(OptVAE):
         return relax_grad
 
     def get_relax_variables_from_params(self, log_alpha):
-        # z = self.reparameterize(params_broad=[log_alpha])[0]
         offset = 1.e-20
         u = tf.random.uniform(shape=log_alpha.shape)
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
@@ -323,7 +321,7 @@ class OptRELAXGSDis(OptVAE):
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
         r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
         z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
-        c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=[log_alpha]) + r
+        c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, log_alpha=log_alpha) + r
         return c_phi
 
     @staticmethod
