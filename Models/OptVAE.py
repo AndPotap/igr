@@ -299,8 +299,8 @@ class OptRELAXGSDis(OptExpGSDis):
         offset = 1.e-20
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
         # TODO: verify what to do with the sampling
-        # z_tilde_un = sample_z_tilde(one_hot, log_alpha)
-        z_tilde_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+        z_tilde_un = sample_z_tilde(one_hot, log_alpha)
+        # z_tilde_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
 
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
@@ -316,10 +316,9 @@ class OptRELAXGSDis(OptExpGSDis):
 
     @staticmethod
     def compute_relax_grad_variance(relax_grad):
-        # TODO: check on paper how to implement the dimensionality reduction for variance
         variance = tf.math.square(relax_grad)
-        variance = tf.math.reduce_sum(variance, axis=(1, 2, 3))
-        variance = tf.math.reduce_mean(variance, axis=0)
+        variance = tf.math.reduce_sum(variance, axis=(1, 3))
+        variance = tf.math.reduce_mean(variance)
         return variance
 
     def apply_gradients(self, gradients):
