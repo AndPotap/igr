@@ -228,9 +228,9 @@ class OptRELAXGSDis(OptExpGSDis):
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
         log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
         log_qz_x = compute_log_categorical_pmf(z, log_alpha)
-        kl = tf.math.reduce_sum(log_p - log_qz_x, axis=(1, 2))
+        kl = log_p - log_qz_x
         # kl = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
-        loss = -tf.math.reduce_mean(log_px_z) - tf.math.reduce_mean(kl)
+        loss = -tf.math.reduce_mean(log_px_z) - kl
         return loss
 
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
@@ -251,9 +251,11 @@ class OptRELAXGSDis(OptExpGSDis):
                 tape.watch(log_alpha)
                 output = self.get_relax_variables_from_params(log_alpha)
                 z, one_hot, x_logit = output
-                output = self.compute_relax_ingredients(one_hot[0], log_alpha)
+                output = self.compute_relax_ingredients(x=x, x_logit=x_logit,
+                                                        log_alpha=log_alpha,
+                                                        one_hot=one_hot[0])
                 c_phi, c_phi_tilde, log_qz_x = output
-                loss = self.compute_loss(x, x_logit, one_hot[0], [log_alpha])
+                loss = self.compute_loss(x=x, x_logit=x_logit, params_broad=[log_alpha], z=one_hot)
 
             c_phi_z_grad_theta = tape.gradient(target=c_phi, sources=log_alpha)
             c_phi_z_tilde_grad_theta = tape.gradient(target=c_phi_tilde, sources=log_alpha)
@@ -299,23 +301,24 @@ class OptRELAXGSDis(OptExpGSDis):
         x_logit = self.decode([one_hot])
         return z, one_hot, x_logit
 
-    def compute_relax_ingredients(self, one_hot, log_alpha):
+    def compute_relax_ingredients(self, x, x_logit, log_alpha, one_hot):
         u = tf.random.uniform(shape=log_alpha.shape)
         offset = 1.e-20
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
-        z_tilde_un = sample_z_tilde(one_hot, log_alpha)
-        # z_tilde_un = z_un
+        # z_tilde_un = sample_z_tilde(one_hot, log_alpha)
+        z_tilde_un = z_un
 
-        c_phi = self.relax_cov.net(z_un)
-        c_phi = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
-
-        c_phi_tilde = self.relax_cov.net(z_tilde_un)
-        c_phi_tilde = tf.math.reduce_mean(self.relax_cov.net(z_tilde_un), axis=0)
+        c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
+        c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
 
         log_qz_x = compute_log_categorical_pmf(one_hot[0], log_alpha)
-        log_qz_x = tf.math.reduce_sum(log_qz_x, axis=(1, 2))
-        log_qz_x = tf.math.reduce_mean(log_qz_x)
         return (c_phi, c_phi_tilde, log_qz_x)
+
+    def compute_c_phi(self, z_un, x, x_logit, log_alpha):
+        r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
+        z = tf.math.softmax(z_un / self.temp, axis=1)
+        c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=[log_alpha]) + r
+        return c_phi
 
     @staticmethod
     def compute_relax_grad_variance(relax_grad):
@@ -579,6 +582,8 @@ def compute_log_bernoulli_pdf(x, x_logit):
 def compute_log_categorical_pmf(d, log_alpha):
     log_normalized = log_alpha - tf.reduce_logsumexp(log_alpha, axis=1, keepdims=True)
     log_categorical_pmf = tf.math.reduce_sum(d * log_normalized, axis=1)
+    log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
+    log_categorical_pmf = tf.math.reduce_mean(log_categorical_pmf)
     return log_categorical_pmf
 
 
