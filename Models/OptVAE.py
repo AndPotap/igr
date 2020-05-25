@@ -305,8 +305,8 @@ class OptRELAXGSDis(OptExpGSDis):
         u = tf.random.uniform(shape=log_alpha.shape)
         offset = 1.e-20
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
-        # z_tilde_un = sample_z_tilde(one_hot, log_alpha)
-        z_tilde_un = z_un
+        z_tilde_un = sample_z_tilde(one_hot, log_alpha)
+        # z_tilde_un = z_un
 
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
@@ -618,7 +618,9 @@ def sample_z_tilde(one_hot, log_alpha):
     v_b = tf.math.reduce_max(v_b, axis=1, keepdims=True)
     v_b = tf.broadcast_to(v_b, shape=v.shape)
 
-    z_other = -tf.math.log(-tf.math.log(v + offset) / theta - tf.math.log(v_b + offset) + offset)
+    aux = -tf.math.log(v + offset) / theta - tf.math.log(v_b + offset)
+    tf.print(tf.linalg.norm(aux))  # here is where the nans comes from!!!
+    z_other = -tf.math.log(aux + offset)
     z_b = -tf.math.log(-tf.math.log(v_b + offset) + offset)
     z_tilde = tf.where(bool_one_hot, z_b, z_other)
     return z_tilde
