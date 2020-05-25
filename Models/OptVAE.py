@@ -212,7 +212,7 @@ class OptExpGSDis(OptExpGS):
         return z_discrete
 
 
-class OptRELAXGSDis(OptExpGSDis):
+class OptRELAXGSDis(OptVAE):
     def __init__(self, nets, optimizers, hyper):
         super().__init__(nets=nets, optimizer=optimizers[0], hyper=hyper)
         self.optimizer_encoder = self.optimizer
@@ -227,16 +227,21 @@ class OptRELAXGSDis(OptExpGSDis):
                      test_with_one_hot=False):
         log_alpha = params_broad[0]
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
-        log_qz_x = compute_log_categorical_pmf(z, log_alpha)
+        log_p = self.compute_log_pmf(z, tf.zeros_like(log_alpha))
+        log_qz_x = self.compute_log_pmf(z, log_alpha)
         kl = tf.reduce_mean(log_p - log_qz_x, axis=0)
         # kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
         loss = -tf.math.reduce_mean(log_px_z) - kl
         return loss
 
+    def compute_log_pmf(self, z, log_alpha):
+        log_pmf = compute_log_categorical_pmf(z, log_alpha)
+        return log_pmf
+
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
-        one_hot, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=True)
-        loss = self.compute_loss(x, x_logit, one_hot, params_broad)
+        log_alpha = self.nets.encode(x)[0]
+        one_hot, x_logit = self.get_relax_variables_from_params(log_alpha)
+        loss = self.compute_loss(x, x_logit, one_hot, [log_alpha])
         recon = tf.constant(0.)
         kl, kl_norm, kl_dis = tf.constant(0.), tf.constant(0.), tf.constant(0.)
         return loss, recon, kl, kl_norm, kl_dis
@@ -288,8 +293,11 @@ class OptRELAXGSDis(OptExpGSDis):
         return relax_grad
 
     def get_relax_variables_from_params(self, log_alpha):
-        z = self.reparameterize(params_broad=[log_alpha])[0]
-        one_hot = tf.transpose(tf.one_hot(tf.argmax(z, axis=1), depth=self.n_required),
+        # z = self.reparameterize(params_broad=[log_alpha])[0]
+        offset = 1.e-20
+        u = tf.random.uniform(shape=log_alpha.shape)
+        z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+        one_hot = tf.transpose(tf.one_hot(tf.argmax(z_un, axis=1), depth=self.n_required),
                                perm=[0, 3, 1, 2])
         x_logit = self.decode([one_hot])
         return one_hot, x_logit
@@ -299,14 +307,18 @@ class OptRELAXGSDis(OptExpGSDis):
         offset = 1.e-20
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
         # TODO: verify what to do with the sampling
-        z_tilde_un = sample_z_tilde(one_hot, log_alpha)
+        z_tilde_un = self.sample_z_tilde(one_hot, log_alpha)
         # z_tilde_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
 
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
 
-        log_qz_x = compute_log_categorical_pmf(one_hot[0], log_alpha)
+        log_qz_x = self.compute_log_pmf(one_hot[0], log_alpha)
         return (c_phi, c_phi_tilde, log_qz_x)
+
+    def sample_z_tilde(self, one_hot, log_alpha):
+        z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
+        return z_tilde_un
 
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
         r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
@@ -608,7 +620,7 @@ def infer_shape(fromm, tto):
     return x_broad
 
 
-def sample_z_tilde(one_hot, log_alpha):
+def sample_z_tilde_cat(one_hot, log_alpha):
     offset = 1.e-20
     bool_one_hot = tf.cast(one_hot, dtype=tf.bool)
     theta = tf.math.softmax(log_alpha, axis=1)
