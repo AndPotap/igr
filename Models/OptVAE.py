@@ -237,6 +237,10 @@ class OptRELAXGSDis(OptVAE):
         log_pmf = compute_log_categorical_pmf(z, log_alpha)
         return log_pmf
 
+    def compute_log_pmf_grad(self, z, log_alpha):
+        grad = compute_log_categorical_pmf_grad(z, log_alpha)
+        return grad
+
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
         log_alpha = self.nets.encode(x)[0]
         one_hot, x_logit = self.get_relax_variables_from_params(log_alpha)
@@ -263,7 +267,7 @@ class OptRELAXGSDis(OptVAE):
 
             c_phi_z_grad_theta = tape.gradient(target=c_phi, sources=log_alpha)
             c_phi_z_tilde_grad_theta = tape.gradient(target=c_phi_tilde, sources=log_alpha)
-            log_qz_x_grad_theta = compute_log_categorical_pmf_grad(one_hot, log_alpha)
+            log_qz_x_grad_theta = self.compute_log_pmf_grad(one_hot, log_alpha)
             f_grad = tape.gradient(target=loss, sources=log_alpha)
             relax_grad_theta = self.compute_relax_grad(loss - c_phi_tilde, log_qz_x_grad_theta,
                                                        c_phi_z_grad_theta, c_phi_z_tilde_grad_theta,
@@ -305,7 +309,7 @@ class OptRELAXGSDis(OptVAE):
         offset = 1.e-20
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
         # TODO: verify what to do with the sampling
-        z_tilde_un = self.sample_z_tilde(one_hot, log_alpha)
+        z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
         # z_tilde_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
 
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
@@ -313,10 +317,6 @@ class OptRELAXGSDis(OptVAE):
 
         log_qz_x = self.compute_log_pmf(one_hot[0], log_alpha)
         return (c_phi, c_phi_tilde, log_qz_x)
-
-    def sample_z_tilde(self, one_hot, log_alpha):
-        z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
-        return z_tilde_un
 
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
         r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
@@ -340,6 +340,52 @@ class OptRELAXGSDis(OptVAE):
         self.optimizer_encoder.apply_gradients(zip(encoder_grads, encoder_vars))
         self.optimizer_decoder.apply_gradients(zip(decoder_grads, decoder_vars))
         self.optimizer_var.apply_gradients(zip(cov_net_grad, con_net_vars))
+
+
+class OptRELAXBerDis(OptRELAXGSDis):
+    def __init__(self, nets, optimizers, hyper):
+        super().__init__(nets=nets, optimizers=optimizers, hyper=hyper)
+
+    def compute_log_pmf(self, z, log_alpha):
+        log_pmf = bernoulli_loglikelihood(z, log_alpha)
+        return log_pmf
+
+    def compute_log_pmf_grad(self, z, log_alpha):
+        grad = bernoulli_loglikelihood_grad(z, log_alpha)
+        return grad
+
+    def get_relax_variables_from_params(self, log_alpha):
+        log_alpha = tf.squeeze(log_alpha, axis=1)
+        breakpoint()
+        offset = 1.e-20
+        u = tf.random.uniform(shape=log_alpha.shape)
+
+        z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+
+        one_hot = tf.transpose(tf.one_hot(tf.argmax(z_un, axis=1), depth=self.n_required),
+                               perm=[0, 3, 1, 2])
+        x_logit = self.decode([one_hot])
+        return one_hot, x_logit
+
+    def compute_relax_ingredients(self, x, x_logit, log_alpha, one_hot):
+        u = tf.random.uniform(shape=log_alpha.shape)
+        offset = 1.e-20
+        z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+        # TODO: verify what to do with the sampling
+        z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
+        # z_tilde_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+
+        c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
+        c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
+
+        log_qz_x = self.compute_log_pmf(one_hot[0], log_alpha)
+        return (c_phi, c_phi_tilde, log_qz_x)
+
+    def compute_c_phi(self, z_un, x, x_logit, log_alpha):
+        r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
+        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
+        c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, log_alpha=log_alpha) + r
+        return c_phi
 
 
 class OptIGR(OptVAE):
@@ -594,6 +640,20 @@ def compute_log_categorical_pmf_grad(d, log_alpha):
     normalized = tf.math.softmax(log_alpha, axis=1)
     grad = d - normalized
     return grad
+
+
+def softplus(x):
+    m = tf.maximum(tf.zeros_like(x), x)
+    return m + tf.log(tf.exp(-m) + tf.exp(x - m))
+
+
+def bernoulli_loglikelihood(b, log_alpha):
+    return b * (-softplus(-log_alpha)) + (1 - b) * (-log_alpha - softplus(-log_alpha))
+
+
+def bernoulli_loglikelihood_grad(b, log_alpha):
+    sna = tf.sigmoid(-log_alpha)
+    return b * sna - (1 - b) * (1 - sna)
 
 
 def compute_log_gaussian_pdf(x, x_logit):
