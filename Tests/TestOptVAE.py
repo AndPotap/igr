@@ -14,18 +14,13 @@ from Tests.TestVAENet import calculate_pf_log_det_np_all
 class TestOptandDist(unittest.TestCase):
 
     def test_log_categorical_grad(self):
-        tolerance = 1.e-2
-        # sample_size, num_of_vars = 1, 2
-        sample_size, num_of_vars = 1, 1
+        tolerance = 1.e-7
+        batch_n, categories_n, sample_size, num_of_vars = 4, 6, 1, 5
 
-        one_hot_np = np.array([[1., 0., 0.], [0., 1., 0.]])
-        one_hot_np = broadcast_to_shape(one_hot_np, sample_size, num_of_vars)
-        one_hot = tf.constant(one_hot_np, dtype=tf.float32)
-
-        # log_alpha_np = np.array([[0., -1., -2.], [0.5, -5, -4.]]) # non-intuitive case
-        log_alpha_np = np.array([[2., -1., 0.], [-4., 0.5, -5.]])  # easy case
-        log_alpha_np = broadcast_to_shape(log_alpha_np, sample_size, num_of_vars)
+        log_alpha_np = np.random.normal(size=(batch_n, categories_n, sample_size, num_of_vars))
         log_alpha = tf.constant(log_alpha_np, dtype=tf.float32)
+        one_hot = tf.transpose(tf.one_hot(tf.argmax(log_alpha, axis=1), depth=categories_n),
+                               perm=[0, 3, 1, 2])
 
         grad = compute_log_categorical_pmf_grad(one_hot, log_alpha)
 
