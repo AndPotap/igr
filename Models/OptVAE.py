@@ -260,21 +260,11 @@ class OptRELAXGSDis(OptExpGSDis):
             c_phi_z_grad_theta = tape.gradient(target=c_phi, sources=log_alpha)
             c_phi_z_tilde_grad_theta = tape.gradient(target=c_phi_tilde, sources=log_alpha)
             log_qz_x_grad_theta = compute_log_categorical_pmf_grad(one_hot, log_alpha)
-
-            log_qz_x_grad = tf.gradients(log_alpha, encoder_vars, grad_ys=log_qz_x_grad_theta)
-            c_phi_z_grad = tf.gradients(log_alpha, encoder_vars, grad_ys=c_phi_z_grad_theta)
-            c_phi_z_tilde_grad = tf.gradients(log_alpha, encoder_vars, grad_ys=c_phi_z_tilde_grad_theta)
-
-            decoder_grads = tape.gradient(target=loss, sources=decoder_vars)
-            encoder_grads = []
-            diff = loss - c_phi_tilde
-            for idx in range(len(encoder_vars)):
-                relax_grad = self.compute_relax_grad(diff, log_qz_x_grad[idx],
-                                                     c_phi_z_grad[idx], c_phi_z_tilde_grad[idx])
-                encoder_grads.append(relax_grad)
-
-            relax_grad_theta = self.compute_relax_grad(diff, log_qz_x_grad_theta,
+            relax_grad_theta = self.compute_relax_grad(loss - c_phi_tilde, log_qz_x_grad_theta,
                                                        c_phi_z_grad_theta, c_phi_z_tilde_grad_theta)
+            encoder_grads = tf.gradients(log_alpha, encoder_vars, grad_ys=relax_grad_theta)
+            decoder_grads = tape.gradient(target=loss, sources=decoder_vars)
+
             variance = self.compute_relax_grad_variance(relax_grad_theta)
         # cov_net_grad = tape_cov.gradient(target=variance, sources=con_net_vars)
         cov_net_grad_net = tape_cov.gradient(target=variance, sources=con_net_vars)
