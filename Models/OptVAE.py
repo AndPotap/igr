@@ -251,7 +251,7 @@ class OptRELAXGSDis(OptExpGSDis):
                 log_alpha = self.nets.encode(x)[0]
                 tape.watch(log_alpha)
                 output = self.get_relax_variables_from_params(log_alpha)
-                z, one_hot, x_logit = output
+                one_hot, x_logit = output
                 output = self.compute_relax_ingredients(x=x, x_logit=x_logit,
                                                         log_alpha=log_alpha,
                                                         one_hot=one_hot[0])
@@ -292,6 +292,8 @@ class OptRELAXGSDis(OptExpGSDis):
         relax_grad = diff * log_qz_x_grad
         relax_grad += c_phi_z_grad
         relax_grad -= c_phi_z_tilde_grad
+        # TODO: verify this step
+        relax_grad += log_qz_x_grad
         return relax_grad
 
     def get_relax_variables_from_params(self, log_alpha):
@@ -299,7 +301,7 @@ class OptRELAXGSDis(OptExpGSDis):
         one_hot = tf.transpose(tf.one_hot(tf.argmax(z, axis=1), depth=self.n_required),
                                perm=[0, 3, 1, 2])
         x_logit = self.decode([one_hot])
-        return z, one_hot, x_logit
+        return one_hot, x_logit
 
     def compute_relax_ingredients(self, x, x_logit, log_alpha, one_hot):
         u = tf.random.uniform(shape=log_alpha.shape)
@@ -333,6 +335,7 @@ class OptRELAXGSDis(OptExpGSDis):
         encoder_grads, decoder_grads, cov_net_grad = gradients
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
+        # con_net_vars = self.relax_cov.net.trainable_variables
         con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
         self.optimizer_encoder.apply_gradients(zip(encoder_grads, encoder_vars))
         self.optimizer_decoder.apply_gradients(zip(decoder_grads, decoder_vars))
