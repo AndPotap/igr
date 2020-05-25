@@ -307,8 +307,9 @@ class OptRELAXGSDis(OptExpGSDis):
         u = tf.random.uniform(shape=log_alpha.shape)
         offset = 1.e-20
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+        # TODO: verify what to do with the sampling
         # z_tilde_un = sample_z_tilde(one_hot, log_alpha)
-        z_tilde_un = z_un
+        z_tilde_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
 
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
