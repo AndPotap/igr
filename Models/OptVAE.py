@@ -262,8 +262,7 @@ class OptRELAXGSDis(OptExpGSDis):
 
             c_phi_z_grad_theta = tape.gradient(target=c_phi, sources=log_alpha)
             c_phi_z_tilde_grad_theta = tape.gradient(target=c_phi_tilde, sources=log_alpha)
-            log_qz_x_grad_theta = tape.gradient(target=log_qz_x, sources=log_alpha)
-            breakpoint()
+            # log_qz_x_grad_theta = tape.gradient(target=log_qz_x, sources=log_alpha)
 
             c_phi_z_grad = tape.gradient(target=c_phi, sources=encoder_vars)
             c_phi_z_tilde_grad = tape.gradient(target=c_phi_tilde, sources=encoder_vars)
@@ -592,7 +591,6 @@ def compute_log_categorical_pmf(d, log_alpha):
     log_normalized = log_alpha - tf.reduce_logsumexp(log_alpha, axis=1, keepdims=True)
     log_categorical_pmf = tf.math.reduce_sum(d * log_normalized, axis=1)
     log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
-    # log_categorical_pmf = tf.math.reduce_mean(log_categorical_pmf)
     return log_categorical_pmf
 
 
