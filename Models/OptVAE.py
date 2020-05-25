@@ -226,10 +226,10 @@ class OptRELAXGSDis(OptExpGSDis):
                      test_with_one_hot=False):
         log_alpha = params_broad[0]
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
-        log_qz_x = compute_log_categorical_pmf(z, log_alpha)
-        kl = log_p - log_qz_x
-        # kl = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
+        # log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
+        # log_qz_x = compute_log_categorical_pmf(z, log_alpha)
+        # kl = log_p - log_qz_x
+        kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
         loss = -tf.math.reduce_mean(log_px_z) - kl
         return loss
 
