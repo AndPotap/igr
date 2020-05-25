@@ -220,7 +220,7 @@ class OptRELAXGSDis(OptExpGSDis):
         self.optimizer_var = optimizers[2]
         cov_net_shape = (self.n_required, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
-        self.temp = tf.Variable(self.temp, name='temp', trainable=True)
+        self.log_temp = tf.Variable(self.temp, name='temp', trainable=True)
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
@@ -279,7 +279,7 @@ class OptRELAXGSDis(OptExpGSDis):
             variance = self.compute_relax_grad_variance(relax_grad_theta)
         # cov_net_grad = tape_cov.gradient(target=variance, sources=con_net_vars)
         cov_net_grad_net = tape_cov.gradient(target=variance, sources=con_net_vars)
-        cov_net_grad_temp = tape_cov.gradient(target=variance, sources=self.temp)
+        cov_net_grad_temp = tape_cov.gradient(target=variance, sources=self.log_temp)
         cov_net_grad = cov_net_grad_net + [cov_net_grad_temp]
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
@@ -316,7 +316,8 @@ class OptRELAXGSDis(OptExpGSDis):
 
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
         r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
-        z = tf.math.softmax(z_un / self.temp, axis=1)
+        temp = tf.math.exp(self.log_temp)
+        z = tf.math.softmax(z_un / temp, axis=1)
         c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=[log_alpha]) + r
         return c_phi
 
@@ -332,7 +333,7 @@ class OptRELAXGSDis(OptExpGSDis):
         encoder_grads, decoder_grads, cov_net_grad = gradients
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
-        con_net_vars = self.relax_cov.net.trainable_variables + [self.temp]
+        con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
         self.optimizer_encoder.apply_gradients(zip(encoder_grads, encoder_vars))
         self.optimizer_decoder.apply_gradients(zip(decoder_grads, decoder_vars))
         self.optimizer_var.apply_gradients(zip(cov_net_grad, con_net_vars))
