@@ -5,11 +5,39 @@ from Models.OptVAE import calculate_simple_closed_gauss_kl, calculate_categorica
 from Models.OptVAE import calculate_general_closed_form_gauss_kl
 from Models.OptVAE import calculate_planar_flow_log_determinant
 from Models.OptVAE import sample_z_tilde
+from Models.OptVAE import compute_log_categorical_pmf
+from Models.OptVAE import compute_log_categorical_pmf_grad
 from Models.VAENet import create_nested_planar_flow
 from Tests.TestVAENet import calculate_pf_log_det_np_all
 
 
 class TestOptandDist(unittest.TestCase):
+
+    def test_log_categorical_grad(self):
+        tolerance = 1.e-2
+        # sample_size, num_of_vars = 1, 2
+        sample_size, num_of_vars = 1, 1
+
+        one_hot_np = np.array([[1., 0., 0.], [0., 1., 0.]])
+        one_hot_np = broadcast_to_shape(one_hot_np, sample_size, num_of_vars)
+        one_hot = tf.constant(one_hot_np, dtype=tf.float32)
+
+        # log_alpha_np = np.array([[0., -1., -2.], [0.5, -5, -4.]]) # non-intuitive case
+        log_alpha_np = np.array([[2., -1., 0.], [-4., 0.5, -5.]])  # easy case
+        log_alpha_np = broadcast_to_shape(log_alpha_np, sample_size, num_of_vars)
+        log_alpha = tf.constant(log_alpha_np, dtype=tf.float32)
+
+        grad = compute_log_categorical_pmf_grad(one_hot, log_alpha)
+
+        with tf.GradientTape() as tape:
+            tape.watch(log_alpha)
+            log_cat_pmf = compute_log_categorical_pmf(one_hot, log_alpha)
+
+        grad_auto = tape.gradient(target=log_cat_pmf, sources=log_alpha)
+        print(f'\nTEST: Categorical Gradient')
+        diff = np.linalg.norm(grad - grad_auto) / np.linalg.norm(grad)
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(diff < tolerance)
 
     def test_sample_z_tilde(self):
         tolerance = 1.e-2
