@@ -284,7 +284,7 @@ class OptRELAXGSDis(OptExpGSDis):
         relax_grad += c_phi_z_grad
         relax_grad -= c_phi_z_tilde_grad
         # TODO: verify this step
-        relax_grad += f_grad
+        # relax_grad += f_grad
         return relax_grad
 
     def get_relax_variables_from_params(self, log_alpha):
