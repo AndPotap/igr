@@ -220,7 +220,7 @@ class OptRELAXGSDis(OptExpGSDis):
         self.optimizer_var = optimizers[2]
         cov_net_shape = (self.n_required, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
-        self.log_temp = tf.Variable(self.temp, name='temp', trainable=True)
+        self.log_temp = tf.Variable(tf.math.log(self.temp), name='temp', trainable=True)
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
@@ -260,8 +260,10 @@ class OptRELAXGSDis(OptExpGSDis):
             c_phi_z_grad_theta = tape.gradient(target=c_phi, sources=log_alpha)
             c_phi_z_tilde_grad_theta = tape.gradient(target=c_phi_tilde, sources=log_alpha)
             log_qz_x_grad_theta = compute_log_categorical_pmf_grad(one_hot, log_alpha)
+            f_grad = tape.gradient(target=loss, sources=log_alpha)
             relax_grad_theta = self.compute_relax_grad(loss - c_phi_tilde, log_qz_x_grad_theta,
-                                                       c_phi_z_grad_theta, c_phi_z_tilde_grad_theta)
+                                                       c_phi_z_grad_theta, c_phi_z_tilde_grad_theta,
+                                                       f_grad)
             encoder_grads = tf.gradients(log_alpha, encoder_vars, grad_ys=relax_grad_theta)
             decoder_grads = tape.gradient(target=loss, sources=decoder_vars)
 
@@ -277,12 +279,12 @@ class OptRELAXGSDis(OptExpGSDis):
         return output
 
     @staticmethod
-    def compute_relax_grad(diff, log_qz_x_grad, c_phi_z_grad, c_phi_z_tilde_grad):
+    def compute_relax_grad(diff, log_qz_x_grad, c_phi_z_grad, c_phi_z_tilde_grad, f_grad):
         relax_grad = diff * log_qz_x_grad
         relax_grad += c_phi_z_grad
         relax_grad -= c_phi_z_tilde_grad
         # TODO: verify this step
-        relax_grad += log_qz_x_grad
+        relax_grad += f_grad
         return relax_grad
 
     def get_relax_variables_from_params(self, log_alpha):
@@ -308,8 +310,7 @@ class OptRELAXGSDis(OptExpGSDis):
 
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
         r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
-        temp = tf.math.exp(self.log_temp)
-        z = tf.math.softmax(z_un / temp, axis=1)
+        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
         c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=[log_alpha]) + r
         return c_phi
 
