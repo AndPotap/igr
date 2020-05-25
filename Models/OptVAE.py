@@ -220,16 +220,17 @@ class OptRELAXGSDis(OptExpGSDis):
         self.optimizer_var = optimizers[2]
         cov_net_shape = (self.n_required, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
+        self.temp = tf.Variable(self.temp, name='temp', trainable=True)
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
                      test_with_one_hot=False):
         log_alpha = params_broad[0]
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        # log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
-        # log_qz_x = compute_log_categorical_pmf(z, log_alpha)
-        # kl = log_p - log_qz_x
-        kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
+        log_p = compute_log_categorical_pmf(z, tf.zeros_like(log_alpha))
+        log_qz_x = compute_log_categorical_pmf(z, log_alpha)
+        kl = log_p - log_qz_x
+        # kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
         loss = -tf.math.reduce_mean(log_px_z) - kl
         return loss
 
@@ -245,7 +246,7 @@ class OptRELAXGSDis(OptExpGSDis):
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         con_net_vars = self.relax_cov.net.trainable_variables
-        with tf.GradientTape() as tape_cov:
+        with tf.GradientTape(persistent=True) as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
                 log_alpha = self.nets.encode(x)[0]
                 tape.watch(log_alpha)
@@ -276,7 +277,10 @@ class OptRELAXGSDis(OptExpGSDis):
             relax_grad_theta = self.compute_relax_grad(diff, log_qz_x_grad_theta,
                                                        c_phi_z_grad_theta, c_phi_z_tilde_grad_theta)
             variance = self.compute_relax_grad_variance(relax_grad_theta)
-        cov_net_grad = tape_cov.gradient(target=variance, sources=con_net_vars)
+        # cov_net_grad = tape_cov.gradient(target=variance, sources=con_net_vars)
+        cov_net_grad_net = tape_cov.gradient(target=variance, sources=con_net_vars)
+        cov_net_grad_temp = tape_cov.gradient(target=variance, sources=self.temp)
+        cov_net_grad = cov_net_grad_net + [cov_net_grad_temp]
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
         output = (gradients, loss, tf.constant(0.), tf.constant(0.), tf.constant(0.),
@@ -291,10 +295,6 @@ class OptRELAXGSDis(OptExpGSDis):
         return relax_grad
 
     def get_relax_variables_from_params(self, log_alpha):
-        # TODO: break
-        # aux = tf.cast(tf.math.is_nan(log_alpha), tf.float32)
-        # if tf.reduce_sum(aux) > 0:
-        #     breakpoint()
         z = self.reparameterize(params_broad=[log_alpha])[0]
         one_hot = tf.transpose(tf.one_hot(tf.argmax(z, axis=1), depth=self.n_required),
                                perm=[0, 3, 1, 2])
@@ -332,7 +332,7 @@ class OptRELAXGSDis(OptExpGSDis):
         encoder_grads, decoder_grads, cov_net_grad = gradients
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
-        con_net_vars = self.relax_cov.net.trainable_variables
+        con_net_vars = self.relax_cov.net.trainable_variables + [self.temp]
         self.optimizer_encoder.apply_gradients(zip(encoder_grads, encoder_vars))
         self.optimizer_decoder.apply_gradients(zip(decoder_grads, decoder_vars))
         self.optimizer_var.apply_gradients(zip(cov_net_grad, con_net_vars))
@@ -610,7 +610,7 @@ def infer_shape(fromm, tto):
 
 
 def sample_z_tilde(one_hot, log_alpha):
-    offset = 1.e-10
+    offset = 1.e-8
     bool_one_hot = tf.cast(one_hot, dtype=tf.bool)
     theta = tf.math.softmax(log_alpha, axis=1)
     v = tf.random.uniform(shape=log_alpha.shape)
@@ -619,7 +619,7 @@ def sample_z_tilde(one_hot, log_alpha):
     v_b = tf.broadcast_to(v_b, shape=v.shape)
 
     z_other = -tf.math.log(-tf.math.log(v + offset) / theta - tf.math.log(v_b + offset) + offset)
-    z_b = -tf.math.log(-tf.math.log(v_b) + offset)
+    z_b = -tf.math.log(-tf.math.log(v_b + offset) + offset)
     z_tilde = tf.where(bool_one_hot, z_b, z_other)
     return z_tilde
 
