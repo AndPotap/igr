@@ -52,7 +52,8 @@ def construct_nets_and_optimizer(hyper, model_type):
     elif model_type == 'Relax_GS_Dis' or model_type == 'Relax_Ber_Dis':
         optimizer_encoder = optimizer
         optimizer_decoder = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
-        optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1, decay=0.001)
+        # optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1, decay=0.001)
+        optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1)
         optimizers = (optimizer_encoder, optimizer_decoder, optimizer_var)
         if model_type == 'Relax_GS_Dis':
             vae_opt = OptRELAXGSDis(nets=nets, optimizers=optimizers, hyper=hyper)
