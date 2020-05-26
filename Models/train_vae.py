@@ -7,8 +7,9 @@ from Models.VAENet import construct_networks, determine_path_to_save_results
 from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBFinite, OptExpGS
 from Models.OptVAE import OptIGRDis, OptExpGSDis, OptPlanarNFDis, OptPlanarNF
 from Models.OptVAE import OptRELAXGSDis, OptRELAXBerDis
-from Utils.viz_vae import plot_originals, plot_reconstructions_samples_and_traversals
+from Utils.viz_vae import plot_originals
 from Utils.general import setup_logger, append_timestamp_to_file
+# from Utils.viz_vae import plot_reconstructions_samples_and_traversals
 
 
 def run_vae(hyper, run_with_sample):
@@ -148,6 +149,9 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     gradients, loss, log_px_z, kl, kl_n, kl_d = output
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
+    # TODO: remove
+    if iteration_counter % 100 == 0 or iteration_counter == 1:
+        tf.print((iteration_counter, loss))
     train_loss_mean(loss)
     update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
                                    disc_c_linspace=disc_c_linspace,
