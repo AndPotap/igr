@@ -243,8 +243,8 @@ class OptRELAXGSDis(OptVAE):
 
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
         log_alpha = self.nets.encode(x)[0]
-        one_hot, x_logit = self.get_relax_variables_from_params(log_alpha)
-        loss = self.compute_loss(x, x_logit, one_hot, [log_alpha])
+        _, one_hot, x_logit = self.get_relax_variables_from_params(log_alpha)
+        loss = self.compute_loss(x, x_logit, one_hot, log_alpha)
         recon = tf.constant(0.)
         kl, kl_norm, kl_dis = tf.constant(0.), tf.constant(0.), tf.constant(0.)
         return loss, recon, kl, kl_norm, kl_dis
@@ -259,9 +259,9 @@ class OptRELAXGSDis(OptVAE):
                 log_alpha = self.nets.encode(x)[0]
                 tape.watch(log_alpha)
                 output = self.get_relax_variables_from_params(log_alpha)
-                one_hot, x_logit = output
-                output = self.compute_relax_ingredients(x=x, x_logit=x_logit, log_alpha=log_alpha,
-                                                        one_hot=one_hot[0])
+                z_un, one_hot, x_logit = output
+                output = self.compute_relax_ingredients(z_un=z_un, x=x, x_logit=x_logit, log_alpha=log_alpha,
+                                                        one_hot=one_hot)
                 c_phi, c_phi_tilde, log_qz_x = output
                 loss = self.compute_loss(x=x, x_logit=x_logit, log_alpha=log_alpha, z=one_hot)
 
@@ -302,19 +302,12 @@ class OptRELAXGSDis(OptVAE):
         one_hot = tf.transpose(tf.one_hot(tf.argmax(z_un, axis=1), depth=self.n_required),
                                perm=[0, 3, 1, 2])
         x_logit = self.decode([one_hot])
-        return one_hot, x_logit
+        return z_un, one_hot, x_logit
 
-    def compute_relax_ingredients(self, x, x_logit, log_alpha, one_hot):
-        u = tf.random.uniform(shape=log_alpha.shape)
-        offset = 1.e-20
-        z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
-        # TODO: verify what to do with the sampling
+    def compute_relax_ingredients(self, z_un, x, x_logit, log_alpha, one_hot):
         z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
-        # z_tilde_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
-
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
-
         log_qz_x = self.compute_log_pmf(one_hot[0], log_alpha)
         return (c_phi, c_phi_tilde, log_qz_x)
 
@@ -355,25 +348,17 @@ class OptRELAXBerDis(OptRELAXGSDis):
         return grad
 
     def get_relax_variables_from_params(self, log_alpha):
-        log_alpha = tf.squeeze(log_alpha, axis=1)
-        breakpoint()
         offset = 1.e-20
         u = tf.random.uniform(shape=log_alpha.shape)
 
-        z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+        z_un = log_alpha + tf.math.log(u + offset) - tf.math.log(1 - u + offset)
 
-        one_hot = tf.transpose(tf.one_hot(tf.argmax(z_un, axis=1), depth=self.n_required),
-                               perm=[0, 3, 1, 2])
+        one_hot = tf.cast(tf.stop_gradient(z_un) > 0, dtype=tf.float32)
         x_logit = self.decode([one_hot])
-        return one_hot, x_logit
+        return u, one_hot, x_logit
 
-    def compute_relax_ingredients(self, x, x_logit, log_alpha, one_hot):
-        u = tf.random.uniform(shape=log_alpha.shape)
-        offset = 1.e-20
-        z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
-        # TODO: verify what to do with the sampling
-        z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
-        # z_tilde_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+    def compute_relax_ingredients(self, z_un, x, x_logit, log_alpha, one_hot):
+        z_un, z_tilde_un = sample_z_tilde_ber(log_alpha, z_un)
 
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
@@ -383,7 +368,8 @@ class OptRELAXBerDis(OptRELAXGSDis):
 
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
         r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
-        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
+        # z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
+        z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
         c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, log_alpha=log_alpha) + r
         return c_phi
 
@@ -644,15 +630,17 @@ def compute_log_categorical_pmf_grad(d, log_alpha):
 
 def softplus(x):
     m = tf.maximum(tf.zeros_like(x), x)
-    return m + tf.log(tf.exp(-m) + tf.exp(x - m))
+    return m + tf.math.log(tf.exp(-m) + tf.math.exp(x - m))
 
 
 def bernoulli_loglikelihood(b, log_alpha):
-    return b * (-softplus(-log_alpha)) + (1 - b) * (-log_alpha - softplus(-log_alpha))
+    output = b * (-softplus(-log_alpha)) + (1. - b) * (-log_alpha - softplus(-log_alpha))
+    # output = b * (-tf.math.softplus(-log_alpha)) + (1. - b) * (-log_alpha - tf.math.softplus(-log_alpha))
+    return output
 
 
 def bernoulli_loglikelihood_grad(b, log_alpha):
-    sna = tf.sigmoid(-log_alpha)
+    sna = tf.math.sigmoid(-log_alpha)
     return b * sna - (1 - b) * (1 - sna)
 
 
@@ -676,6 +664,27 @@ def infer_shape(fromm, tto):
     x_w_extra_col = tf.reshape(tto, shape=(batch_size,) + image_size + (1,))
     x_broad = tf.broadcast_to(x_w_extra_col, shape=(batch_size,) + image_size + (sample_size,))
     return x_broad
+
+
+def sample_z_tilde_ber(log_alpha, u, eps=1.e-5):
+    # TODO: check what's up with this formula
+    offset = 1.e-20
+    z_un = log_alpha + tf.math.log(u + offset) - tf.math.log(1 - u + offset)
+    u_prime = tf.math.sigmoid(-log_alpha)
+    v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1)
+    v_1 = tf.clip_by_value(v_1, 0, 1)
+    # v_1 = tf.stop_gradient(v_1)
+    v_1 = v_1 * (1 - u_prime) + u_prime
+    v_0 = u / tf.clip_by_value(u_prime, eps, 1)
+    v_0 = tf.clip_by_value(v_0, 0, 1)
+    # v_0 = tf.stop_gradient(v_0)
+    v_0 = v_0 * u_prime
+
+    v = tf.where(u > u_prime, v_1, v_0)
+    z_tilde = log_alpha + tf.math.log(v) - tf.math.log(1 - v)
+    # TODO: stabilize
+    # z_tilde = z_un
+    return z_un, z_tilde
 
 
 def sample_z_tilde_cat(one_hot, log_alpha):
