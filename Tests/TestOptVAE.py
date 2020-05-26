@@ -4,14 +4,37 @@ import tensorflow as tf
 from Models.OptVAE import calculate_simple_closed_gauss_kl, calculate_categorical_closed_kl
 from Models.OptVAE import calculate_general_closed_form_gauss_kl
 from Models.OptVAE import calculate_planar_flow_log_determinant
-from Models.OptVAE import sample_z_tilde
+from Models.OptVAE import sample_z_tilde_cat
 from Models.OptVAE import compute_log_categorical_pmf
 from Models.OptVAE import compute_log_categorical_pmf_grad
+from Models.OptVAE import bernoulli_loglikelihood
+from Models.OptVAE import bernoulli_loglikelihood_grad
 from Models.VAENet import create_nested_planar_flow
 from Tests.TestVAENet import calculate_pf_log_det_np_all
 
 
 class TestOptandDist(unittest.TestCase):
+
+    def test_bernoulli_grad(self):
+        tolerance = 1.e-7
+        batch_n, categories_n, sample_size, num_of_vars = 4, 6, 1, 5
+
+        log_alpha_np = np.random.normal(size=(batch_n, categories_n, sample_size, num_of_vars))
+        log_alpha = tf.constant(log_alpha_np, dtype=tf.float32)
+        one_hot = tf.transpose(tf.one_hot(tf.argmax(log_alpha, axis=1), depth=categories_n),
+                               perm=[0, 3, 1, 2])
+
+        grad = bernoulli_loglikelihood_grad(one_hot, log_alpha)
+
+        with tf.GradientTape() as tape:
+            tape.watch(log_alpha)
+            log_cat_pmf = bernoulli_loglikelihood(one_hot, log_alpha)
+
+        grad_auto = tape.gradient(target=log_cat_pmf, sources=log_alpha)
+        print(f'\nTEST: Bernoulli Gradient')
+        diff = np.linalg.norm(grad - grad_auto) / np.linalg.norm(grad)
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(diff < tolerance)
 
     def test_log_categorical_grad(self):
         tolerance = 1.e-7
@@ -48,7 +71,7 @@ class TestOptandDist(unittest.TestCase):
         log_alpha_np = broadcast_to_shape(log_alpha_np, sample_size, num_of_vars)
         log_alpha = tf.constant(log_alpha_np, dtype=tf.float32)
 
-        z_tilde = sample_z_tilde(one_hot, log_alpha)
+        z_tilde = sample_z_tilde_cat(one_hot, log_alpha)
         z_tilde = tf.math.softmax(z_tilde / temp, axis=1)
         correct_max = tf.math.argmax(z_tilde, axis=1)
         correct_max = tf.math.reduce_mean(correct_max, axis=1).numpy()
