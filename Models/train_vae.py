@@ -264,7 +264,7 @@ def fill_in_dict(hyper, cases):
 
 def fill_model_depending_settings(hyper_copy):
     hyper_copy['latent_discrete_n'] = hyper_copy['n_required']
-    if hyper_copy['model_type'].find('GS') >= 0:
+    if hyper_copy['model_type'].find('GS') >= 0 or hyper_copy['model_type'].find('Relax') >= 0:
         hyper_copy['num_of_discrete_param'] = 1
     else:
         hyper_copy['latent_discrete_n'] += 1
