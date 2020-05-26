@@ -44,7 +44,9 @@ class VAENet(tf.keras.Model):
             self.generate_dense_nonlinear_inference_net()
             if self.model_type.find('Planar') > 0:
                 self.generate_planar_flow()
-            self.generate_dense_nonlinear_generative_net()
+        elif self.architecture_type == 'dense_relax':
+            self.generate_relax_inference_net()
+            self.generate_relax_generative_net()
         elif self.architecture_type == 'conv':
             self.generate_convolutional_inference_net()
             self.generate_convolutional_generative_net()
@@ -70,23 +72,42 @@ class VAENet(tf.keras.Model):
 
     def generate_dense_generative_net(self, activation='linear'):
         activation_type = self.determine_activation_from_case()
+        image_flat = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
         self.generative_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
-            tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
-                                  self.image_shape[2] *
-                                  self.log_px_z_params_num, activation=activation_type,
-                                  name='decoder_1'),
+            tf.keras.layers.Dense(units=image_flat, activation=activation_type, name='decoder_1'),
             tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
                                                   self.image_shape[2] * self.log_px_z_params_num))
         ])
+
+    def generate_relax_inference_net(self):
+        input_layer = tf.keras.layers.Input(shape=self.image_shape)
+        flat_layer = tf.keras.layers.Flatten()(input_layer)
+        layer1 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1',
+                                       activation='relu')(2. * flat_layer - 1.)
+        layer2 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_2',
+                                       activation='relu')(layer1)
+        layer3 = tf.keras.layers.Dense(units=self.latent_dim_in,
+                                       name='encoder_out')(layer2)
+        self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[layer3])
+
+    def generate_relax_generative_net(self):
+        image_flat = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
+        output_layer = tf.keras.layers.Input(shape=(self.latent_dim_out,))
+        layer1 = tf.keras.layers.Dense(units=200, activation='relu',
+                                       name='decoder_1')(2. * output_layer - 1.)
+        layer2 = tf.keras.layers.Dense(units=200, activation='relu',
+                                       name='decoder_2')(layer1)
+        layer3 = tf.keras.layers.Dense(units=image_flat,
+                                       name='decoder_out')(layer2)
+        reshaped_layer = tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
+                                                               self.image_shape[2] * self.log_px_z_params_num))(layer3)
+        self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[reshaped_layer])
 
     def generate_dense_nonlinear_inference_net(self, activation='relu'):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
             tf.keras.layers.Flatten(),
-            # tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
-            #                       self.image_shape[2],
-            #                       activation=activation, name='encoder_1'),
             tf.keras.layers.Dense(units=512, activation=activation, name='encoder_1'),
             tf.keras.layers.Dense(units=256, activation=activation, name='encoder_2'),
             tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_3'),
@@ -300,15 +321,20 @@ class RelaxCovNet(tf.keras.Model):
     def __init__(self, cov_net_shape):
         super(RelaxCovNet, self).__init__()
         self.cov_net_shape = cov_net_shape
-        self.net = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=self.cov_net_shape),
-            tf.keras.layers.Flatten(),
-            # tf.keras.layers.Dense(units=50, activation='relu'),
-            tf.keras.layers.Dense(units=200, activation='relu'),
-            tf.keras.layers.Dense(units=200, activation='relu'),
-            tf.keras.layers.Dense(units=200, activation='relu'),
-            tf.keras.layers.Dense(units=1),
-        ])
+        # self.net = tf.keras.Sequential([
+        #     tf.keras.layers.InputLayer(input_shape=self.cov_net_shape),
+        #     tf.keras.layers.Flatten(),
+        #     tf.keras.layers.Dense(units=200, activation='relu'),
+        #     tf.keras.layers.Dense(units=200, activation='relu'),
+        #     tf.keras.layers.Dense(units=200, activation='relu'),
+        #     tf.keras.layers.Dense(units=1),
+        # ])
+
+        input_layer = tf.keras.layers.Input(shape=self.cov_net_shape)
+        flat_layer = tf.keras.layers.Flatten()(input_layer)
+        layer1 = tf.keras.layers.Dense(units=50, activation='relu')(2. * flat_layer - 1.)
+        layer2 = tf.keras.layers.Dense(units=1)(layer1)
+        self.net = tf.keras.Model(inputs=[input_layer], outputs=[layer2])
 
 
 def create_nested_planar_flow(nested_layers, latent_n, var_num, initializer='random_normal'):
