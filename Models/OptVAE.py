@@ -665,25 +665,43 @@ def infer_shape(fromm, tto):
     return x_broad
 
 
+def safe_log_prob(x, eps=1.e-8):
+    return tf.math.log(tf.clip_by_value(x, eps, 1.0))
+
+
 def sample_z_tilde_ber(log_alpha, u, eps=1.e-5):
-    # TODO: check what's up with this formula
-    offset = 1.e-20
-    z_un = log_alpha + tf.math.log(u + offset) - tf.math.log(1 - u + offset)
+    z_un = log_alpha + safe_log_prob(u) - safe_log_prob(1 - u)
+    # g(u', log_alpha) = 0
     u_prime = tf.math.sigmoid(-log_alpha)
-    v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1)
+    v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1.0)
     v_1 = tf.clip_by_value(v_1, 0, 1)
-    # v_1 = tf.stop_gradient(v_1)
+    v_1 = tf.stop_gradient(v_1)
     v_1 = v_1 * (1 - u_prime) + u_prime
-    v_0 = u / tf.clip_by_value(u_prime, eps, 1)
+    v_0 = u / tf.clip_by_value(u_prime, eps, 1.0)
     v_0 = tf.clip_by_value(v_0, 0, 1)
-    # v_0 = tf.stop_gradient(v_0)
+    v_0 = tf.stop_gradient(v_0)
     v_0 = v_0 * u_prime
 
+    # # TODO: check what's up with this formula
+    # offset = 1.e-20
+    # z_un = log_alpha + tf.math.log(u + offset) - tf.math.log(1 - u + offset)
+    # u_prime = tf.math.sigmoid(-log_alpha)
+    # v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1)
+    # v_1 = tf.clip_by_value(v_1, 0, 1)
+    # # v_1 = tf.stop_gradient(v_1)
+    # v_1 = v_1 * (1 - u_prime) + u_prime
+    # v_0 = u / tf.clip_by_value(u_prime, eps, 1)
+    # v_0 = tf.clip_by_value(v_0, 0, 1)
+    # # v_0 = tf.stop_gradient(v_0)
+    # v_0 = v_0 * u_prime
+
     v = tf.where(u > u_prime, v_1, v_0)
-    z_tilde = log_alpha + tf.math.log(v) - tf.math.log(1 - v)
+    # v = v + tf.stop_gradient(-v + u)
+    # z_tilde = log_alpha + tf.math.log(v) - tf.math.log(1 - v)
+    z_tilde_un = log_alpha + safe_log_prob(v) - safe_log_prob(1 - v)
     # TODO: stabilize
     # z_tilde = z_un
-    return z_un, z_tilde
+    return z_un, z_tilde_un
 
 
 def sample_z_tilde_cat(one_hot, log_alpha):
