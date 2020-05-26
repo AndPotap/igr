@@ -101,7 +101,8 @@ class VAENet(tf.keras.Model):
         layer3 = tf.keras.layers.Dense(units=image_flat,
                                        name='decoder_out')(layer2)
         reshaped_layer = tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
-                                                               self.image_shape[2] * self.log_px_z_params_num))(layer3)
+                                                               self.image_shape[2]
+                                                               * self.log_px_z_params_num))(layer3)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[reshaped_layer])
 
     def generate_dense_nonlinear_inference_net(self, activation='relu'):
@@ -335,6 +336,8 @@ class RelaxCovNet(tf.keras.Model):
         layer1 = tf.keras.layers.Dense(units=50, activation='relu')(2. * flat_layer - 1.)
         layer2 = tf.keras.layers.Dense(units=1)(layer1)
         self.net = tf.keras.Model(inputs=[input_layer], outputs=[layer2])
+        # scale = tf.Variable(0., trainable=True, dtype=tf.float32, name='q_scale')
+        # self.net = tf.keras.Model(inputs=[input_layer], outputs=[layer2 * scale])
 
 
 def create_nested_planar_flow(nested_layers, latent_n, var_num, initializer='random_normal'):
