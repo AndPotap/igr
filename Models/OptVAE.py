@@ -264,15 +264,19 @@ class OptRELAXGSDis(OptVAE):
                                                         log_alpha=log_alpha, one_hot=one_hot)
                 c_phi, c_phi_tilde, log_qz_x = output
                 loss = self.compute_loss(x=x, x_logit=x_logit, log_alpha=log_alpha, z=one_hot)
+                c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
 
-            c_phi_z_grad_theta = tape.gradient(target=c_phi, sources=log_alpha)
-            c_phi_z_tilde_grad_theta = tape.gradient(target=c_phi_tilde, sources=log_alpha)
+            # c_phi_z_grad_theta = tape.gradient(target=c_phi, sources=log_alpha)
+            # c_phi_z_tilde_grad_theta = tape.gradient(target=c_phi_tilde, sources=log_alpha)
+            c_phi_diff_grad_theta = tape.gradient(target=c_diff, sources=log_alpha)
             log_qz_x_grad_theta = self.compute_log_pmf_grad(one_hot, log_alpha)
-            f_grad = tape.gradient(target=loss, sources=log_alpha)
+            # f_grad = tape.gradient(target=loss, sources=log_alpha)
             # TODO: check correctness of adding eta
-            relax_grad_theta = self.compute_relax_grad(loss - self.eta * c_phi_tilde, log_qz_x_grad_theta,
-                                                       c_phi_z_grad_theta, c_phi_z_tilde_grad_theta,
-                                                       f_grad)
+            # relax_grad_theta = self.compute_relax_grad(loss - self.eta * c_phi_tilde, log_qz_x_grad_theta,
+            #                                            c_phi_z_grad_theta, c_phi_z_tilde_grad_theta,
+            #                                            f_grad)
+            relax_grad_theta = self.compute_relax_grad(loss, c_phi_tilde, log_qz_x_grad_theta,
+                                                       c_phi_diff_grad_theta)
             encoder_grads = tf.gradients(log_alpha, encoder_vars, grad_ys=relax_grad_theta)
             decoder_grads = tape.gradient(target=loss, sources=decoder_vars)
 
@@ -289,10 +293,16 @@ class OptRELAXGSDis(OptVAE):
                   tf.constant(0.))
         return output
 
-    def compute_relax_grad(self, diff, log_qz_x_grad, c_phi_z_grad, c_phi_z_tilde_grad, f_grad):
+    # def compute_relax_grad(self, diff, log_qz_x_grad, c_phi_z_grad, c_phi_z_tilde_grad, f_grad):
+    def compute_relax_grad(self, loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad_theta):
+        diff = loss - self.eta * c_phi_tilde
+        diff = tf.expand_dims(diff, 1)
+        diff = tf.expand_dims(diff, 1)
+        diff = tf.expand_dims(diff, 1)
         relax_grad = diff * log_qz_x_grad
-        relax_grad += self.eta * c_phi_z_grad
-        relax_grad -= self.eta * c_phi_z_tilde_grad
+        relax_grad += self.eta * c_phi_diff_grad_theta
+        # relax_grad += self.eta * c_phi_z_grad
+        # relax_grad -= self.eta * c_phi_z_tilde_grad
         # TODO: verify this step
         # relax_grad += f_grad
         return relax_grad
@@ -322,7 +332,7 @@ class OptRELAXGSDis(OptVAE):
     @staticmethod
     def compute_relax_grad_variance(relax_grad):
         variance = tf.math.square(relax_grad)
-        variance = tf.math.reduce_sum(variance, axis=(1, 3))
+        variance = tf.math.reduce_sum(variance, axis=(1, 2, 3))
         variance = tf.math.reduce_mean(variance)
         return variance
 
@@ -331,7 +341,8 @@ class OptRELAXGSDis(OptVAE):
         encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         # con_net_vars = self.relax_cov.net.trainable_variables
-        con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
+        # con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
+        con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
         self.optimizer_encoder.apply_gradients(zip(encoder_grads, encoder_vars))
         self.optimizer_decoder.apply_gradients(zip(decoder_grads, decoder_vars))
         self.optimizer_var.apply_gradients(zip(cov_net_grad, con_net_vars))
@@ -351,10 +362,9 @@ class OptRELAXBerDis(OptRELAXGSDis):
         return grad
 
     def get_relax_variables_from_params(self, log_alpha):
-        offset = 1.e-20
         u = tf.random.uniform(shape=log_alpha.shape)
 
-        z_un = log_alpha + tf.math.log(u + offset) - tf.math.log(1 - u + offset)
+        z_un = log_alpha + safe_log_prob(u) - safe_log_prob(1 - u)
 
         one_hot = tf.cast(tf.stop_gradient(z_un) > 0, dtype=tf.float32)
         x_logit = self.decode([one_hot])
@@ -370,10 +380,11 @@ class OptRELAXBerDis(OptRELAXGSDis):
         return (c_phi, c_phi_tilde, log_qz_x)
 
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
-        r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
+        # r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
+        r = tf.reduce_sum(self.relax_cov.net(z_un), axis=1)
         # TODO: understand why he choses to run in the next form
-        # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
-        z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
+        z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
+        # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
         c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, log_alpha=log_alpha) + r
         return c_phi
 
@@ -674,7 +685,7 @@ def safe_log_prob(x, eps=1.e-8):
     return tf.math.log(tf.clip_by_value(x, eps, 1.0))
 
 
-def sample_z_tilde_ber(log_alpha, u, eps=1.e-5):
+def sample_z_tilde_ber(log_alpha, u, eps=1.e-8):
     z_un = log_alpha + safe_log_prob(u) - safe_log_prob(1 - u)
     # g(u', log_alpha) = 0
     u_prime = tf.math.sigmoid(-log_alpha)
@@ -687,23 +698,8 @@ def sample_z_tilde_ber(log_alpha, u, eps=1.e-5):
     v_0 = tf.stop_gradient(v_0)
     v_0 = v_0 * u_prime
 
-    # # TODO: check what's up with this formula
-    # offset = 1.e-20
-    # z_un = log_alpha + tf.math.log(u + offset) - tf.math.log(1 - u + offset)
-    # u_prime = tf.math.sigmoid(-log_alpha)
-    # v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1)
-    # v_1 = tf.clip_by_value(v_1, 0, 1)
-    # # v_1 = tf.stop_gradient(v_1)
-    # v_1 = v_1 * (1 - u_prime) + u_prime
-    # v_0 = u / tf.clip_by_value(u_prime, eps, 1)
-    # v_0 = tf.clip_by_value(v_0, 0, 1)
-    # # v_0 = tf.stop_gradient(v_0)
-    # v_0 = v_0 * u_prime
-
     v = tf.where(u > u_prime, v_1, v_0)
     v = v + tf.stop_gradient(-v + u)
-    # v = v + tf.stop_gradient(-v + u)
-    # z_tilde = log_alpha + tf.math.log(v) - tf.math.log(1 - v)
     z_tilde_un = log_alpha + safe_log_prob(v) - safe_log_prob(1 - v)
     # TODO: stabilize
     # z_tilde = z_un
