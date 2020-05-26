@@ -229,9 +229,6 @@ def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, 
                               save_every=25):
     if epoch % save_every == 0:
         vae_opt.nets.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
-        plot_reconstructions_samples_and_traversals(hyper=hyper, epoch=epoch,
-                                                    results_path=results_path,
-                                                    test_images=test_images, vae_opt=vae_opt)
 
 
 def save_final_results(nets, logger, results_file, initial_time, temp):
