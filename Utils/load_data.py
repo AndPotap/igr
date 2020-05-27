@@ -4,7 +4,8 @@ import tensorflow_datasets as tfds
 
 
 def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True, architecture='dense'):
-    images_to_display = [10, 25, 5, 29, 1, 35, 18, 30, 6, 19, 15, 23, 11, 21, 17, 26, 344, 3567, 9, 20]
+    images_to_display = [10, 25, 5, 29, 1, 35, 18, 30,
+                         6, 19, 15, 23, 11, 21, 17, 26, 344, 3567, 9, 20]
     if dataset_name == 'fmnist':
         if architecture == 'conv_jointvae':
             _, np_test_images = fetch_and_binarize_mnist_data(use_fashion=True)
@@ -36,14 +37,16 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True,
     elif dataset_name == 'celeb_a':
         image_shape = (64, 64, 3)
         # image_shape = (218, 178, 3)
-        pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample, image_shape=image_shape)
+        pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
+                         image_shape=image_shape)
         output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs,
                                                        test_size=19962)
         split_data, batch_size, epochs, np_test_images = output
         train_dataset, test_dataset = split_data
     elif dataset_name == 'omniglot':
-        image_shape = (96, 96, 1)
-        pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample, image_shape=image_shape)
+        image_shape = (28, 28, 1)
+        pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
+                         image_shape=image_shape)
         output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs,
                                                        test_size=13180)
         split_data, batch_size, epochs, np_test_images = output
@@ -56,7 +59,8 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True,
 
 
 def refresh_hyper(hyper, batch_n, epochs, image_shape, dataset_name, run_with_sample):
-    iter_per_epoch = determine_iter_per_epoch(dataset_name=dataset_name, run_with_sample=run_with_sample,
+    iter_per_epoch = determine_iter_per_epoch(dataset_name=dataset_name,
+                                              run_with_sample=run_with_sample,
                                               batch_n=batch_n)
     hyper['batch_n'] = batch_n
     hyper['epochs'] = epochs
@@ -76,8 +80,10 @@ def load_mnist_data(batch_n, epochs, use_fashion=False, run_with_sample=False, r
     if resize:
         train_images = tf.image.resize(train_images, size=(32, 32))
         test_images = tf.image.resize(test_images, size=(32, 32))
-    train_dataset = tf.data.Dataset.from_tensor_slices(train_images).shuffle(train_buffer).batch(batch_n)
-    test_dataset = tf.data.Dataset.from_tensor_slices(test_images).shuffle(test_buffer).batch(batch_n)
+    train_dataset = tf.data.Dataset.from_tensor_slices(
+        train_images).shuffle(train_buffer).batch(batch_n)
+    test_dataset = tf.data.Dataset.from_tensor_slices(
+        test_images).shuffle(test_buffer).batch(batch_n)
     return train_dataset, test_dataset, batch_n, epochs
 
 
@@ -90,14 +96,17 @@ def load_mnist_sop_data(batch_n, run_with_sample=False):
     else:
         train_buffer, test_buffer = 60_000, 10_000
 
-    train_dataset = tf.data.Dataset.from_tensor_slices(train_images).shuffle(train_buffer).batch(batch_n)
-    test_dataset = tf.data.Dataset.from_tensor_slices(test_images).shuffle(test_buffer).batch(batch_n)
+    train_dataset = tf.data.Dataset.from_tensor_slices(
+        train_images).shuffle(train_buffer).batch(batch_n)
+    test_dataset = tf.data.Dataset.from_tensor_slices(
+        test_images).shuffle(test_buffer).batch(batch_n)
     return train_dataset, test_dataset
 
 
 def fetch_and_binarize_mnist_data(use_fashion=False, output_labels=False):
     if use_fashion:
-        (train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.fashion_mnist.load_data()
+        (train_images, train_labels), (test_images,
+                                       test_labels) = tf.keras.datasets.fashion_mnist.load_data()
         train_images, test_images = reshape_binarize_and_scale_images((train_images, test_images),
                                                                       round_images=False)
     else:
@@ -126,7 +135,8 @@ class ProcessData:
             processed_data = self.preprocess(data_split=data[split], buffer_size=buffer_size,
                                              batch_size=batch_size)
             split_data.append(processed_data)
-        np_test_images = self.fetch_test_numpy_images(test_ds=split_data[test_position], test_size=test_size)
+        np_test_images = self.fetch_test_numpy_images(
+            test_ds=split_data[test_position], test_size=test_size)
         return split_data, batch_size, epochs, np_test_images
 
     def preprocess(self, data_split, buffer_size, batch_size):
@@ -140,7 +150,8 @@ class ProcessData:
     def fetch_test_numpy_images(self, test_ds, test_size):
         test_images = iterate_over_dataset_container(data_iterable=test_ds, test_size=test_size,
                                                      image_shape=self.image_shape)
-        images_to_display = [10, 25, 5, 29, 1, 35, 18, 30, 6, 19, 15, 23, 11, 21, 17, 26, 344, 3567, 9, 20]
+        images_to_display = [10, 25, 5, 29, 1, 35, 18, 30,
+                             6, 19, 15, 23, 11, 21, 17, 26, 344, 3567, 9, 20]
         return test_images[images_to_display, :, :, :]
 
 
@@ -168,7 +179,9 @@ def preprocess_celeb_a(example):
 def preprocess_omniglot(example):
     example['image'] = binarize_tensor(example['image'])
     example['image'] = round_tensor(example['image'])
-    example['image'] = crop_tensor(example['image'], limit=96)
+    example['image'] = example['image'][:, :, 0]
+    example['image'] = tf.expand_dims(example['image'], 2)
+    example['image'] = tf.image.resize(images=example['image'], size=(28, 28))
     return example['image']
 
 
