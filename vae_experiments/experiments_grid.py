@@ -1,7 +1,7 @@
 import tensorflow as tf
 from Models.train_vae import run_vae_for_all_cases
 
-run_with_sample = True
+run_with_sample = False
 temps = [0.15]
 # temps = [5.00]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
