@@ -81,12 +81,12 @@ class OptVAE:
 
     def decode_gaussian(self, z):
         z = reshape_and_stack_z(z=z)
-        batch_n, sample_size = z.shape[0], z.shape[2]
-        mu = tf.TensorArray(dtype=tf.float32, size=sample_size,
+        batch_n, _ = z.shape[0], z.shape[2]
+        mu = tf.TensorArray(dtype=tf.float32, size=self.sample_size,
                             element_shape=(batch_n,) + self.nets.image_shape)
-        xi = tf.TensorArray(dtype=tf.float32, size=sample_size,
+        xi = tf.TensorArray(dtype=tf.float32, size=self.sample_size,
                             element_shape=(batch_n,) + self.nets.image_shape)
-        for i in tf.range(sample_size):
+        for i in tf.range(self.sample_size):
             z_mu, z_xi = self.nets.decode(z[:, :, i])
             mu = mu.write(index=i, value=z_mu)
             xi = xi.write(index=i, value=z_xi)
