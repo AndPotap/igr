@@ -36,7 +36,6 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True,
         train_dataset, test_dataset, batch_n, epochs = data
     elif dataset_name == 'celeb_a':
         image_shape = (64, 64, 3)
-        # image_shape = (218, 178, 3)
         pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
                          image_shape=image_shape)
         output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs,
@@ -47,8 +46,7 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True,
         image_shape = (28, 28, 1)
         pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
                          image_shape=image_shape)
-        output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs,
-                                                       test_size=13180)
+        output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs)
         split_data, batch_size, epochs, np_test_images = output
         train_dataset, test_dataset = split_data
     else:
@@ -126,17 +124,17 @@ class ProcessData:
         self.run_with_sample = run_with_sample
         self.image_shape = image_shape
 
-    def generate_train_and_test_partitions(self, batch_size, epochs, test_size):
+    def generate_train_and_test_partitions(self, batch_size, epochs):
         data = fetch_data_via_tf_datasets(dataset_name=self.dataset_name)
         buffer_size, batch_size, epochs = determine_buffer_re_assign_batch_and_epochs(
             self.run_with_sample, batch_size=batch_size, epochs=epochs)
         split_names, split_data, test_position = ['train', 'test'], [], 1
-        for split in split_names:
-            processed_data = self.preprocess(data_split=data[split], buffer_size=buffer_size,
+        for idx, split in enumerate(split_names):
+            processed_data = self.preprocess(data_split=data[idx], buffer_size=buffer_size,
                                              batch_size=batch_size)
             split_data.append(processed_data)
-        np_test_images = self.fetch_test_numpy_images(
-            test_ds=split_data[test_position], test_size=test_size)
+        np_test_images = self.fetch_test_numpy_images_batch(
+            test_ds=split_data[test_position])
         return split_data, batch_size, epochs, np_test_images
 
     def preprocess(self, data_split, buffer_size, batch_size):
@@ -147,18 +145,23 @@ class ProcessData:
         else:
             raise RuntimeError
 
-    def fetch_test_numpy_images(self, test_ds, test_size):
-        test_images = iterate_over_dataset_container(data_iterable=test_ds, test_size=test_size,
+    def fetch_test_numpy_images_batch(self, test_ds):
+        test_images = iterate_over_dataset_container(data_iterable=test_ds,
                                                      image_shape=self.image_shape)
         images_to_display = [10, 25, 5, 29, 1, 35, 18, 30,
-                             6, 19, 15, 23, 11, 21, 17, 26, 344, 3567, 9, 20]
+                             6, 19, 15, 23, 11, 21, 17, 26, 34, 57, 9, 20]
         return test_images[images_to_display, :, :, :]
 
 
 def fetch_data_via_tf_datasets(dataset_name):
-    builder = tfds.builder(name=dataset_name)
-    builder.download_and_prepare()
-    data = builder.as_dataset(shuffle_files=False)
+    if dataset_name != 'omniglot':
+        builder = tfds.builder(name=dataset_name)
+        builder.download_and_prepare()
+        data = builder.as_dataset(shuffle_files=False)
+    else:
+        data = tfds.load(dataset_name,
+                         split=['train+test[:5065]', 'test[5065:]'],
+                         shuffle_files=False)
     return data
 
 
@@ -202,14 +205,9 @@ def crop_tensor(tensor, limit: int):
     return tensor
 
 
-def iterate_over_dataset_container(data_iterable, test_size, image_shape):
-    images = np.zeros(shape=(test_size,) + image_shape)
-    i = 0
+def iterate_over_dataset_container(data_iterable, image_shape):
     for image in data_iterable:
-        for batch_idx in range(image.shape[0]):
-            images[i, :, :, :] = image[batch_idx, :, :, :]
-            i += 1
-    return images
+        return image.numpy()
 
 
 def determine_iter_per_epoch(dataset_name, run_with_sample, batch_n):
