@@ -9,7 +9,7 @@ from Models.VAENet import generate_random_planar_flow_weights
 
 sample_size = int(1.e4)
 total_iterations = 1 * int(1.e3)
-# total_iterations = 2 * int(1.e1)
+# total_iterations = 2 * int(1.e2)
 learning_rate = 1.e-2
 
 samples_plot_n = int(1.e3)
@@ -18,7 +18,7 @@ np.random.RandomState(seed=21)
 temp = 0.01
 # temp = 0.05
 threshold = 0.9
-categories_n = 10
+categories_n = 50
 # categories_n = 200
 # categories_n = 100
 shape = (batch_n, categories_n, 1, 1)
@@ -29,7 +29,8 @@ model_type = 'IGR_SB_Finite'
 skip_first_iterations = 10
 
 run_against = 'uniform'
-x_lim_max, y_lim_max = 10, 0.2
+# x_lim_max, y_lim_max = 10, 0.2
+x_lim_max, y_lim_max = 50, 0.2
 # run_against = 'poisson'
 # xlim_max, y_lim_max = 70, 0.2
 save_parameters = True
