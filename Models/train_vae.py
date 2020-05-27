@@ -13,6 +13,7 @@ from Utils.general import setup_logger, append_timestamp_to_file
 
 
 def run_vae(hyper, run_with_sample):
+    tf.random.set_seed(seed=hyper['seed'])
     data = load_vae_dataset(dataset_name=hyper['dataset_name'], batch_n=hyper['batch_n'],
                             epochs=hyper['epochs'], run_with_sample=run_with_sample,
                             architecture=hyper['architecture'], hyper=hyper)
@@ -244,7 +245,7 @@ def save_final_results(nets, logger, results_file, initial_time, temp):
     nets.save_weights(filepath=results_file)
 
 
-def run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, num_of_repetitions,
+def run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, seeds,
                           run_with_sample):
     for _, model in model_cases.items():
         hyper_copy = dict(hyper)
@@ -254,7 +255,8 @@ def run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps, num_of_repet
 
         for _, d_and_t in data_and_temps.items():
             hyper_copy = fill_in_dict(hyper_copy, d_and_t)
-            for rep in range(num_of_repetitions):
+            for seed in seeds:
+                hyper_copy['seed'] = seed
                 run_vae(hyper=hyper_copy, run_with_sample=run_with_sample)
 
 
