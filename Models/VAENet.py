@@ -136,6 +136,8 @@ class VAENet(tf.keras.Model):
             activation_type = 'elu'
         elif self.dataset_name == 'mnist':
             activation_type = 'linear'
+        elif self.dataset_name == 'omniglot':
+            activation_type = 'linear'
         else:
             raise RuntimeError
         return activation_type
