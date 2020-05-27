@@ -73,6 +73,7 @@ class VAENet(tf.keras.Model):
     def generate_dense_generative_net(self, activation='linear'):
         activation_type = self.determine_activation_from_case()
         image_flat = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
+        image_flat *= self.log_px_z_params_num
         self.generative_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
             tf.keras.layers.Dense(units=image_flat, activation=activation_type, name='decoder_1'),
@@ -80,6 +81,7 @@ class VAENet(tf.keras.Model):
                                                   self.image_shape[2] * self.log_px_z_params_num))
         ])
 
+    # --------------------------------------------------------------------------------------------
     def generate_relax_inference_net(self):
         input_layer = tf.keras.layers.Input(shape=self.image_shape)
         flat_layer = tf.keras.layers.Flatten()(input_layer)
@@ -105,6 +107,7 @@ class VAENet(tf.keras.Model):
                                                                * self.log_px_z_params_num))(layer3)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[reshaped_layer])
 
+    # --------------------------------------------------------------------------------------------
     def generate_dense_nonlinear_inference_net(self, activation='relu'):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
