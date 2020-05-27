@@ -1,11 +1,17 @@
 import tensorflow as tf
 from Models.train_vae import run_vae_for_all_cases
 
-run_with_sample = False
-num_of_repetitions = 1
+run_with_sample = True
 temps = [0.15]
 # temps = [5.00]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
+
+# import numpy as np
+# np.random.seed(21)
+# seeds = np.random.randint(low=1, high=int(1.e4), size=5)
+# seeds = [5328, 5945, 8965, 49, 9337]
+seeds = [5328]
+
 model_cases = {
     1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
         'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
@@ -44,4 +50,4 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
 
 run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps,
-                      num_of_repetitions, run_with_sample)
+                      seeds, run_with_sample)
