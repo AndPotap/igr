@@ -212,19 +212,19 @@ def iterate_over_dataset_container(data_iterable, image_shape):
 
 def determine_iter_per_epoch(dataset_name, run_with_sample, batch_n):
     if dataset_name == 'fmnist' or dataset_name == 'mnist':
-        num_of_data_points = 60_000
+        num_of_data_points = 60000
         iter_per_epoch = num_of_data_points // batch_n
     elif dataset_name == 'omniglot':
         if run_with_sample:
             iter_per_epoch = 5
         else:
-            num_of_data_points = 19_280
-            iter_per_epoch = num_of_data_points // batch_n
+            num_of_data_points = 24345
+            iter_per_epoch = (num_of_data_points // batch_n) + 1
     elif dataset_name == 'celeb_a':
         if run_with_sample:
             iter_per_epoch = 5
         else:
-            num_of_data_points = 19_962
+            num_of_data_points = 19962
             iter_per_epoch = num_of_data_points // batch_n
     else:
         raise RuntimeError
