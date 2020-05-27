@@ -28,7 +28,7 @@ dataset_cases = {
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_size_testing': 1 * int(1.e0),
-         'check_every': 1,
+         'check_every': 10,
          'sample_from_disc_kl': True,
          'test_with_one_hot': True,
          'epochs': 1000,
@@ -38,8 +38,8 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          # 'num_of_discrete_var': 1,  # for bernoulli experiment
          # 'batch_n': 64,
          # 'num_of_discrete_var': 30,
-         'sample_from_cont_kl': True,
-         'sample_size': 1, 'stick_the_landing': False,
+         'stick_the_landing': True,
+         'sample_size': 1, 'sample_from_cont_kl': True,
          'run_jv': False, 'gamma': tf.constant(30.),
          'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
 
