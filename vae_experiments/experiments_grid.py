@@ -29,8 +29,8 @@ model_cases = {
 dataset_cases = {
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense'},
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
-    2: {'dataset_name': 'fmnist', 'architecture': 'dense'},
-    # 3: {'dataset_name': 'celeb_a', 'architecture': 'conv_jointvae'},
+    # 2: {'dataset_name': 'fmnist', 'architecture': 'dense'},
+    3: {'dataset_name': 'omniglot', 'architecture': 'dense'},
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_size_testing': 1 * int(1.e0),
