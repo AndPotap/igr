@@ -117,6 +117,7 @@ class OptVAE:
                                                    test_with_one_hot=test_with_one_hot)
         kl = kl_norm + kl_dis
         loss = compute_loss(log_px_z=log_px_z, kl_norm=kl_norm, kl_dis=kl_dis,
+                            sample_size=self.sample_size,
                             run_jv=self.run_jv, gamma=self.gamma,
                             discrete_c=self.discrete_c, continuous_c=self.continuous_c)
         output = (loss, tf.reduce_mean(log_px_z), tf.reduce_mean(kl),
@@ -570,7 +571,7 @@ class OptSB(OptSBFinite):
 
 
 # =================================================================================================
-def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
+def compute_loss(log_px_z, kl_norm, kl_dis, sample_size=1, run_jv=False,
                  gamma=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
     if run_jv:
         loss = -tf.reduce_mean(log_px_z - gamma * tf.math.abs(kl_norm - continuous_c)
@@ -578,8 +579,6 @@ def compute_loss(log_px_z, kl_norm, kl_dis, run_jv=False,
     else:
         kl = kl_norm + kl_dis
         elbo = log_px_z - kl
-        # sample_size = log_px_z.shape[1]
-        sample_size = 1
         elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
         loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
         loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
@@ -627,7 +626,6 @@ def compute_log_gaussian_pdf(x, x_logit):
     xi = 1.e-6 + tf.math.softplus(xi)
     pi = 3.141592653589793
 
-    # x_broad = infer_shape(fromm=mu, tto=x)
     x_broad = tf.expand_dims(x, 4)
 
     log_pixel = (- 0.5 * ((x_broad - mu) / xi) ** 2. -
@@ -635,14 +633,6 @@ def compute_log_gaussian_pdf(x, x_logit):
     log_px_z = tf.reduce_sum(log_pixel, axis=[1, 2, 3])
     return log_px_z
 
-
-# def infer_shape(fromm, tto):
-#     # batch_size, image_size, sample_size = fromm.shape[0], fromm.shape[1:4], fromm.shape[4]
-#     batch_size, image_size, sample_size = fromm.shape[0], fromm.shape[1:4], 1
-#     x_w_extra_col = tf.reshape(tto, shape=(batch_size,) + image_size + (1,))
-#     x_broad = tf.broadcast_to(x_w_extra_col, shape=(batch_size,) + image_size + (sample_size,))
-#     return x_broad
-#
 
 def safe_log_prob(x, eps=1.e-8):
     return tf.math.log(tf.clip_by_value(x, eps, 1.0))
