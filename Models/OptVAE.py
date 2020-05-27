@@ -462,8 +462,6 @@ class OptIGRDis(OptIGR):
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
-        # mu += self.mu_0
-        # xi += self.xi_0
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
         z_discrete = [self.dist.psi]
