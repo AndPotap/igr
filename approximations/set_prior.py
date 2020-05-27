@@ -2,7 +2,8 @@ import pickle
 import numpy as np
 from matplotlib import pyplot as plt
 from Utils.MinimizeEmpiricalLoss import MinimizeEmpiricalLoss, get_initial_params_for_model_type
-from Utils.general import get_for_approx, plot_loss_and_initial_final_histograms, sample_from_approx
+from Utils.general import get_for_approx, plot_loss_and_initial_final_histograms
+from Utils.general import sample_from_approx
 from Models.VAENet import offload_weights_planar_flow
 from Models.VAENet import generate_random_planar_flow_weights
 
@@ -14,17 +15,17 @@ learning_rate = 1.e-2
 samples_plot_n = int(1.e3)
 batch_n = 1
 np.random.RandomState(seed=21)
-# temp = 0.01
-temp = 0.05
+temp = 0.01
+# temp = 0.05
 threshold = 0.9
 categories_n = 10
 # categories_n = 200
 # categories_n = 100
 shape = (batch_n, categories_n, 1, 1)
-model_type = 'IGR_I'
+# model_type = 'IGR_I'
 # model_type = 'IGR_Planar'
 # model_type = 'IGR_SB'
-# model_type = 'IGR_SB_Finite'
+model_type = 'IGR_SB_Finite'
 skip_first_iterations = 10
 
 run_against = 'uniform'
@@ -36,7 +37,7 @@ save_parameters = True
 probs, p_samples, results_file = get_for_approx(run_against, categories_n, samples_plot_n)
 
 # Train model
-# =====================================================================================================
+# ===============================================================================================
 params, params_init = get_initial_params_for_model_type(model_type=model_type, shape=shape)
 if model_type.find('Planar'):
     nested_layers = 2
@@ -58,13 +59,13 @@ if save_parameters:
             pickle.dump(obj={'mu': params[0].numpy(), 'xi': params[1].numpy()}, file=f)
 
 # Run samples
-# =====================================================================================================
+# ================================================================================================
 q_samples, q_samples_init = sample_from_approx(params, params_init, temp, model_type, p_samples,
                                                samples_plot_n, minimizer.threshold,
                                                minimizer.planar_flow)
 
 # Plot Loss and Histograms
-# =====================================================================================================
+# ================================================================================================
 plt.style.use(style='ggplot')
 fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(8, 6))
 
