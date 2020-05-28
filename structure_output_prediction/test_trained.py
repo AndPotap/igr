@@ -15,8 +15,9 @@ models = {
     4: {'model_dir': 'sb', 'model_type': 'IGR_SB_Finite'},
 }
 select_case = 1
-run_with_sample = True
-samples_n = 1 * int(1.e3)
+run_with_sample = False
+# samples_n = 1 * int(1.e3)
+samples_n = 1 * int(1.e2)
 
 hyper_file, weights_file = 'hyper.pkl', 'w.h5'
 model_type = models[select_case]['model_type']
@@ -25,19 +26,24 @@ path_to_trained_models += models[select_case]['model_dir'] + '/'
 with open(file=path_to_trained_models + hyper_file, mode='rb') as f:
     hyper = pickle.load(f)
 
-batch_n = hyper['batch_n']
+batch_n = hyper['batch_size']
 hyper['test_sample_size'] = samples_n
 tf.random.set_seed(seed=hyper['seed'])
-data = load_mnist_sop_data(batch_n=hyper['batch_size'])
+data = load_mnist_sop_data(batch_n=hyper['batch_size'], run_with_sample=run_with_sample)
 train_dataset, test_dataset = data
 epoch = hyper['epochs']
 sop_optimizer = setup_sop_optimizer(hyper=hyper)
-sop_optimizer.nets.load_weights(filepath=path_to_trained_models + weights_file)
+for x in train_dataset:
+    x_upper = x[:, :14, :, :]
+    break
+sop_optimizer.batch_n = batch_n
+aux = sop_optimizer.model.call(x_upper)
+sop_optimizer.model.load_weights(filepath=path_to_trained_models + weights_file)
 
 test_loss_mean = evaluate_loss_on_dataset(test_dataset, sop_optimizer, hyper)
 
 evaluation_print = f'Epoch {epoch:4d} || '
-evaluation_print += f'TeNLL {test_loss_mean:2.5e} || '
+evaluation_print += f'TeNLL {-test_loss_mean.result():2.5e} || '
 # evaluation_print += f'Train Loss {train_loss_mean.result():2.5e} || '
 evaluation_print += f'{model_type} || '
 toc = time.time()
