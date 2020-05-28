@@ -586,7 +586,7 @@ def compute_loss(log_px_z, kl_norm, kl_dis, sample_size=1, run_jv=False,
 
 
 def compute_log_bernoulli_pdf(x, x_logit):
-    x_broad = tf.expand_dims(x, 4)
+    x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x_logit.shape)
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
     log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
     return log_px_z
@@ -626,7 +626,7 @@ def compute_log_gaussian_pdf(x, x_logit):
     xi = 1.e-6 + tf.math.softplus(xi)
     pi = 3.141592653589793
 
-    x_broad = tf.expand_dims(x, 4)
+    x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x_logit.shape)
 
     log_pixel = (- 0.5 * ((x_broad - mu) / xi) ** 2. -
                  0.5 * tf.math.log(2 * pi) - tf.math.log(1.e-8 + xi))
