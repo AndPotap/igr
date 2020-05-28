@@ -1,24 +1,21 @@
 from Models.SOPOptimizer import run_sop_for_all_cases
 import tensorflow as tf
 
-# model_type = 'GS'
 model_type = 'IGR_I'
 # model_type = 'IGR_Planar'
 # model_type = 'IGR_SB'
-
-# num_of_repetitions = 1
-# architectures = ['double_linear']
-# sample_sizes = [1]
+# model_type = 'GS'
+temp = 0.1
 
 # import numpy as np
 # np.random.seed(21)
 # seeds = np.random.randint(low=1, high=int(1.e4), size=5)
 # seeds = [5328, 5945, 8965, 49, 9337]
 seeds = [5328]
-# architectures = ['double_linear', 'triple_linear', 'nonlinear']
-# sample_sizes = [1, 5, 50]
 architectures = ['double_linear']
 sample_sizes = [1]
+# architectures = ['double_linear', 'triple_linear', 'nonlinear']
+# sample_sizes = [1, 5, 50]
 baseline_hyper = {'width_height': (14, 28, 1),
                   'units_per_layer': 240,
                   'model_type': model_type,
@@ -33,7 +30,7 @@ baseline_hyper = {'width_height': (14, 28, 1),
                   'test_sample_size': 1 * int(1.e2),
                   'architecture': 'nonlinear',
                   'sample_size': 1,
-                  'temp': tf.constant(1.0)}
+                  'temp': tf.constant(temp)}
 idx = 0
 variant_hyper = {}
 for arch in architectures:
