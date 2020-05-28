@@ -3,6 +3,7 @@ import tensorflow as tf
 from matplotlib import pyplot as plt
 import numpy as np
 from Models.SOP import SOP, brodcast_to_sample_size
+from Utils.load_data import load_mnist_sop_data
 from Utils.general import setup_logger
 from Utils.general import append_timestamp_to_file
 
@@ -51,7 +52,9 @@ def compute_loss(x_lower, logits, sample_size):
     return loss
 
 
-def run_sop(hyper, results_path, data):
+def run_sop(hyper, results_path):
+    tf.random.set_seed(seed=hyper['seed'])
+    data = load_mnist_sop_data(batch_n=hyper['batch_size'])
     train_dataset, test_dataset = data
 
     sop_optimizer = setup_sop_optimizer(hyper=hyper)
@@ -165,13 +168,14 @@ def evaluate_loss_on_batch(x, sop_optimizer, hyper):
     return loss
 
 
-def run_sop_for_all_cases(baseline_hyper, variant_hyper, data, num_of_repetitions):
+def run_sop_for_all_cases(baseline_hyper, variant_hyper, seeds):
     for _, variant in variant_hyper.items():
         hyper_copy = dict(baseline_hyper)
         hyper_copy = fill_in_dict(hyper_copy, variant)
 
-        for rep in range(num_of_repetitions):
-            run_sop(hyper=hyper_copy, results_path='./Log/', data=data)
+        for seed in seeds:
+            hyper_copy['seed'] = seed
+            run_sop(hyper=hyper_copy, results_path='./Log/')
 
 
 def fill_in_dict(hyper, cases):
