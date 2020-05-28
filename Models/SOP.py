@@ -51,7 +51,6 @@ class SOP(tf.keras.Model):
             logits = self.use_nonlinear(x_upper, sample_size, use_one_hot)
         return logits
 
-    @tf.function()
     def use_triple_linear(self, x_upper, sample_size, use_one_hot):
         batch_n, width, height, rgb = x_upper.shape
         logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
@@ -73,7 +72,6 @@ class SOP(tf.keras.Model):
         logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
         return logits
 
-    @tf.function()
     def use_double_linear(self, x_upper, sample_size, use_one_hot):
         batch_n, width, height, rgb = x_upper.shape
         logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
@@ -91,7 +89,6 @@ class SOP(tf.keras.Model):
         logits = tf.transpose(logits.stack(), perm=[1, 2, 3, 4, 0])
         return logits
 
-    @tf.function()
     def use_nonlinear(self, x_upper, sample_size, use_one_hot):
         batch_n, width, height, rgb = x_upper.shape
         logits = tf.TensorArray(dtype=tf.float32, size=sample_size,
@@ -123,7 +120,6 @@ class SOP(tf.keras.Model):
         return psi
 
 
-@tf.function()
 def sample_gs_binary(params, temp):
     # TODO: add the latex formulas
     log_alpha = params[0]
@@ -134,7 +130,6 @@ def sample_gs_binary(params, temp):
     return psi
 
 
-@tf.function()
 def sample_igr_binary(model_type, params, temp, planar_flow):
     dist = get_igr_dist(model_type, params, temp, planar_flow)
     dist.generate_sample()
