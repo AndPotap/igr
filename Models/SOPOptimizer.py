@@ -1,4 +1,5 @@
 import time
+import pickle
 import tensorflow as tf
 from matplotlib import pyplot as plt
 import numpy as np
@@ -63,6 +64,7 @@ def run_sop(hyper, results_path):
     logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=log_path,
                                                                  termination='.log'))
     log_all_hyperparameters(hyper=hyper, logger=logger)
+    save_hyper(hyper)
     train_sop(sop_optimizer=sop_optimizer, hyper=hyper, train_dataset=train_dataset,
               test_dataset=test_dataset, logger=logger)
 
@@ -176,6 +178,13 @@ def run_sop_for_all_cases(baseline_hyper, variant_hyper, seeds):
         for seed in seeds:
             hyper_copy['seed'] = seed
             run_sop(hyper=hyper_copy, results_path='./Log/')
+
+
+def save_hyper(hyper):
+    model_name = hyper['model_type']
+    location = './Log/hyper_' + model_name + '.pkl'
+    with open(file=location, mode='wb') as f:
+        pickle.dump(hyper, f)
 
 
 def fill_in_dict(hyper, cases):
