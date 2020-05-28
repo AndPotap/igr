@@ -2,7 +2,7 @@ import time
 import pickle
 import tensorflow as tf
 from Models.SOPOptimizer import setup_sop_optimizer
-from Models.SOPOptimizer import evaluate_loss_on_dataset
+from Models.SOPOptimizer import evaluate_loss_on_batch
 from Utils.load_data import load_mnist_sop_data
 
 tic = time.time()
@@ -14,10 +14,10 @@ models = {
     3: {'model_dir': 'pf', 'model_type': 'IGR_Planar'},
     4: {'model_dir': 'sb', 'model_type': 'IGR_SB_Finite'},
 }
-select_case = 1
+select_case = 2
 run_with_sample = False
 # samples_n = 1 * int(1.e3)
-samples_n = 1 * int(1.e2)
+samples_n = 1 * int(1.e3)
 
 hyper_file, weights_file = 'hyper.pkl', 'w.h5'
 model_type = models[select_case]['model_type']
@@ -40,7 +40,10 @@ sop_optimizer.batch_n = batch_n
 aux = sop_optimizer.model.call(x_upper)
 sop_optimizer.model.load_weights(filepath=path_to_trained_models + weights_file)
 
-test_loss_mean = evaluate_loss_on_dataset(test_dataset, sop_optimizer, hyper)
+test_loss_mean = tf.keras.metrics.Mean()
+for x in test_dataset:
+    loss = evaluate_loss_on_batch(x, sop_optimizer, hyper)
+    test_loss_mean(loss)
 
 evaluation_print = f'Epoch {epoch:4d} || '
 evaluation_print += f'TeNLL {-test_loss_mean.result():2.5e} || '
