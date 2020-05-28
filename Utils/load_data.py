@@ -134,7 +134,7 @@ class ProcessData:
                                              batch_size=batch_size)
             split_data.append(processed_data)
         np_test_images = self.fetch_test_numpy_images_batch(
-            test_ds=split_data[test_position])
+            test_ds=split_data[test_position], run_with_sample=self.run_with_sample)
         return split_data, batch_size, epochs, np_test_images
 
     def preprocess(self, data_split, buffer_size, batch_size):
@@ -145,11 +145,14 @@ class ProcessData:
         else:
             raise RuntimeError
 
-    def fetch_test_numpy_images_batch(self, test_ds):
+    def fetch_test_numpy_images_batch(self, test_ds, run_with_sample):
         test_images = iterate_over_dataset_container(data_iterable=test_ds,
                                                      image_shape=self.image_shape)
-        images_to_display = [10, 25, 5, 29, 1, 35, 18, 30,
-                             6, 19, 15, 23, 11, 21, 17, 26, 34, 57, 9, 20]
+        if not run_with_sample:
+            images_to_display = [10, 25, 5, 29, 1, 35, 18, 30,
+                                 6, 19, 15, 23, 11, 21, 17, 26, 34, 57, 9, 20]
+        else:
+            images_to_display = [0, 1]
         return test_images[images_to_display, :, :, :]
 
 
