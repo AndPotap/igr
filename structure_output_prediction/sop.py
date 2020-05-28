@@ -1,9 +1,10 @@
 from Models.SOPOptimizer import run_sop_for_all_cases
 import tensorflow as tf
 
-model_type = 'GS'
+# model_type = 'GS'
 # model_type = 'IGR_I'
 # model_type = 'IGR_Planar'
+model_type = 'IGR_SB'
 
 # num_of_repetitions = 1
 # architectures = ['double_linear']
@@ -12,8 +13,8 @@ model_type = 'GS'
 # import numpy as np
 # np.random.seed(21)
 # seeds = np.random.randint(low=1, high=int(1.e4), size=5)
-# seeds = [5328, 5945, 8965, 49, 9337]
-seeds = [5328]
+seeds = [5328, 5945, 8965, 49, 9337]
+# seeds = [5328]
 architectures = ['double_linear', 'triple_linear', 'nonlinear']
 sample_sizes = [1, 5, 50]
 baseline_hyper = {'width_height': (14, 28, 1),
