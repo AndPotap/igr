@@ -108,9 +108,9 @@ class OptVAE:
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
-            log_px_z = compute_log_gaussian_pdf(x=x, x_logit=x_logit)
+            log_px_z = compute_log_gaussian_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
         else:
-            log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
+            log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
         kl_norm, kl_dis = self.compute_kl_elements(z=z, params_broad=params_broad,
                                                    sample_from_cont_kl=sample_from_cont_kl,
                                                    sample_from_disc_kl=sample_from_disc_kl,
@@ -124,6 +124,7 @@ class OptVAE:
                   tf.reduce_mean(kl_norm), tf.reduce_mean(kl_dis))
         return output
 
+    @tf.function()
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x=x,
                                                          test_with_one_hot=self.test_with_one_hot)
@@ -585,8 +586,8 @@ def compute_loss(log_px_z, kl_norm, kl_dis, sample_size=1, run_jv=False,
     return loss
 
 
-def compute_log_bernoulli_pdf(x, x_logit):
-    x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x_logit.shape)
+def compute_log_bernoulli_pdf(x, x_logit, sample_size):
+    x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x.shape + (sample_size,))
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
     log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
     return log_px_z
@@ -620,13 +621,13 @@ def bernoulli_loglikelihood_grad(b, log_alpha):
     return b * sna - (1 - b) * (1 - sna)
 
 
-def compute_log_gaussian_pdf(x, x_logit):
+def compute_log_gaussian_pdf(x, x_logit, sample_size):
     mu, xi = x_logit
     mu = tf.math.sigmoid(mu)
     xi = 1.e-6 + tf.math.softplus(xi)
     pi = 3.141592653589793
 
-    x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x_logit.shape)
+    x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x.shape + (sample_size,))
 
     log_pixel = (- 0.5 * ((x_broad - mu) / xi) ** 2. -
                  0.5 * tf.math.log(2 * pi) - tf.math.log(1.e-8 + xi))
