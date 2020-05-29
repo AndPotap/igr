@@ -2,6 +2,7 @@ import datetime
 import logging
 import time
 from matplotlib import pyplot as plt
+from matplotlib import ticker as mticker
 import numba
 import seaborn as sns
 import pandas as pd
@@ -29,7 +30,7 @@ def offload_case(case):
 
 
 def sample_from_approx(params, params_init, temp, model_type, p_samples, samples_plot_n, threshold,
-                       planar_flow):
+                       planar_flow=None):
     temp = tf.constant(temp, dtype=tf.float32)
     q_samples = np.zeros(shape=samples_plot_n)
     q_samples_init = np.zeros(shape=samples_plot_n)
@@ -127,6 +128,7 @@ def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, 
                color='grey', alpha=0.5, label='p', density=True)
     ax[1].hist(q_samples_init, bins=np.arange(number_of_bins), color=hist_color, alpha=0.5,
                label=model_type, density=True)
+    ax[1].yaxis.set_major_formatter(mticker.StrMethodFormatter("{x: 1.2f}"))
     ax[1].set_ylim([0, y_lim_max])
     ax[1].set_xlim([0, x_lim_max])
     ax[1].set_title('Initial distribution')
@@ -137,6 +139,7 @@ def plot_loss_and_initial_final_histograms(ax, loss_iter, p_samples, q_samples, 
     ax[2].hist(q_samples, bins=np.arange(number_of_bins),
                color=hist_color, alpha=0.5, label=model_type, density=True)
     ax[2].set_title('Final distribution')
+    ax[2].yaxis.set_major_formatter(mticker.StrMethodFormatter("{x: 1.2f}"))
     ax[2].set_ylim([0, y_lim_max])
     ax[2].set_xlim([0, x_lim_max])
     ax[2].legend()
@@ -153,6 +156,7 @@ def plot_histograms_of_gs(ax, p_samples, q_samples_list, q_samples_init_list,
     ax[0].set_ylim([0, y_lim_max])
     ax[0].set_xlim([0, x_lim_max])
     ax[0].set_title('Initial distribution')
+    ax[0].yaxis.set_major_formatter(mticker.StrMethodFormatter("{x: 1.2f}"))
     ax[0].legend()
 
     ax[1].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p',
@@ -163,6 +167,7 @@ def plot_histograms_of_gs(ax, p_samples, q_samples_list, q_samples_init_list,
     ax[1].set_title('Final distribution')
     ax[1].set_ylim([0, y_lim_max])
     ax[1].set_xlim([0, x_lim_max])
+    ax[1].yaxis.set_major_formatter(mticker.StrMethodFormatter("{x: 1.2f}"))
     ax[1].legend()
 
 
