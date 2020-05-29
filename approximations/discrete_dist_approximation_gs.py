@@ -3,10 +3,9 @@ from Utils.MinimizeEmpiricalLoss import MinimizeEmpiricalLoss, get_initial_param
 from Utils.general import plot_histograms_of_gs, get_for_approx, sample_from_approx, offload_case
 
 sample_size = int(1.e4)
-# total_iterations = 2 * int(1.e2)
-total_iterations = 1 * int(1.e0)
+total_iterations = 2 * int(1.e2)
 learning_rate = 1.e-2
-samples_plot_n = int(1.e0)
+samples_plot_n = int(1.e4)
 batch_n = 1
 temp = 0.1
 model_type = 'GS'
@@ -47,7 +46,7 @@ for i in range(len(categories_n_list)):
 # Plot Loss and Histograms
 # =====================================================================================================
 plt.style.use(style='ggplot')
-fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(8, 6))
+fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(8, 6), dpi=150)
 plot_histograms_of_gs(ax=ax, p_samples=p_samples, q_samples_list=q_samples_list,
                       q_samples_init_list=q_samples_init_list, number_of_bins=categories_n + 2,
                       categories_n_list=categories_n_list, y_lim_max=y_lim_max, x_lim_max=x_lim_max)
