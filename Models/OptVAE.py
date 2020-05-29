@@ -232,10 +232,7 @@ class OptRELAXGSDis(OptVAE):
     def compute_loss(self, x, x_logit, z, log_alpha,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
                      test_with_one_hot=False):
-        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit)
-        # x = tf.expand_dims(x, 4)
-        # log_px_z = bernoulli_loglikelihood(x, x_logit)
-        # log_px_z = tf.math.reduce_sum(log_px_z, axis=(1, 2, 3))
+        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
         log_p = self.compute_log_pmf(z, tf.zeros_like(log_alpha))
         log_qz_x = self.compute_log_pmf(z, log_alpha)
         kl = tf.reduce_mean(log_p - log_qz_x, axis=0)
@@ -329,7 +326,7 @@ class OptRELAXBerDis(OptRELAXGSDis):
 
     def compute_log_pmf(self, z, log_alpha):
         log_pmf = bernoulli_loglikelihood(z, log_alpha)
-        log_pmf = tf.math.reduce_sum(log_pmf, axis=(1, 2, 3))
+        log_pmf = tf.math.reduce_sum(log_pmf, axis=(1, 3))
         return log_pmf
 
     def compute_log_pmf_grad(self, z, log_alpha):
@@ -342,7 +339,7 @@ class OptRELAXBerDis(OptRELAXGSDis):
         one_hot = tf.cast(tf.stop_gradient(z_un) > 0, dtype=tf.float32)
         x_logit = self.decode([one_hot])
 
-        z_tilde_un = sample_z_tilde_ber(log_alpha)
+        z_tilde_un = sample_z_tilde_ber(log_alpha, one_hot)
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
         return c_phi, c_phi_tilde, x_logit, one_hot
@@ -639,21 +636,15 @@ def safe_log_prob(x, eps=1.e-8):
     return tf.math.log(tf.clip_by_value(x, eps, 1.0))
 
 
-def sample_z_tilde_ber(log_alpha, eps=1.e-8):
-    # g(u', log_alpha) = 0
-    u = tf.random.uniform(shape=log_alpha.shape)
-    u_prime = tf.math.sigmoid(-log_alpha)
-    v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1.0)
-    v_1 = tf.clip_by_value(v_1, 0, 1)
-    v_1 = v_1 * (1 - u_prime) + u_prime
-    v_0 = u / tf.clip_by_value(u_prime, eps, 1.0)
-    v_0 = tf.clip_by_value(v_0, 0, 1)
-    v_0 = v_0 * u_prime
+def sample_z_tilde_ber(log_alpha, one_hot):
+    # TODO: add testing for this function
+    v = tf.random.uniform(shape=log_alpha.shape)
+    theta = tf.math.sigmoid(log_alpha)
+    v_0 = v * (1 - theta)
+    v_1 = v * theta + (1 - theta)
+    v_tilde = tf.where(one_hot > 0, v_1, v_0)
 
-    v = tf.where(u > u_prime, v_1, v_0)
-    z_tilde_un = log_alpha + safe_log_prob(v) - safe_log_prob(1 - v)
-    # TODO: stabilize
-    # z_tilde = z_un
+    z_tilde_un = log_alpha + safe_log_prob(v_tilde) - safe_log_prob(1 - v_tilde)
     return z_tilde_un
 
 
