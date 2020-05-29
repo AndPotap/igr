@@ -29,7 +29,7 @@ class RELAX:
         z_un = self.log_alpha + safe_log_prob(u) - safe_log_prob(1 - u)
         self.one_hot = tf.cast(tf.stop_gradient(z_un) > 0, dtype=tf.float32)
 
-        z_tilde_un = sample_z_tilde_ber(self.log_alpha)
+        z_tilde_un = sample_z_tilde_ber(self.log_alpha, self.one_hot)
         c_phi = self.compute_c_phi(z_un)
         c_phi_tilde = self.compute_c_phi(z_tilde_un)
         return c_phi, c_phi_tilde
@@ -113,16 +113,27 @@ def safe_log_prob(x, eps=1.e-8):
     return tf.math.log(tf.clip_by_value(x, eps, 1.0))
 
 
-def sample_z_tilde_ber(log_alpha, eps=1.e-8):
-    u = tf.random.uniform(shape=log_alpha.shape)
-    u_prime = tf.math.sigmoid(-log_alpha)
-    v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1.0)
-    v_1 = tf.clip_by_value(v_1, 0, 1)
-    v_1 = v_1 * (1 - u_prime) + u_prime
-    v_0 = u / tf.clip_by_value(u_prime, eps, 1.0)
-    v_0 = tf.clip_by_value(v_0, 0, 1)
-    v_0 = v_0 * u_prime
+def sample_z_tilde_ber(log_alpha, one_hot, eps=1.e-8):
+    v = tf.random.uniform(shape=log_alpha.shape)
+    theta = tf.math.sigmoid(log_alpha)
+    v_0 = v * (1 - theta)
+    v_1 = v * theta + (1 - theta)
+    v_tilde = tf.where(one_hot > 0, v_1, v_0)
 
-    v = tf.where(u > u_prime, v_1, v_0)
-    z_tilde_un = log_alpha + safe_log_prob(v) - safe_log_prob(1 - v)
+    z_tilde_un = log_alpha + safe_log_prob(v_tilde) - safe_log_prob(1 - v_tilde)
     return z_tilde_un
+
+
+# def sample_z_tilde_ber(log_alpha, eps=1.e-8):
+#     u = tf.random.uniform(shape=log_alpha.shape)
+#     u_prime = tf.math.sigmoid(-log_alpha)
+#     v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1.0)
+#     v_1 = tf.clip_by_value(v_1, 0, 1)
+#     v_1 = v_1 * (1 - u_prime) + u_prime
+#     v_0 = u / tf.clip_by_value(u_prime, eps, 1.0)
+#     v_0 = tf.clip_by_value(v_0, 0, 1)
+#     v_0 = v_0 * u_prime
+#
+#     v = tf.where(u > u_prime, v_1, v_0)
+#     z_tilde_un = log_alpha + safe_log_prob(v) - safe_log_prob(1 - v)
+#     return z_tilde_un
