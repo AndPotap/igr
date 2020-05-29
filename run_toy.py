@@ -12,6 +12,9 @@ for idx in range(max_iter):
     grads, loss = relax.compute_gradients()
     relax.apply_gradients(grads)
     theta = tf.math.sigmoid(relax.log_alpha)
+    eta = relax.eta.numpy()
+    temp = tf.math.exp(relax.log_temp).numpy()
     if idx % 100 == 0:
-        print(f'Loss {loss.numpy(): 2.5e} | |'
-              f'Theta {theta.numpy()[0, 0, 0, 0]: 2.5e} | | i {idx: 4d}')
+        print(f'Loss {loss.numpy(): 2.5e} ||'
+              f'Temp {temp:2.5e} || Eta {eta:2.5e} || '
+              f'Theta {theta.numpy()[0, 0, 0, 0]: 2.5e} || i {idx: 4d}')
