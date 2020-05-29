@@ -115,37 +115,32 @@ class OptVAE:
                                                    sample_from_cont_kl=sample_from_cont_kl,
                                                    sample_from_disc_kl=sample_from_disc_kl,
                                                    test_with_one_hot=test_with_one_hot)
-        kl = kl_norm + kl_dis
         loss = compute_loss(log_px_z=log_px_z, kl_norm=kl_norm, kl_dis=kl_dis,
                             sample_size=self.sample_size,
                             run_jv=self.run_jv, gamma=self.gamma,
                             discrete_c=self.discrete_c, continuous_c=self.continuous_c)
-        output = (loss, tf.reduce_mean(log_px_z), tf.reduce_mean(kl),
-                  tf.reduce_mean(kl_norm), tf.reduce_mean(kl_dis))
-        return output
+        return loss
 
     @tf.function()
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x=x,
                                                          test_with_one_hot=self.test_with_one_hot)
-        output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-                                   sample_from_cont_kl=sample_from_cont_kl,
-                                   sample_from_disc_kl=sample_from_disc_kl,
-                                   test_with_one_hot=self.test_with_one_hot)
-        loss, recon, kl, kl_norm, kl_dis = output
-        return loss, recon, kl, kl_norm, kl_dis
+        loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
+                                 sample_from_cont_kl=sample_from_cont_kl,
+                                 sample_from_disc_kl=sample_from_disc_kl,
+                                 test_with_one_hot=self.test_with_one_hot)
+        return loss
 
     @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
-            output = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
-                                       sample_from_cont_kl=self.sample_from_cont_kl,
-                                       sample_from_disc_kl=self.sample_from_disc_kl,
-                                       test_with_one_hot=False)
-            loss, recon, kl, kl_n, kl_d = output
+            loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
+                                     sample_from_cont_kl=self.sample_from_cont_kl,
+                                     sample_from_disc_kl=self.sample_from_disc_kl,
+                                     test_with_one_hot=False)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
-        return gradients, loss, recon, kl, kl_n, kl_d
+        return gradients, loss
 
     def apply_gradients(self, gradients):
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
@@ -252,9 +247,7 @@ class OptRELAXGSDis(OptVAE):
         log_alpha = self.nets.encode(x)[0]
         _, _, x_logit, one_hot = self.get_relax_variables_from_params(x, log_alpha)
         loss = self.compute_loss(x, x_logit, one_hot, log_alpha)
-        recon = tf.constant(0.)
-        kl, kl_norm, kl_dis = tf.constant(0.), tf.constant(0.), tf.constant(0.)
-        return loss, recon, kl, kl_norm, kl_dis
+        return loss
 
     @tf.function()
     def compute_gradients(self, x):
@@ -273,9 +266,7 @@ class OptRELAXGSDis(OptVAE):
         cov_net_grad = tf.gradients(variance, self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        output = (gradients, loss, tf.constant(0.), tf.constant(0.), tf.constant(0.),
-                  tf.constant(0.))
-        return output
+        return gradients, loss
 
     def compute_relax_grad(self, loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad_theta):
         diff = loss - self.eta * c_phi_tilde
