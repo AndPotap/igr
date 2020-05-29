@@ -15,7 +15,7 @@ check_every = int(1.e2)
 relax = RELAX(toy_loss_2, lr, shape)
 
 for idx in range(max_iter):
-    grads, loss = relax.compute_gradients()
+    grads, loss = relax.compute_rebar_gradients_and_loss()
     relax.apply_gradients(grads)
     theta = tf.math.sigmoid(relax.log_alpha)
     eta = relax.eta.numpy()
