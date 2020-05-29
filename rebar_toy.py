@@ -15,15 +15,15 @@ class RELAX:
         self.categories_n = shape[1]
         self.sample_size = shape[2]
         self.num_of_vars = shape[3]
-        cov_net_shape = (self.categories_n, self.sample_size, self.num_of_vars)
-        self.relax_cov = RelaxCovNet(cov_net_shape)
+        # cov_net_shape = (self.categories_n, self.sample_size, self.num_of_vars)
+        # self.relax_cov = RelaxCovNet(cov_net_shape)
         # self.relax_cov.build(cov_net_shape)
 
         self.log_alpha = tf.Variable(tf.constant(0., shape=shape), name='log_alpha', trainable=True)
         self.log_temp = tf.Variable(0., name='log_temp', trainable=True)
         self.eta = tf.Variable(1., name='eta', trainable=True)
-        self.con_net_vars = self.relax_cov.trainable_variables + [self.log_temp] + [self.eta]
-        # self.con_net_vars = [self.log_temp] + [self.eta]
+        # self.con_net_vars = self.relax_cov.trainable_variables + [self.log_temp] + [self.eta]
+        self.con_net_vars = [self.log_temp] + [self.eta]
         self.one_hot = tf.constant(0., shape=shape)
 
     def get_relax_ingredients(self):
@@ -37,9 +37,10 @@ class RELAX:
         return c_phi, c_phi_tilde
 
     def compute_c_phi(self, z_un):
-        r = tf.math.reduce_mean(self.relax_cov(z_un))
+        # r = tf.math.reduce_mean(self.relax_cov(z_un))
         z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
-        c_phi = self.loss_f(z) + r
+        # c_phi = self.loss_f(z) + r
+        c_phi = self.loss_f(z)
         return c_phi
 
     def compute_log_pmf_grad(self):
@@ -69,7 +70,7 @@ class RELAX:
                                              c_phi_diff_grad_theta)
         variance = compute_relax_grad_variance(self.relax)
         self.cov_net_grad = tf.gradients(variance, self.con_net_vars)
-        return (self.relax, self.cov_net_grad)
+        return (self.relax, self.cov_net_grad), self.loss
 
     def compute_relax_grad(self, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad_theta):
         diff = self.loss - self.eta * c_phi_tilde
@@ -79,8 +80,6 @@ class RELAX:
 
     def apply_gradients(self, grads):
         relax, cov_net_grad = grads
-        # self.optimizer_param.apply_gradients(zip([self.relax], [self.log_alpha]))
-        # self.optimizer_var.apply_gradients(zip(self.cov_net_grad, self.con_net_vars))
         self.optimizer_param.apply_gradients(zip([relax], [self.log_alpha]))
         self.optimizer_var.apply_gradients(zip(cov_net_grad, self.con_net_vars))
 
