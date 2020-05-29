@@ -664,11 +664,9 @@ def sample_z_tilde_cat(one_hot, log_alpha):
     v_b = tf.math.reduce_max(v_b, axis=1, keepdims=True)
     v_b = tf.broadcast_to(v_b, shape=v.shape)
 
-    # The theta is where the problem is coming from
     aux1 = -tf.math.log(v + offset) / tf.clip_by_value(theta, 1.e-5, 1.)
     aux2 = tf.math.log(v_b + offset)
     aux = aux1 - aux2
-    # tf.print(tf.linalg.norm(aux1))
     z_other = -tf.math.log(aux + offset)
     z_b = -tf.math.log(-tf.math.log(v_b + offset) + offset)
     z_tilde = tf.where(bool_one_hot, z_b, z_other)
