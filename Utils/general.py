@@ -158,6 +158,9 @@ def plot_histograms_of_gs(ax, p_samples, q_samples_list, q_samples_init_list,
     ax[0].set_title('Initial distribution')
     ax[0].yaxis.set_major_formatter(mticker.StrMethodFormatter("{x: 1.2f}"))
     ax[0].legend()
+    for label in (ax[0].get_xticklabels() + ax[0].get_yticklabels()):
+        label.set_fontsize(12)
+        label.set_color('black')
 
     ax[1].hist(p_samples, bins=np.arange(number_of_bins), color='grey', alpha=0.5, label='p',
                density=True)
@@ -169,6 +172,9 @@ def plot_histograms_of_gs(ax, p_samples, q_samples_list, q_samples_init_list,
     ax[1].set_xlim([0, x_lim_max])
     ax[1].yaxis.set_major_formatter(mticker.StrMethodFormatter("{x: 1.2f}"))
     ax[1].legend()
+    for label in (ax[1].get_xticklabels() + ax[1].get_yticklabels()):
+        label.set_fontsize(12)
+        label.set_color('black')
 
 
 def count_zeros_in_gradient(grad_dict):
