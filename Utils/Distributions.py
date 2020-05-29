@@ -221,7 +221,7 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 
 # Utils
 # =================================================================================================
-@tf.function
+# @tf.function
 def project_to_vertices_via_softmax_pp(lam):
     r'''
     \delta = \exp(\mu + \sigma \bar{\epsilon})
