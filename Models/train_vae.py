@@ -53,7 +53,8 @@ def construct_nets_and_optimizer(hyper, model_type):
     elif model_type == 'Relax_GS_Dis' or model_type == 'Relax_Ber_Dis':
         optimizer_encoder = optimizer
         optimizer_decoder = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
-        # optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1, decay=0.001)
+        # optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1,
+        #                                          decay=0.001)
         optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1)
         optimizers = (optimizer_encoder, optimizer_decoder, optimizer_var)
         if model_type == 'Relax_GS_Dis':
@@ -148,7 +149,7 @@ def convert_into_linspace(limits_tuple):
 def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace,
                        cont_c_linspace):
     output = vae_opt.compute_gradients(x=x_train)
-    gradients, loss, log_px_z, kl, kl_n, kl_d = output
+    gradients, loss = output
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     # TODO: remove
@@ -202,13 +203,10 @@ def create_test_progress_tracker(run_jv):
 def update_test_progress(x_test, vae_opt, test_progress):
     test_progress['N'](vae_opt.n_required)
     for k, v in test_progress['vars_to_track'].items():
-        if k != 'N' and k != 'NLL':
-            loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x=x_test,
-                                                                  sample_from_cont_kl=v,
-                                                                  sample_from_disc_kl=v)
-            test_progress[k](loss)
-        elif k == 'NLL':
-            loss = vae_opt.compute_negative_log_likelihood(x=x_test)
+        if k != 'N':
+            loss = vae_opt.compute_losses_from_x_wo_gradients(x=x_test,
+                                                              sample_from_cont_kl=v,
+                                                              sample_from_disc_kl=v)
             test_progress[k](loss)
     return test_progress
 
