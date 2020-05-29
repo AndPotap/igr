@@ -330,7 +330,8 @@ class OptRELAXBerDis(OptRELAXGSDis):
         one_hot = tf.cast(tf.stop_gradient(z_un) > 0, dtype=tf.float32)
         x_logit = self.decode([one_hot])
 
-        z_tilde_un = sample_z_tilde_ber(log_alpha, one_hot)
+        # z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha, one_hot)
+        z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha)
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
         return c_phi, c_phi_tilde, x_logit, one_hot
@@ -338,8 +339,8 @@ class OptRELAXBerDis(OptRELAXGSDis):
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
         r = tf.math.reduce_mean(self.relax_cov.net(z_un))
         # TODO: understand why he choses to run in the next form
-        # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
-        z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
+        z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
+        # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
         c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, log_alpha=log_alpha) + r
         return c_phi
 
@@ -627,33 +628,32 @@ def safe_log_prob(x, eps=1.e-8):
     return tf.math.log(tf.clip_by_value(x, eps, 1.0))
 
 
-def sample_z_tilde_ber(log_alpha, one_hot):
-    # TODO: add testing for this function
-    v = tf.random.uniform(shape=log_alpha.shape)
-    theta = tf.math.sigmoid(log_alpha)
-    v_0 = v * (1 - theta)
-    v_1 = v * theta + (1 - theta)
-    v_tilde = tf.where(one_hot == 1., v_1, v_0)
-
-    # z_tilde_un = log_alpha + safe_log_prob(v_tilde) - safe_log_prob(1 - v_tilde)
-    z_tilde_un = log_alpha + tf.math.log(v_tilde) - tf.math.log(1 - v_tilde)
-    return z_tilde_un
-
-
-# def sample_z_tilde_ber(log_alpha, eps=1.e-8):
-#     u = tf.random.uniform(shape=log_alpha.shape)
-#     u_prime = tf.math.sigmoid(-log_alpha)
-#     v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1.0)
-#     v_1 = tf.clip_by_value(v_1, 0, 1)
-#     v_1 = v_1 * (1 - u_prime) + u_prime
-#     v_0 = u / tf.clip_by_value(u_prime, eps, 1.0)
-#     v_0 = tf.clip_by_value(v_0, 0, 1)
-#     v_0 = v_0 * u_prime
+# def sample_z_tilde_ber(log_alpha, one_hot):
+#     # TODO: add testing for this function
+#     v = tf.random.uniform(shape=log_alpha.shape)
+#     theta = tf.math.sigmoid(log_alpha)
+#     v_0 = v * (1 - theta)
+#     v_1 = v * theta + (1 - theta)
+#     v_tilde = tf.where(one_hot == 1., v_1, v_0)
 #
-#     v = tf.where(u > u_prime, v_1, v_0)
-#     z_tilde_un = log_alpha + safe_log_prob(v) - safe_log_prob(1 - v)
+#     z_tilde_un = log_alpha + safe_log_prob(v_tilde) - safe_log_prob(1 - v_tilde)
 #     return z_tilde_un
 #
+
+def sample_z_tilde_ber(log_alpha, eps=1.e-8):
+    u = tf.random.uniform(shape=log_alpha.shape)
+    u_prime = tf.math.sigmoid(-log_alpha)
+    v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1.0)
+    v_1 = tf.clip_by_value(v_1, 0, 1)
+    v_1 = v_1 * (1 - u_prime) + u_prime
+    v_0 = u / tf.clip_by_value(u_prime, eps, 1.0)
+    v_0 = tf.clip_by_value(v_0, 0, 1)
+    v_0 = v_0 * u_prime
+
+    v = tf.where(u > u_prime, v_1, v_0)
+    z_tilde_un = log_alpha + safe_log_prob(v) - safe_log_prob(1 - v)
+    return z_tilde_un
+
 
 def sample_z_tilde_cat(one_hot, log_alpha):
     offset = 1.e-20
