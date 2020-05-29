@@ -339,8 +339,8 @@ class OptRELAXBerDis(OptRELAXGSDis):
     def compute_c_phi(self, z_un, x, x_logit, log_alpha):
         r = tf.math.reduce_mean(self.relax_cov.net(z_un))
         # TODO: understand why he choses to run in the next form
-        z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
-        # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
+        # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
+        z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
         c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, log_alpha=log_alpha) + r
         return c_phi
 
