@@ -94,6 +94,16 @@ def toy_loss(one_hot, t=0.4):
     return loss
 
 
+def toy_loss_2(one_hot):
+    t = tf.constant([1., 0.4, 0.0])
+    t = tf.expand_dims(t, 0)
+    t = tf.expand_dims(t, 1)
+    t = tf.expand_dims(t, 2)
+    loss = tf.reduce_sum((one_hot - t) ** 2, axis=(1, 2, 3))
+    loss = tf.reduce_mean(loss)
+    return loss
+
+
 def softplus(x):
     m = tf.maximum(tf.zeros_like(x), x)
     return m + tf.math.log(tf.exp(-m) + tf.math.exp(x - m))
@@ -114,6 +124,7 @@ def safe_log_prob(x, eps=1.e-8):
 
 
 def sample_z_tilde_ber(log_alpha, one_hot, eps=1.e-8):
+    # TODO: add testing for this function
     v = tf.random.uniform(shape=log_alpha.shape)
     theta = tf.math.sigmoid(log_alpha)
     v_0 = v * (1 - theta)
