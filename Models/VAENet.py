@@ -337,24 +337,11 @@ class RelaxCovNet(tf.keras.models.Model):
         #     tf.keras.layers.Dense(units=1),
         # ])
 
-        # self.input_layer = tf.keras.layers.Input(shape=self.cov_net_shape)
-        # self.flat_layer = tf.keras.layers.Flatten()(input_layer)
-        # self.layer1 = tf.keras.layers.Dense(units=50, activation='relu')(2. * flat_layer - 1.)
-        # self.layer2 = tf.keras.layers.Dense(units=1)(layer1)
-        # self.net = tf.keras.Model(inputs=[input_layer], outputs=[layer2])
-
-        self.input_layer = tf.keras.layers.Input(shape=self.cov_net_shape)
-        self.flat_layer = tf.keras.layers.Flatten()
-        self.layer1 = tf.keras.layers.Dense(units=50, activation='relu')
-        self.layer2 = tf.keras.layers.Dense(units=1)
-
-        def call(self, inputs):
-            breakpoint()
-            o1 = self.input_layer(inputs)
-            o2 = self.flat_layer(o1)
-            o3 = self.layer1(2. * o2 - 1.)
-            o4 = self.layer2(o3)
-            return o4
+        input_layer = tf.keras.layers.Input(shape=self.cov_net_shape)
+        flat_layer = tf.keras.layers.Flatten()(input_layer)
+        layer1 = tf.keras.layers.Dense(units=50, activation='relu')(2. * flat_layer - 1.)
+        layer2 = tf.keras.layers.Dense(units=1)(layer1)
+        self.net = tf.keras.Model(inputs=[input_layer], outputs=[layer2])
 
 
 def create_nested_planar_flow(nested_layers, latent_n, var_num, initializer='random_normal'):
