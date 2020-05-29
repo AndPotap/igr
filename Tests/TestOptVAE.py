@@ -5,6 +5,7 @@ from Models.OptVAE import calculate_simple_closed_gauss_kl, calculate_categorica
 from Models.OptVAE import calculate_general_closed_form_gauss_kl
 from Models.OptVAE import calculate_planar_flow_log_determinant
 from Models.OptVAE import sample_z_tilde_cat
+from Models.OptVAE import sample_z_tilde_ber
 from Models.OptVAE import compute_log_categorical_pmf
 from Models.OptVAE import compute_log_categorical_pmf_grad
 from Models.OptVAE import bernoulli_loglikelihood
@@ -57,7 +58,32 @@ class TestOptandDist(unittest.TestCase):
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(diff < tolerance)
 
-    def test_sample_z_tilde(self):
+    def test_sample_z_tilde_ber(self):
+        tolerance = 1.e-2
+        sample_size, num_of_vars = int(1.e4), 1
+        temp = tf.constant(1.)
+
+        one_hot_np = np.array([[1.], [0.]])
+        one_hot_np = broadcast_to_shape(one_hot_np, sample_size, num_of_vars)
+        one_hot = tf.constant(one_hot_np, dtype=tf.float32)
+
+        log_alpha_np = np.array([[2.], [-4.]])
+        log_alpha_np = broadcast_to_shape(log_alpha_np, sample_size, num_of_vars)
+        log_alpha = tf.constant(log_alpha_np, dtype=tf.float32)
+
+        z_tilde_un = sample_z_tilde_ber(one_hot=one_hot, log_alpha=log_alpha)
+        z_tilde = tf.math.sigmoid(z_tilde_un / temp)
+        z_tilde_dist = tf.reduce_mean(z_tilde, axis=2).numpy()
+
+        z = sample_conditional_all(log_alpha_np, one_hot_np, sample_conditional_ber)
+        z_dist_np = np.mean(z, axis=2)
+
+        print(f'\nTEST: z_tilde Sampling Correct Conditonal Bernoulli')
+        diff = np.linalg.norm(z_tilde_dist - z_dist_np) / np.linalg.norm(z_dist_np)
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(diff < tolerance)
+
+    def test_sample_z_tilde_cat(self):
         tolerance = 1.e-2
         sample_size, num_of_vars = int(1.e3), 2
         temp = tf.constant(1.)
@@ -77,7 +103,7 @@ class TestOptandDist(unittest.TestCase):
         correct_max = tf.math.reduce_mean(correct_max, axis=1).numpy()
         z_tilde_dist = tf.reduce_mean(z_tilde, axis=2).numpy()
 
-        z = sample_conditional_gs_all(log_alpha_np, one_hot_np)
+        z = sample_conditional_all(log_alpha_np, one_hot_np, sample_conditional_gs)
         z_max = np.argmax(z, axis=1)
         correct_max_np = np.mean(z_max, axis=1)
         z_dist_np = np.mean(z, axis=2)
@@ -285,20 +311,36 @@ def broadcast_to_shape(v, samples_n, num_of_vars):
     return v
 
 
-def sample_conditional_gs_all(log_alpha, one_hot):
+def sample_conditional_all(log_alpha, one_hot, sample_conditional):
     batch_n, categories_n, sample_size, num_of_vars = log_alpha.shape
     z = np.zeros(log_alpha.shape)
     for b in range(batch_n):
         for n in range(num_of_vars):
-            argmax = np.argmax(one_hot[b, :, 0, n])
-            z[b, :, :, n] = sample_conditional_gs(log_alpha[b, :, 0, n],
-                                                  sample_size=sample_size,
-                                                  argmax=argmax)
+            z[b, :, :, n] = sample_conditional(log_alpha[b, :, 0, n],
+                                               sample_size=sample_size,
+                                               one_hot=one_hot[b, :, 0, n])
     return z
 
 
-def sample_conditional_gs(log_alpha, sample_size, argmax):
+def sample_conditional_ber(log_alpha, sample_size, one_hot):
+    k, total, z = 0, 0, []
+    while total < sample_size:
+        unif = np.random.uniform(size=1)
+        logistic = np.log(unif) - np.log(1 - unif)
+        sample = log_alpha + logistic
+        sample_exp = np.exp(sample)
+        sigmoid = sample_exp / (1 + sample_exp)
+        if np.round(sigmoid) == one_hot:
+            z.append(sigmoid)
+            k += 1
+            total += 1
+    output = np.array(z)
+    return output.T
+
+
+def sample_conditional_gs(log_alpha, sample_size, one_hot):
     categories_n = log_alpha.shape[0]
+    argmax = np.argmax(one_hot)
     k = 0
     total = 0
     z = []
