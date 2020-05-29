@@ -24,7 +24,7 @@ plt.style.use(style='ggplot')
 plt.figure(dpi=150)
 
 offset = 0
-plt.ylabel('Test Discrete ELBO (1.e+2)')
+plt.ylabel('Test ELBO (1.e+2)')
 for _, model in models.items():
     linestyle = '-' if model['model'].find('cv') > 0 else '--'
     add_mean_std_plot_line(runs=model['results'], label=model['label'],
