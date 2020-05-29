@@ -44,21 +44,7 @@ class RELAX:
         grad = bernoulli_loglikelihood_grad(self.one_hot, self.log_alpha)
         return grad
 
-    # def compute_gradients(self):
-    #     with tf.GradientTape() as tape_v:
-    #         with tf.GradientTape() as tape:
-    #             c_phi, c_phi_tilde = self.get_relax_ingredients()
-    #             self.loss = self.loss_f(self.one_hot)
-    #             log_qz_x_grad_theta = self.compute_log_pmf_grad()
-    #             c_diff = c_phi - c_phi_tilde
-    #         c_phi_diff_grad_theta = tape.gradient(target=c_diff, sources=self.log_alpha)
-    #         self.relax = self.compute_relax_grad(c_phi_tilde, log_qz_x_grad_theta,
-    #                                              c_phi_diff_grad_theta)
-    #         variance = compute_relax_grad_variance(self.relax)
-    #     self.cov_net_grad = tape_v.gradient(target=variance, sources=self.con_net_vars)
-
-    @tf.function()
-    def compute_gradients(self):
+    def compute_rebar_gradients_and_loss(self):
         c_phi, c_phi_tilde = self.get_relax_ingredients()
         self.loss = self.loss_f(self.one_hot)
         log_qz_x_grad_theta = self.compute_log_pmf_grad()
