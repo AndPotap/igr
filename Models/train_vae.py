@@ -153,8 +153,8 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     # TODO: remove
-    if iteration_counter % 100 == 0 or iteration_counter == 1:
-        tf.print((iteration_counter, loss))
+    # if iteration_counter % 100 == 0 or iteration_counter == 1:
+    #     tf.print((iteration_counter, loss))
     train_loss_mean(loss)
     update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
                                    disc_c_linspace=disc_c_linspace,
@@ -191,9 +191,7 @@ def create_test_progress_tracker(run_jv):
     if run_jv:
         vars_to_track = {'TeJV': True, 'TeJVC': False, 'N': ()}
     else:
-        # vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'NLL': (), 'N': ()}
         vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'N': ()}
-        # vars_to_track = {'TeELBO': True, 'N': ()}
     test_track = {'vars_to_track': vars_to_track}
     for k, _ in vars_to_track.items():
         test_track[k] = tf.keras.metrics.Mean()
