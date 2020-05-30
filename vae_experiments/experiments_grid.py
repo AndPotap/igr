@@ -13,8 +13,8 @@ temps = [0.15]
 seeds = [5328]
 
 model_cases = {
-    1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
-        'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
+    # 1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
+    #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
     # 2: {'model_type': 'IGR_Planar_Dis', 'n_required': 9,
     #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
     # 3: {'model_type': 'IGR_SB_Finite_Dis', 'n_required': 9,
@@ -24,13 +24,14 @@ model_cases = {
     #     'threshold': 0.9, 'truncation_option': 'quantile'},
     # 5: {'model_type': 'GS_Dis', 'n_required': 10},
     # 6: {'model_type': 'Relax_GS_Dis', 'n_required': 10},
-    # 7: {'model_type': 'Relax_Ber_Dis', 'n_required': 200},
+    7: {'model_type': 'Relax_Ber_Dis', 'n_required': 200},
 }
 dataset_cases = {
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense'},
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
+    1: {'dataset_name': 'mnist', 'architecture': 'dense_relax'},
     # 2: {'dataset_name': 'fmnist', 'architecture': 'dense'},
-    3: {'dataset_name': 'omniglot', 'architecture': 'dense'},
+    # 3: {'dataset_name': 'omniglot', 'architecture': 'dense'},
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_size_testing': 1 * int(1.e0),
@@ -38,10 +39,10 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_from_disc_kl': True,
          'test_with_one_hot': True,
          'epochs': 1000,
-         'learning_rate': 3 * 1.e-4,
+         'learning_rate': 1 * 1.e-4,
          'batch_n': 100,
-         'num_of_discrete_var': 20,
-         # 'num_of_discrete_var': 1,  # for bernoulli experiment
+         # 'num_of_discrete_var': 20,
+         'num_of_discrete_var': 1,  # for bernoulli experiment
          # 'batch_n': 64,
          # 'num_of_discrete_var': 30,
          'stick_the_landing': True,
