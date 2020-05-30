@@ -222,8 +222,10 @@ class OptRELAXGSDis(OptVAE):
         shape = (1, self.n_required, self.sample_size, self.num_of_vars)
         initial_log_temp = tf.constant([1.6093 for _ in range(num_latents)],
                                        shape=shape)
-        initial_eta = tf.constant([1. for _ in range(num_latents)],
-                                  shape=shape)
+        # initial_eta = tf.constant([1. for _ in range(num_latents)],
+        #                           shape=shape)
+        initial_eta = tf.constant([1. for _ in range(1)],
+                                  shape=(1, 1, 1, 1))
         self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
         self.eta = tf.Variable(initial_eta, name='eta', trainable=True)
         self.decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
@@ -234,8 +236,8 @@ class OptRELAXGSDis(OptVAE):
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
                      test_with_one_hot=False):
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
-        log_p = self.compute_log_pmf(z, tf.zeros_like(log_alpha))
-        log_qz_x = self.compute_log_pmf(z, log_alpha)
+        log_p = self.compute_log_pmf(z=z, log_alpha=tf.zeros_like(log_alpha))
+        log_qz_x = self.compute_log_pmf(z=z, log_alpha=log_alpha)
         kl = tf.reduce_mean(log_p - log_qz_x, axis=0)
         # kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
         loss = -tf.math.reduce_mean(log_px_z) - kl
@@ -273,9 +275,17 @@ class OptRELAXGSDis(OptVAE):
         cov_net_grad = tf.gradients(variance, self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        return gradients, loss, relax_grad_theta
+
+        # eta = tf.tile(self.eta, multiples=[1, 100, 1, 1])
+        # gg = tf.tile(log_qz_x_grad_theta, multiples=[1, 100, 1, 1])
+        # eta = tf.broadcast_to(eta, shape=(100, 20000, 1, 1))
+        # diff = loss - eta * tf.broadcast_to(c_phi_tilde, shape=(100, 20000, 1, 1))
+        # diff *= gg
+
+        return gradients, loss, relax_grad_theta, log_alpha
 
     def compute_relax_grad(self, loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad_theta):
+        # diff = loss - self.eta * c_phi_tilde
         diff = loss - self.eta * c_phi_tilde
         relax_grad = diff * log_qz_x_grad
         relax_grad += self.eta * c_phi_diff_grad_theta
@@ -323,8 +333,8 @@ class OptRELAXBerDis(OptRELAXGSDis):
         super().__init__(nets=nets, optimizers=optimizers, hyper=hyper)
 
     def compute_log_pmf(self, z, log_alpha):
-        log_pmf = bernoulli_loglikelihood(z, log_alpha)
-        log_pmf = tf.math.reduce_sum(log_pmf, axis=(1, 3))
+        log_pmf = bernoulli_loglikelihood(b=z, log_alpha=log_alpha)
+        log_pmf = tf.math.reduce_sum(log_pmf, axis=(1, 2, 3))
         return log_pmf
 
     def compute_log_pmf_grad(self, z, log_alpha):
@@ -339,17 +349,18 @@ class OptRELAXBerDis(OptRELAXGSDis):
 
         # z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha, one_hot)
         z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha, u=u)
-        c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
-        c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
+        c_phi = self.compute_c_phi(z_un=z_un, x=x, log_alpha=log_alpha)
+        c_phi_tilde = self.compute_c_phi(z_un=z_tilde_un, x=x, log_alpha=log_alpha)
         return c_phi, c_phi_tilde, x_logit, one_hot
 
-    def compute_c_phi(self, z_un, x, x_logit, log_alpha):
-        r = tf.math.reduce_mean(self.relax_cov.net(z_un))
+    def compute_c_phi(self, z_un, x, log_alpha):
         # TODO: understand why he choses to run in the next form
         z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
         # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
+        r = tf.math.reduce_mean(self.relax_cov.net(z))
+        # r = self.relax_cov.net(z)
+        x_logit = self.decode([z])
         c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, log_alpha=log_alpha) + r
-        # r = self.relax_cov.net(z_un)
         # c_phi = tf.expand_dims(c_phi, 2)
         # c_phi = tf.expand_dims(c_phi, 3)
         return c_phi
