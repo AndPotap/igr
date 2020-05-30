@@ -10,7 +10,7 @@ temps = [0.15]
 # np.random.seed(21)
 # seeds = np.random.randint(low=1, high=int(1.e4), size=5)
 # seeds = [5328, 5945, 8965, 49, 9337]
-seeds = [5328]
+seeds = [49]
 
 model_cases = {
     # 1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
