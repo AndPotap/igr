@@ -51,8 +51,8 @@ def construct_nets_and_optimizer(hyper, model_type):
     elif model_type == 'IGR_Planar':
         vae_opt = OptPlanarNF(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'Relax_GS_Dis' or model_type == 'Relax_Ber_Dis':
-        optimizer_encoder = optimizer
-        optimizer_decoder = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
+        optimizer_decoder = optimizer
+        optimizer_encoder = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
         # optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1,
         #                                          decay=0.001)
         optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1)
@@ -149,16 +149,22 @@ def convert_into_linspace(limits_tuple):
 def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace,
                        cont_c_linspace):
     output = vae_opt.compute_gradients(x=x_train)
-    gradients, loss, rebar = output
+    gradients, loss, rebar, g2 = output
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     # TODO: remove
     if iteration_counter % 100 == 0 or iteration_counter == 1:
+        print('\n')
         tf.print((iteration_counter, loss))
-        tf.print(tf.reduce_mean(rebar))
-        tf.print(tf.reduce_sum(rebar ** 2))
+        tf.print(tf.math.sqrt(tf.reduce_sum(rebar ** 2)))
         tf.print(tf.reduce_max(rebar))
+        tf.print(tf.math.reduce_mean(rebar))
         tf.print(tf.reduce_min(rebar))
+        print('+++++++++')
+        tf.print(tf.math.sqrt(tf.reduce_sum(g2 ** 2)))
+        tf.print(tf.reduce_max(g2))
+        tf.print(tf.math.reduce_mean(g2))
+        tf.print(tf.reduce_min(g2))
     train_loss_mean(loss)
     update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
                                    disc_c_linspace=disc_c_linspace,
