@@ -104,8 +104,7 @@ class VAENet(tf.keras.Model):
         layer3 = tf.keras.layers.Dense(units=image_flat,
                                        name='decoder_out')(layer2)
         reshaped_layer = tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
-                                                               self.image_shape[2]
-                                                               * self.log_px_z_params_num))(layer3)
+                                                               self.image_shape[2]))(layer3)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[reshaped_layer])
 
     # --------------------------------------------------------------------------------------------
