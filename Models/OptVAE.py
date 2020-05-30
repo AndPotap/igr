@@ -216,13 +216,19 @@ class OptRELAXGSDis(OptVAE):
         self.optimizer_var = optimizers[2]
         cov_net_shape = (self.n_required, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
-        self.log_temp = tf.Variable(tf.math.log(self.temp), name='temp', trainable=True)
-        self.eta = tf.Variable(1., name='eta', trainable=True)
-        # self.eta = tf.constant(1.)
+        # self.log_temp = tf.Variable(tf.math.log(self.temp), name='temp', trainable=True)
+        # self.eta = tf.Variable(1., name='eta', trainable=True)
+        num_latents = self.n_required * self.num_of_vars
+        shape = (1, self.n_required, self.sample_size, self.num_of_vars)
+        initial_log_temp = tf.constant([1.6093 for _ in range(num_latents)],
+                                       shape=shape)
+        initial_eta = tf.constant([1. for _ in range(num_latents)],
+                                  shape=shape)
+        self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
+        self.eta = tf.Variable(initial_eta, name='eta', trainable=True)
         self.decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         self.encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
-        # self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
 
     def compute_loss(self, x, x_logit, z, log_alpha,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
@@ -255,7 +261,8 @@ class OptRELAXGSDis(OptVAE):
         output = self.get_relax_variables_from_params(x, log_alpha)
         c_phi, c_phi_tilde, x_logit, one_hot = output
         loss = self.compute_loss(x=x, x_logit=x_logit, log_alpha=log_alpha, z=one_hot)
-        c_phi_diff_grad_theta = tf.gradients(c_phi - c_phi_tilde, log_alpha)[0]
+        c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
+        c_phi_diff_grad_theta = tf.gradients(c_diff, log_alpha)[0]
         log_qz_x_grad_theta = self.compute_log_pmf_grad(one_hot, log_alpha)
         relax_grad_theta = self.compute_relax_grad(loss, c_phi_tilde, log_qz_x_grad_theta,
                                                    c_phi_diff_grad_theta)
@@ -266,7 +273,7 @@ class OptRELAXGSDis(OptVAE):
         cov_net_grad = tf.gradients(variance, self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        return gradients, loss
+        return gradients, loss, relax_grad_theta
 
     def compute_relax_grad(self, loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad_theta):
         diff = loss - self.eta * c_phi_tilde
@@ -331,7 +338,7 @@ class OptRELAXBerDis(OptRELAXGSDis):
         x_logit = self.decode([one_hot])
 
         # z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha, one_hot)
-        z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha)
+        z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha, u=u)
         c_phi = self.compute_c_phi(z_un, x, x_logit, log_alpha)
         c_phi_tilde = self.compute_c_phi(z_tilde_un, x, x_logit, log_alpha)
         return c_phi, c_phi_tilde, x_logit, one_hot
@@ -342,6 +349,9 @@ class OptRELAXBerDis(OptRELAXGSDis):
         z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
         # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
         c_phi = self.compute_loss(x=x, x_logit=x_logit, z=z, log_alpha=log_alpha) + r
+        # r = self.relax_cov.net(z_un)
+        # c_phi = tf.expand_dims(c_phi, 2)
+        # c_phi = tf.expand_dims(c_phi, 3)
         return c_phi
 
 
@@ -640,8 +650,7 @@ def safe_log_prob(x, eps=1.e-8):
 #     return z_tilde_un
 #
 
-def sample_z_tilde_ber(log_alpha, eps=1.e-8):
-    u = tf.random.uniform(shape=log_alpha.shape)
+def sample_z_tilde_ber(log_alpha, u, eps=1.e-8):
     u_prime = tf.math.sigmoid(-log_alpha)
     v_1 = (u - u_prime) / tf.clip_by_value(1 - u_prime, eps, 1.0)
     v_1 = tf.clip_by_value(v_1, 0, 1)
