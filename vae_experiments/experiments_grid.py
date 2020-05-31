@@ -23,8 +23,8 @@ model_cases = {
     #     'prior_file': './Results/mu_xi_unif_50_IGR_SB_Finite.pkl',
     #     'threshold': 0.9, 'truncation_option': 'quantile'},
     # 5: {'model_type': 'GS_Dis', 'n_required': 10},
-    # 6: {'model_type': 'Relax_GS_Dis', 'n_required': 10},
-    7: {'model_type': 'Relax_Ber_Dis', 'n_required': 200},
+    6: {'model_type': 'Relax_GS_Dis', 'n_required': 10},
+    # 7: {'model_type': 'Relax_Ber_Dis', 'n_required': 200},
 }
 dataset_cases = {
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense'},
@@ -41,8 +41,8 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'epochs': 1000,
          'learning_rate': 1 * 1.e-4,
          'batch_n': 100,
-         # 'num_of_discrete_var': 20,
-         'num_of_discrete_var': 1,  # for bernoulli experiment
+         'num_of_discrete_var': 20,
+         # 'num_of_discrete_var': 1,  # for bernoulli experiment
          # 'batch_n': 64,
          # 'num_of_discrete_var': 30,
          'stick_the_landing': True,
