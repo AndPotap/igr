@@ -323,12 +323,13 @@ class OptRELAXBerDis(OptRELAXGSDis):
     def __init__(self, nets, optimizers, hyper):
         super().__init__(nets=nets, optimizers=optimizers, hyper=hyper)
 
-    def compute_log_pmf(self, z, log_alpha):
-        log_pmf = bernoulli_loglikelihood(b=z, log_alpha=log_alpha)
+    def compute_log_pmf(self, z, log_probs):
+        log_pmf = bernoulli_loglikelihood(b=z, log_alpha=log_probs)
         log_pmf = tf.math.reduce_sum(log_pmf, axis=(1, 2, 3))
         return log_pmf
 
-    def compute_log_pmf_grad(self, z, log_alpha):
+    def compute_log_pmf_grad(self, z, params):
+        log_alpha = self.transform_params_into_log_probs(params)
         grad = bernoulli_loglikelihood_grad(z, log_alpha)
         return grad
 
