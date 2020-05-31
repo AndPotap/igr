@@ -37,12 +37,12 @@ class VAENet(tf.keras.Model):
     def construct_architecture(self):
         if self.architecture_type == 'dense':
             self.generate_dense_inference_net()
-            if self.model_type.find('Planar') > 0:
+            if self.model_type.find('Planar') >= 0:
                 self.generate_planar_flow()
             self.generate_dense_generative_net()
         elif self.architecture_type == 'dense_nonlinear':
             self.generate_dense_nonlinear_inference_net()
-            if self.model_type.find('Planar') > 0:
+            if self.model_type.find('Planar') >= 0:
                 self.generate_planar_flow()
             self.generate_dense_nonlinear_generative_net()
         elif self.architecture_type == 'dense_relax':
@@ -54,12 +54,12 @@ class VAENet(tf.keras.Model):
         elif self.architecture_type == 'conv_jointvae':
             if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
                 self.generate_convolutional_inference_net_jointvae_celeb_a()
-                if self.model_type.find('Planar') > 0:
+                if self.model_type.find('Planar') >= 0:
                     self.generate_planar_flow()
                 self.generate_convolutional_generative_net_jointvae_celeb_a()
             else:
                 self.generate_convolutional_inference_net_jointvae()
-                if self.model_type.find('Planar') > 0:
+                if self.model_type.find('Planar') >= 0:
                     self.generate_planar_flow()
                 self.generate_convolutional_generative_net_jointvae()
 
@@ -96,6 +96,9 @@ class VAENet(tf.keras.Model):
 
     def generate_relax_generative_net(self):
         image_flat = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
+        image_flat *= self.log_px_z_params_num
+        last_shape = (self.image_shape[0], self.image_shape[1],
+                      self.image_shape[2] * self.log_px_z_params_num)
         output_layer = tf.keras.layers.Input(shape=(self.latent_dim_out,))
         layer1 = tf.keras.layers.Dense(units=200, activation='relu',
                                        name='decoder_1')(2. * output_layer - 1.)
@@ -103,8 +106,7 @@ class VAENet(tf.keras.Model):
                                        name='decoder_2')(layer1)
         layer3 = tf.keras.layers.Dense(units=image_flat,
                                        name='decoder_out')(layer2)
-        reshaped_layer = tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
-                                                               self.image_shape[2]))(layer3)
+        reshaped_layer = tf.keras.layers.Reshape(target_shape=last_shape)(layer3)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[reshaped_layer])
 
     # --------------------------------------------------------------------------------------------
