@@ -272,7 +272,7 @@ class OptRELAX(OptVAE):
         log_qz_x_grad_theta = self.compute_log_pmf_grad(z=one_hot, params=params)
         relax_grad_theta = self.compute_relax_grad(loss, c_phi_tilde, log_qz_x_grad_theta,
                                                    c_phi_diff_grad_theta)
-        encoder_grads = tf.gradients(params, self.encoder_vars, grad_ys=relax_grad_theta)
+        encoder_grads = tf.gradients(params[0], self.encoder_vars, grad_ys=relax_grad_theta)
         decoder_grads = tf.gradients(loss, self.decoder_vars)
 
         variance = compute_relax_grad_variance(relax_grad_theta)
