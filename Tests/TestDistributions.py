@@ -5,12 +5,36 @@ from scipy.special import logsumexp, loggamma
 from scipy.stats import norm
 from Utils.Distributions import IGR_SB, IGR_SB_Finite
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
+from Utils.Distributions import compute_h_f
 
 
 class TestDistributions(unittest.TestCase):
 
+    def test_h_f_tf_implementation(self):
+        test_tolerance = 1.e-6
+        num_points = 5
+        batch_size, categories_n, sample_size, num_of_vars = 3, 10, 1, 2
+        shape = (batch_size, categories_n, sample_size, num_of_vars)
+        mu = np.random.normal(size=shape)
+        mu_tf = tf.constant(mu, dtype=tf.float32)
+        mu = np.reshape(mu, newshape=shape + (1,))
+        mu = np.broadcast_to(mu, shape=shape + (num_points,))
+        sigma = np.exp(np.random.normal(size=shape))
+        sigma_tf = tf.constant(sigma, dtype=tf.float32)
+        sigma = np.reshape(sigma, newshape=shape + (1,))
+        sigma = np.broadcast_to(sigma, shape=shape + (num_points,))
+
+        y = np.random.normal(size=(1, 1, 1, 1, num_points))
+        ans = compute_h_np(y, mu, sigma)
+        h_tf = compute_h_f(tf.constant(y, dtype=tf.float32), mu_tf, sigma_tf).numpy()
+
+        print(f'\nTEST: Gaussian integral TF implementation')
+        diff = np.linalg.norm(h_tf - ans) / np.linalg.norm(ans)
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(expr=diff < test_tolerance)
+
     def test_h_function_formula_preservation(self):
-        test_tolerance = 1.e-0
+        test_tolerance = 1.e-8
         normal = norm()
         categories_n = 10
         mu = np.random.normal(size=(1, categories_n))
