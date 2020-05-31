@@ -1,10 +1,9 @@
 import unittest
-import time
 import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
 from scipy.stats import norm
-from Utils.Distributions import IGR_SB, IGR_SB_Finite, IGR_I
+from Utils.Distributions import IGR_SB, IGR_SB_Finite
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
 
 
@@ -31,27 +30,6 @@ class TestDistributions(unittest.TestCase):
         diff = np.linalg.norm(h_term - ans) / np.linalg.norm(ans)
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
-
-    def test_sample_speed(self):
-        test_tolerance = 1.e-0
-        test_times = 10
-        batch_size, categories_n, sample_size, num_of_vars = 2, 10, 1, 3
-        temp = tf.constant(value=0.6, dtype=tf.float32)
-        sample_size = int(1.e3)
-        mu = tf.constant(value=1, dtype=tf.float32, shape=(
-            batch_size, categories_n, 1, num_of_vars))
-        xi = tf.constant(value=1, dtype=tf.float32, shape=(
-            batch_size, categories_n, 1, num_of_vars))
-        igr = IGR_I(mu, xi, temp, sample_size)
-        igr.generate_sample()
-        track_times = np.zeros(test_times)
-        for j in range(test_times):
-            tic = time.time()
-            igr.generate_sample()
-            toc = time.time()
-            track_times[j] = toc - tic
-        print(f'Mean time {np.mean(track_times):2.2e}')
-        self.assertTrue(np.mean(track_times) < test_tolerance)
 
     def test_softmaxpp(self):
         test_tolerance = 1.e-4
