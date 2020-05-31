@@ -270,7 +270,7 @@ class OptRELAXGSDis(OptVAE):
         encoder_grads = tf.gradients(log_alpha, self.encoder_vars, grad_ys=relax_grad_theta)
         decoder_grads = tf.gradients(loss, self.decoder_vars)
 
-        variance = self.compute_relax_grad_variance(relax_grad_theta)
+        variance = compute_relax_grad_variance(relax_grad_theta)
         cov_net_grad = tf.gradients(variance, self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
@@ -290,24 +290,18 @@ class OptRELAXGSDis(OptVAE):
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
         one_hot = tf.transpose(tf.one_hot(tf.argmax(z_un, axis=1), depth=self.n_required),
                                perm=[0, 3, 1, 2])
-
         z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
-        c_phi = self.compute_c_phi(z_un, x, log_alpha)
-        c_phi_tilde = self.compute_c_phi(z_tilde_un, x, log_alpha)
+
+        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp) + log_alpha, axis=1)
+        z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp) + log_alpha, axis=1)
+        c_phi = self.compute_c_phi(z=z, x=x, log_alpha=log_alpha)
+        c_phi_tilde = self.compute_c_phi(z=z_tilde, x=x, log_alpha=log_alpha)
         return c_phi, c_phi_tilde, one_hot
 
-    def compute_c_phi(self, z_un, x, x_logit, log_alpha):
-        r = tf.math.reduce_mean(self.relax_cov.net(z_un), axis=0)
-        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
+    def compute_c_phi(self, z, x, log_alpha):
+        r = tf.math.reduce_mean(self.relax_cov.net(z))
         c_phi = self.compute_loss(x=x, z=z, log_alpha=log_alpha) + r
         return c_phi
-
-    @staticmethod
-    def compute_relax_grad_variance(relax_grad):
-        variance = tf.math.square(relax_grad)
-        variance = tf.math.reduce_sum(variance, axis=(1, 2, 3))
-        variance = tf.math.reduce_mean(variance)
-        return variance
 
     def apply_gradients(self, gradients):
         encoder_grads, decoder_grads, cov_net_grad = gradients
@@ -333,23 +327,13 @@ class OptRELAXBerDis(OptRELAXGSDis):
         u = tf.random.uniform(shape=log_alpha.shape)
         z_un = log_alpha + safe_log_prob(u) - safe_log_prob(1 - u)
         one_hot = tf.cast(tf.stop_gradient(z_un > 0), dtype=tf.float32)
-
-        # z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha, one_hot)
         z_tilde_un = sample_z_tilde_ber(log_alpha=log_alpha, u=u)
-        c_phi = self.compute_c_phi(z_un=z_un, x=x, log_alpha=log_alpha)
-        c_phi_tilde = self.compute_c_phi(z_un=z_tilde_un, x=x, log_alpha=log_alpha)
-        return c_phi, c_phi_tilde, one_hot
 
-    def compute_c_phi(self, z_un, x, log_alpha):
-        # TODO: understand why he choses to run in the next form
         z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp) + log_alpha)
-        # z = tf.math.sigmoid(z_un / tf.math.exp(self.log_temp))
-        # r = self.relax_cov.net(z)
-        r = tf.math.reduce_mean(self.relax_cov.net(z))
-        c_phi = self.compute_loss(x=x, z=z, log_alpha=log_alpha) + r
-        # c_phi = tf.expand_dims(c_phi, 2)
-        # c_phi = tf.expand_dims(c_phi, 3)
-        return c_phi
+        z_tilde = tf.math.sigmoid(z_tilde_un / tf.math.exp(self.log_temp) + log_alpha)
+        c_phi = self.compute_c_phi(z=z, x=x, log_alpha=log_alpha)
+        c_phi_tilde = self.compute_c_phi(z=z_tilde, x=x, log_alpha=log_alpha)
+        return c_phi, c_phi_tilde, one_hot
 
 
 class OptIGR(OptVAE):
@@ -680,6 +664,13 @@ def sample_z_tilde_cat(one_hot, log_alpha):
     z_b = -tf.math.log(-tf.math.log(v_b + offset) + offset)
     z_tilde = tf.where(bool_one_hot, z_b, z_other)
     return z_tilde
+
+
+def compute_relax_grad_variance(relax_grad):
+    variance = tf.math.square(relax_grad)
+    variance = tf.math.reduce_sum(variance, axis=(1, 2, 3))
+    variance = tf.math.reduce_mean(variance)
+    return variance
 
 
 def sample_normal(mean, log_var):
