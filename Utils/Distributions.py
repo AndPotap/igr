@@ -391,6 +391,16 @@ def compute_probas_via_quad(mu, sigma):
     w = [8.62207055355942e-02, 1.85767318955695e-01, 2.35826124129815e-01, 2.05850326841520e-01,
          1.19581170615297e-01, 4.31443275880520e-02, 8.86764989474414e-03, 9.27141875082127e-04,
          4.15719321667468e-05, 5.86857646837617e-07, 1.22714513994286e-09]
+    w = tf.constant(w, dtype=tf.float32)
+    w = tf.reshape(w, (1, 1, 1, 1, 11))
+    w = tf.broadcast_to(w, mu.shape + (11,))
     y = [3.38393212320868e-02, 1.73955727711686e-01, 4.10873440975301e-01, 7.26271784264131e-01,
          1.10386324647012e+00, 1.53229503458121e+00, 2.00578290247431e+00, 2.52435214152551e+00,
          3.09535170987551e+00, 3.73947860994972e+00, 4.51783596719327e+00]
+    y = tf.constant(y, dtype=tf.float32)
+    y = tf.reshape(y, (1, 1, 1, 1, 11))
+    y = tf.broadcast_to(y, mu.shape + (11,))
+    h_f = compute_h_f(y, mu, sigma)
+    integral = tf.reduce_sum(w * h_f, axis=-1)
+    remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
+    return tf.concat([integral, remainder], axis=1)
