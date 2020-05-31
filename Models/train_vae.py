@@ -50,7 +50,7 @@ def construct_nets_and_optimizer(hyper, model_type):
         vae_opt = OptPlanarNFDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_Planar':
         vae_opt = OptPlanarNF(nets=nets, optimizer=optimizer, hyper=hyper)
-    elif model_type.find('Relax') > 0:
+    elif model_type.find('Relax') >= 0:
         optimizer_decoder = optimizer
         optimizer_encoder = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
         # optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1,
