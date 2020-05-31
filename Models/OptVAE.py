@@ -274,22 +274,12 @@ class OptRELAXGSDis(OptVAE):
         cov_net_grad = tf.gradients(variance, self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
-
-        # eta = tf.tile(self.eta, multiples=[1, 100, 1, 1])
-        # gg = tf.tile(log_qz_x_grad_theta, multiples=[1, 100, 1, 1])
-        # eta = tf.broadcast_to(eta, shape=(100, 20000, 1, 1))
-        # diff = loss - eta * tf.broadcast_to(c_phi_tilde, shape=(100, 20000, 1, 1))
-        # diff *= gg
-
-        return gradients, loss
+        return gradients, loss, relax_grad_theta, log_alpha
 
     def compute_relax_grad(self, loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad_theta):
-        # diff = loss - self.eta * c_phi_tilde
         diff = loss - self.eta * c_phi_tilde
         relax_grad = diff * log_qz_x_grad
         relax_grad += self.eta * c_phi_diff_grad_theta
-        # relax_grad += self.eta * c_phi_z_grad
-        # relax_grad -= self.eta * c_phi_z_tilde_grad
         # TODO: verify this step
         # relax_grad += f_grad
         return relax_grad
