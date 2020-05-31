@@ -12,6 +12,7 @@ from Utils.Distributions import compute_h_f, compute_probas_via_quad
 class TestDistributions(unittest.TestCase):
 
     def test_proba_integral(self):
+        # TODO: make this test less fragile
         test_tolerance = 1.e-3
         batch_size, categories_n, sample_size, num_of_vars = 3, 10, 1, 1
 
