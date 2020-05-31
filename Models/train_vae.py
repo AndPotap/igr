@@ -149,22 +149,23 @@ def convert_into_linspace(limits_tuple):
 def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace,
                        cont_c_linspace):
     output = vae_opt.compute_gradients(x=x_train)
-    gradients, loss = output
+    # gradients, loss = output
+    gradients, loss, relax, g2 = output
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     # TODO: remove
-    # if iteration_counter % 100 == 0 or iteration_counter == 1:
-    #     print('\n')
-    #     tf.print((iteration_counter, loss))
-    #     tf.print(tf.math.sqrt(tf.reduce_sum(rebar ** 2)))
-    #     tf.print(tf.reduce_max(rebar))
-    #     tf.print(tf.math.reduce_mean(rebar))
-    #     tf.print(tf.reduce_min(rebar))
-    #     print('+++++++++')
-    #     tf.print(tf.math.sqrt(tf.reduce_sum(g2 ** 2)))
-    #     tf.print(tf.reduce_max(g2))
-    #     tf.print(tf.math.reduce_mean(g2))
-    #     tf.print(tf.reduce_min(g2))
+    if iteration_counter % 100 == 0 or iteration_counter == 1:
+        print('\n')
+        tf.print((iteration_counter, loss))
+        tf.print(tf.math.sqrt(tf.reduce_sum(relax ** 2)))
+        tf.print(tf.reduce_max(relax))
+        tf.print(tf.math.reduce_mean(relax))
+        tf.print(tf.reduce_min(relax))
+        print('+++++++++')
+        tf.print(tf.math.sqrt(tf.reduce_sum(g2 ** 2)))
+        tf.print(tf.reduce_max(g2))
+        tf.print(tf.math.reduce_mean(g2))
+        tf.print(tf.reduce_min(g2))
     train_loss_mean(loss)
     update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
                                    disc_c_linspace=disc_c_linspace,
