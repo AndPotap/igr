@@ -153,7 +153,7 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     output = vae_opt.compute_gradients(x=x_train)
     # gradients, loss = output
     gradients, loss, relax, g2 = output
-    # relax = relax[0]
+    relax = relax[0] if len(relax) > 0 else relax
     g2 = g2[0]
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
@@ -279,7 +279,7 @@ def fill_in_dict(hyper, cases):
 
 def fill_model_depending_settings(hyper_copy):
     hyper_copy['latent_discrete_n'] = hyper_copy['n_required']
-    if hyper_copy['model_type'].find('GS') >= 0 or hyper_copy['model_type'].find('Relax') >= 0:
+    if hyper_copy['model_type'].find('GS') >= 0 or hyper_copy['model_type'].find('Ber') >= 0:
         hyper_copy['num_of_discrete_param'] = 1
     else:
         hyper_copy['latent_discrete_n'] += 1
