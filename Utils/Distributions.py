@@ -381,9 +381,8 @@ def compute_h_f(y, mu, sigma):
     inner_exp = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
     exp_term = tf.math.exp(tf.clip_by_value(inner_exp, -50., 50.))
     denom = gaussian.cdf((t - mu_expanded) / sigma_expanded)
-    denom = tf.clip_by_value(denom, 1.e-10, 1.)
     num = tf.math.reduce_prod(denom, axis=1, keepdims=True)
-    output = cons * (num / denom) * exp_term
+    output = cons * (num / tf.clip_by_value(denom, 1.e-10, 1.)) * exp_term
     return output + 1.e-20
 
 
