@@ -11,15 +11,14 @@ from Utils.Distributions import compute_h_f, compute_probas_via_quad
 
 class TestDistributions(unittest.TestCase):
 
-    def test_proba_integral(self):
-        # TODO: make this test less fragile
-        test_tolerance = 1.e-3
-        batch_size, categories_n, sample_size, num_of_vars = 3, 10, 1, 1
+    def test_proba_integral_in_uniform_case(self):
+        test_tolerance = 1.e-5
+        batch_size, categories_n, sample_size, num_of_vars = 3, 9, 1, 1
 
         shape = (batch_size, categories_n, sample_size, num_of_vars)
-        mu = np.random.normal(size=shape)
+        mu = np.zeros(shape) - 0.75
         mu_tf = tf.constant(mu, dtype=tf.float32)
-        sigma = np.exp(np.random.normal(size=shape))
+        sigma = np.ones(shape)
         sigma_tf = tf.constant(sigma, dtype=tf.float32)
         approx = compute_probas_via_quad(mu_tf, sigma_tf).numpy()
 
