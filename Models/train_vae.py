@@ -151,6 +151,8 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     output = vae_opt.compute_gradients(x=x_train)
     # gradients, loss = output
     gradients, loss, relax, g2 = output
+    # relax = relax[0]
+    # g2 = g2[0]
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     # TODO: remove
