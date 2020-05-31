@@ -3,12 +3,43 @@ import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
 from scipy.stats import norm
+from scipy.integrate import quad
 from Utils.Distributions import IGR_SB, IGR_SB_Finite
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
-from Utils.Distributions import compute_h_f
+from Utils.Distributions import compute_h_f, compute_probas_via_quad
 
 
 class TestDistributions(unittest.TestCase):
+
+    def test_proba_integral(self):
+        test_tolerance = 1.e-6
+        # batch_size, categories_n, sample_size, num_of_vars = 3, 10, 1, 2
+        batch_size, categories_n, sample_size, num_of_vars = 1, 10, 1, 1
+
+        shape = (batch_size, categories_n, sample_size, num_of_vars)
+        mu = np.random.normal(size=shape)
+        mu_tf = tf.constant(mu, dtype=tf.float32)
+        sigma = np.exp(np.random.normal(size=shape))
+        sigma_tf = tf.constant(sigma, dtype=tf.float32)
+        approx = compute_probas_via_quad(mu_tf, sigma_tf).numpy()
+
+        ans = np.zeros((batch_size, categories_n + 1, sample_size, num_of_vars))
+        for b in range(batch_size):
+            for s in range(sample_size):
+                for var in range(num_of_vars):
+                    mu0, sigma0 = mu[b, :, s, var], sigma[b, :, s, var]
+                    for j in range(categories_n):
+                        ans[b, j, s, var], _ = quad(compute_probas_integrand, a=0., b=np.inf,
+                                                    args=(mu0, sigma0, j))
+                    ans[b, categories_n, s, var] = 1. - np.sum(ans[b, :, s, var])
+
+        print(f'\nTEST: Gaussian Probas integral')
+        breakpoint()
+        ans[0, :, 0, 0]
+        approx[0, :, 0, 0]
+        diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans)
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(expr=diff < test_tolerance)
 
     def test_h_f_tf_implementation(self):
         test_tolerance = 1.e-6
@@ -178,6 +209,16 @@ class TestDistributions(unittest.TestCase):
 # ===============================================================================================
 # Test Functions
 # ===============================================================================================
+def compute_probas_integrand(t, mu, sigma, j):
+    normal = norm()
+    culm_term = normal.cdf((t - mu) / sigma)
+    mult = np.prod(culm_term) / culm_term
+    cons = (2 * np.pi * sigma ** 2) ** (-0.5)
+    den = cons * np.exp(-0.5 * ((t - mu) / sigma) ** 2)
+    ans = mult * den
+    return ans[j]
+
+
 def compute_h_np(y, mu, sigma):
     normal = norm()
     t = np.sqrt(2 * sigma ** 2) * y
