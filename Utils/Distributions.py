@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 from typing import Tuple, List
 from os import environ as os_env
 
@@ -368,3 +369,18 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
         raise RuntimeError
 
     return chosen_dist
+
+
+def compute_h_f(y, mu, sigma):
+    mu_expanded = tf.expand_dims(mu, -1)
+    sigma_expanded = tf.expand_dims(sigma, -1)
+
+    t = tf.math.sqrt(2 * sigma_expanded ** 2) * y
+    cons = tf.constant(3.141592653589793) ** (-0.5)
+    inner_exp = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
+    exp_term = tf.math.exp(tf.clip_by_value(inner_exp, -50., 50.))
+    denom = tfp.distributions.Normal(loc=0., scale=1.).cdf((t - mu_expanded) / sigma_expanded)
+    denom = tf.clip_by_value(denom, 1.e-10, 1.)
+    num = tf.math.reduce_prod(denom, axis=1, keepdims=True)
+    output = cons * (num / denom) * exp_term
+    return output
