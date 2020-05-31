@@ -222,16 +222,8 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 
 # Utils
 # =================================================================================================
-# @tf.function
 def project_to_vertices_via_softmax_pp(lam):
-    r'''
-    \delta = \exp(\mu + \sigma \bar{\epsilon})
-    '''
-    # for \tau = 0.15 -> \delta = 100
-    # delta = tf.constant(100., dtype=tf.float32)
     delta = tf.constant(1., dtype=tf.float32)
-    # for \tau = 0.5 -> \delta = 0.84
-    # delta = tf.constant(4.75, dtype=tf.float32)
     one = tf.constant(1.0, dtype=tf.float32)
 
     lam_max = tf.math.reduce_max(lam, axis=1, keepdims=True)
