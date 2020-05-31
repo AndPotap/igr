@@ -374,13 +374,22 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
 def compute_h_f(y, mu, sigma):
     mu_expanded = tf.expand_dims(mu, -1)
     sigma_expanded = tf.expand_dims(sigma, -1)
+    gaussian = tfp.distributions.Normal(loc=0., scale=1.)
 
     t = tf.math.sqrt(2 * sigma_expanded ** 2) * y
     cons = tf.constant(3.141592653589793) ** (-0.5)
     inner_exp = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
     exp_term = tf.math.exp(tf.clip_by_value(inner_exp, -50., 50.))
-    denom = tfp.distributions.Normal(loc=0., scale=1.).cdf((t - mu_expanded) / sigma_expanded)
+    denom = gaussian.cdf((t - mu_expanded) / sigma_expanded)
     denom = tf.clip_by_value(denom, 1.e-10, 1.)
     num = tf.math.reduce_prod(denom, axis=1, keepdims=True)
     output = cons * (num / denom) * exp_term
-    return output
+    return output + 1.e-20
+
+
+def compute_probas_via_quad(mu, sigma):
+    w = [8.62207055355942e-02, 1.85767318955695e-01, 2.35826124129815e-01, 2.05850326841520e-01,
+         1.19581170615297e-01, 4.31443275880520e-02, 8.86764989474414e-03, 9.27141875082127e-04,
+         4.15719321667468e-05, 5.86857646837617e-07, 1.22714513994286e-09]
+    y = [3.38393212320868e-02, 1.73955727711686e-01, 4.10873440975301e-01, 7.26271784264131e-01,
+         1.10386324647012e-00, ]
