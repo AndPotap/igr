@@ -3,11 +3,34 @@ import time
 import numpy as np
 import tensorflow as tf
 from scipy.special import logsumexp, loggamma
+from scipy.stats import norm
 from Utils.Distributions import IGR_SB, IGR_SB_Finite, IGR_I
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
 
 
 class TestDistributions(unittest.TestCase):
+
+    def test_h_function_formula_preservation(self):
+        test_tolerance = 1.e-0
+        normal = norm()
+        categories_n = 10
+        mu = np.random.normal(size=(1, categories_n))
+        sigma = np.exp(np.random.normal(size=(1, categories_n)))
+        y = np.array([[1., 0., 2.]]).T
+        t = np.sqrt(2 * sigma ** 2) * y
+        h_np = compute_h_np(y, mu, sigma)
+        change_of_vars = (2 * sigma ** 2) ** (-0.5)
+        h_term = h_np * np.exp(-y ** 2) * change_of_vars
+
+        culm_term = normal.cdf((t - mu) / sigma)
+        mult = np.prod(culm_term, axis=1, keepdims=True) / culm_term
+        cons = (2 * np.pi * sigma ** 2) ** (-0.5)
+        den = cons * np.exp(-0.5 * ((t - mu) / sigma) ** 2)
+        ans = mult * den
+        print(f'\nTEST: Gaussian integral change')
+        diff = np.linalg.norm(h_term - ans) / np.linalg.norm(ans)
+        print(f'\nDiff {diff:1.3e}')
+        self.assertTrue(expr=diff < test_tolerance)
 
     def test_sample_speed(self):
         test_tolerance = 1.e-0
@@ -149,10 +172,21 @@ class TestDistributions(unittest.TestCase):
                 self.assertTrue(expr=relative_diff < test_tolerance)
 
 
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# ====================================================================================================
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ===============================================================================================
 # Test Functions
-# ====================================================================================================
+# ===============================================================================================
+def compute_h_np(y, mu, sigma):
+    normal = norm()
+    t = np.sqrt(2 * sigma ** 2) * y
+    cons = np.pi ** (-0.5)
+    exp_term = np.exp((1 / (2 * sigma ** 2)) * (2 * mu * t - mu ** 2))
+    denom = normal.cdf((t - mu) / sigma)
+    num = np.prod(denom, axis=1, keepdims=True)
+    output = cons * (num / denom) * exp_term
+    return output
+
+
 def compute_softmaxpp_for_all(lam, delta=1.):
     batch_n, categories_n, sample_size, num_of_vars = lam.shape
     psi = np.zeros(shape=(batch_n, categories_n + 1, sample_size, num_of_vars))
