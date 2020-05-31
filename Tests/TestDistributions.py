@@ -12,9 +12,8 @@ from Utils.Distributions import compute_h_f, compute_probas_via_quad
 class TestDistributions(unittest.TestCase):
 
     def test_proba_integral(self):
-        test_tolerance = 1.e-6
-        # batch_size, categories_n, sample_size, num_of_vars = 3, 10, 1, 2
-        batch_size, categories_n, sample_size, num_of_vars = 1, 10, 1, 1
+        test_tolerance = 1.e-3
+        batch_size, categories_n, sample_size, num_of_vars = 3, 10, 1, 1
 
         shape = (batch_size, categories_n, sample_size, num_of_vars)
         mu = np.random.normal(size=shape)
@@ -29,14 +28,13 @@ class TestDistributions(unittest.TestCase):
                 for var in range(num_of_vars):
                     mu0, sigma0 = mu[b, :, s, var], sigma[b, :, s, var]
                     for j in range(categories_n):
-                        ans[b, j, s, var], _ = quad(compute_probas_integrand, a=0., b=np.inf,
+                        # ans[b, j, s, var], _ = quad(compute_probas_integrand, a=0., b=np.inf,
+                        #                             args=(mu0, sigma0, j))
+                        ans[b, j, s, var], _ = quad(compute_probas_integrand2, a=0., b=np.inf,
                                                     args=(mu0, sigma0, j))
                     ans[b, categories_n, s, var] = 1. - np.sum(ans[b, :, s, var])
 
         print(f'\nTEST: Gaussian Probas integral')
-        breakpoint()
-        ans[0, :, 0, 0]
-        approx[0, :, 0, 0]
         diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans)
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
@@ -209,6 +207,13 @@ class TestDistributions(unittest.TestCase):
 # ===============================================================================================
 # Test Functions
 # ===============================================================================================
+def compute_probas_integrand2(y, mu, sigma, j):
+    h_np = compute_h_np2(y, mu, sigma)
+    exp_term = np.exp(-y ** 2)
+    ans = h_np * exp_term
+    return ans[j]
+
+
 def compute_probas_integrand(t, mu, sigma, j):
     normal = norm()
     culm_term = normal.cdf((t - mu) / sigma)
@@ -219,11 +224,24 @@ def compute_probas_integrand(t, mu, sigma, j):
     return ans[j]
 
 
+def compute_h_np2(y, mu, sigma):
+    normal = norm()
+    t = np.sqrt(2 * sigma ** 2) * y
+    cons = np.pi ** (-0.5)
+    inner_exp = (1 / (2 * sigma ** 2)) * (2 * mu * t - mu ** 2)
+    exp_term = np.exp(np.clip(inner_exp, -50, +50))
+    denom = normal.cdf((t - mu) / sigma)
+    num = np.prod(denom)
+    output = cons * (num / np.clip(denom, 1.e-10, 1.)) * exp_term
+    return output
+
+
 def compute_h_np(y, mu, sigma):
     normal = norm()
     t = np.sqrt(2 * sigma ** 2) * y
     cons = np.pi ** (-0.5)
-    exp_term = np.exp((1 / (2 * sigma ** 2)) * (2 * mu * t - mu ** 2))
+    inner_exp = (1 / (2 * sigma ** 2)) * (2 * mu * t - mu ** 2)
+    exp_term = np.exp(np.clip(inner_exp, -50, +50))
     denom = normal.cdf((t - mu) / sigma)
     num = np.prod(denom, axis=1, keepdims=True)
     output = cons * (num / denom) * exp_term
