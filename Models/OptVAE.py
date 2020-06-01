@@ -235,7 +235,7 @@ class OptRELAX(OptVAE):
         x_logit = self.decode([z])
         log_probs = self.transform_params_into_log_probs(params)
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
-        log_p = self.compute_log_pmf(z=z, log_probs=tf.zeros_like(log_probs))
+        log_p = self.compute_log_pmf(z=z, log_probs=tf.zeros_like(log_probs), normalize=True)
         log_qz_x = self.compute_log_pmf(z=z, log_probs=log_probs)
         kl = tf.reduce_mean(log_p - log_qz_x)
         # kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
@@ -311,9 +311,23 @@ class OptRELAXIGR(OptRELAX):
     @staticmethod
     def transform_params_into_log_probs(params):
         mu, xi = params
+        # mu -= 0.75
         sigma = tf.math.exp(xi)
+        # log_probs = tf.math.log(tf.clip_by_value(compute_probas_via_quad(mu, sigma), 1.e-20, 1.))
         log_probs = compute_probas_via_quad(mu, sigma)
+        # TODO: check if I got a negative value!
+        # tf.math.reduce_sum(tf.cast(tf.math.is_nan(aux), dtype=tf.float32))
         return log_probs
+
+    def compute_log_pmf(self, z, log_probs, normalize=False):
+        if normalize:
+            log_normalized = log_probs - tf.reduce_logsumexp(log_probs, axis=1, keepdims=True)
+        else:
+            log_normalized = log_probs
+        log_normalized = log_probs - tf.reduce_logsumexp(log_probs, axis=1, keepdims=True)
+        log_categorical_pmf = tf.math.reduce_sum(z * log_normalized, axis=1)
+        log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
+        return log_categorical_pmf
 
     def compute_log_pmf_grad(self, z, params):
         log_probs = self.transform_params_into_log_probs(params)
@@ -322,6 +336,7 @@ class OptRELAXIGR(OptRELAX):
 
     def get_relax_variables_from_params(self, x, params):
         mu, xi = params
+        # mu -= 0.75
         epsilon = tf.random.normal(shape=mu.shape)
         sigma = tf.math.exp(xi)
         z_un = mu + sigma * epsilon
@@ -358,6 +373,8 @@ class OptRELAXIGR(OptRELAX):
         diff = loss - self.eta * c_phi
         for i in range(len(log_qz_x_grad)):
             lax = diff * log_qz_x_grad[i]
+            # lax = loss * log_qz_x_grad[i]
+            # lax -= c_phi * log_qc_grad[i]
             lax += self.eta * c_phi_grad[i]
             lax += log_qz_x_grad[i]
             lax_grads.append(lax)
