@@ -342,7 +342,7 @@ class RelaxCovNet(tf.keras.models.Model):
         flat_layer = tf.keras.layers.Flatten()(input_layer)
         layer1 = tf.keras.layers.Dense(units=50, activation='relu')(2. * flat_layer - 1.)
         layer2 = tf.keras.layers.Dense(units=1)(layer1)
-        scale = tf.Variable(0., trainable=True)
+        scale = tf.Variable(1., trainable=True)
         out = scale * layer2
         # out = layer2
         self.net = tf.keras.Model(inputs=[input_layer], outputs=[out])
