@@ -306,6 +306,7 @@ class OptRELAXIGR(OptRELAX):
         super().__init__(nets=nets, optimizers=optimizers, hyper=hyper)
         cov_net_shape = (self.n_required + 1, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
+        self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
 
     @staticmethod
     def transform_params_into_log_probs(params):
