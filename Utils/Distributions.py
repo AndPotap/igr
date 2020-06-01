@@ -394,4 +394,4 @@ def compute_probas_via_quad(mu, sigma):
     h_f = compute_h_f(y, mu, sigma)
     integral = tf.reduce_sum(w * h_f, axis=-1)
     remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
-    return tf.concat([integral, remainder], axis=1)
+    return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
