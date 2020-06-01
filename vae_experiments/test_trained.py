@@ -5,9 +5,9 @@ from Models.train_vae import construct_nets_and_optimizer
 from Utils.load_data import load_vae_dataset
 
 tic = time.time()
-# dataset_name = 'mnist'
+dataset_name = 'mnist'
 # dataset_name = 'fmnist'
-dataset_name = 'omniglot'
+# dataset_name = 'omniglot'
 path_to_trained_models = './Results/trained_models/' + dataset_name + '/'
 models = {
     1: {'model_dir': 'igr', 'model_type': 'IGR_I_Dis'},
@@ -15,7 +15,7 @@ models = {
     3: {'model_dir': 'pf', 'model_type': 'IGR_Planar_Dis'},
     4: {'model_dir': 'sb', 'model_type': 'IGR_SB_Finite_Dis'},
 }
-select_case = 3
+select_case = 4
 run_with_sample = False
 samples_n = 1 * int(1.e3)
 
@@ -38,12 +38,13 @@ train_dataset, test_dataset, np_test_images, hyper = data
 epoch = hyper['epochs']
 vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=model_type)
 vae_opt.nets.load_weights(filepath=path_to_trained_models + weights_file)
+vae_opt.test_with_one_hot = True
 
 test_loss_mean = tf.keras.metrics.Mean()
 for x_test in test_dataset:
-    loss, *_ = vae_opt.compute_losses_from_x_wo_gradients(x_test,
-                                                          sample_from_cont_kl=False,
-                                                          sample_from_disc_kl=False)
+    loss = vae_opt.compute_losses_from_x_wo_gradients(x_test,
+                                                      sample_from_cont_kl=False,
+                                                      sample_from_disc_kl=False)
     test_loss_mean(loss)
 # train_loss_mean = tf.keras.metrics.Mean()
 # for x_train in train_dataset:
