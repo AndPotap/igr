@@ -111,7 +111,7 @@ def train_sop(sop_optimizer, hyper, train_dataset, test_dataset, logger):
                               iteration_counter=iteration_counter,
                               tic=tic)
         else:
-            logger.info(f'Epoch {epoch:4d} || Test_Recon 0.000e+00 || '
+            logger.info(f'Epoch {epoch:4d} || Test_Recon 0.00000e+00 || '
                         f'Train_Recon {train_mean_loss.result().numpy():2.3e} || '
                         f'Temp {sop_optimizer.model.temp:2.1e} || '
                         f'{sop_optimizer.model.model_type} || '
@@ -145,7 +145,7 @@ def evaluate_progress(epoch, sop_optimizer, test_dataset, train_dataset, train_m
         train_mean_loss = evaluate_loss_on_dataset(train_dataset, sop_optimizer, hyper)
     lr = sop_optimizer.optimizer.learning_rate.numpy()
     time_taken = time.time() - tic
-    logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.3e} || '
+    logger.info(f'Epoch {epoch:4d} || Test_Recon {test_mean_loss.result().numpy():2.5e} || '
                 f'Train_Recon {train_mean_loss.result().numpy():2.3e} || '
                 f'Temp {sop_optimizer.model.temp:2.1e} || '
                 f'{sop_optimizer.model.model_type} || '
