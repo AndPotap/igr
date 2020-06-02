@@ -60,9 +60,11 @@ def run_sop(hyper, results_path):
 
     sop_optimizer = setup_sop_optimizer(hyper=hyper)
 
-    log_path = results_path + f'/loss_{sop_optimizer.model.model_type}.log'
+    model_type = sop_optimizer.model.model_type
+    log_path = results_path + f'/loss_{model_type}.log'
     logger = setup_logger(log_file_name=append_timestamp_to_file(file_name=log_path,
-                                                                 termination='.log'))
+                                                                 termination='.log'),
+                          logger_name=model_type + str(hyper['seed']))
     log_all_hyperparameters(hyper=hyper, logger=logger)
     save_hyper(hyper)
     train_sop(sop_optimizer=sop_optimizer, hyper=hyper, train_dataset=train_dataset,
