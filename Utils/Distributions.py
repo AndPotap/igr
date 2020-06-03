@@ -347,6 +347,20 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
     return chosen_dist
 
 
+def compute_log_h_f(y, mu, sigma):
+    mu_expanded = tf.expand_dims(mu, -1)
+    sigma_expanded = tf.expand_dims(sigma, -1)
+    gaussian = tfp.distributions.Normal(loc=0., scale=1.)
+
+    t = tf.math.sqrt(2 * sigma_expanded ** 2) * y
+    cons = tf.constant(3.141592653589793) ** (-0.5)
+    exp_term = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
+    cdf_broad = gaussian.log_cdf((t - mu_expanded) / sigma_expanded)
+    cdf_term = tf.math.reduce_sum(cdf_broad, axis=1, keepdims=True) - cdf_broad
+    output = tf.math.log(cons) + cdf_term + exp_term
+    return output + 1.e-20
+
+
 def compute_h_f(y, mu, sigma):
     mu_expanded = tf.expand_dims(mu, -1)
     sigma_expanded = tf.expand_dims(sigma, -1)
@@ -359,7 +373,7 @@ def compute_h_f(y, mu, sigma):
     denom = gaussian.cdf((t - mu_expanded) / sigma_expanded)
     num = tf.math.reduce_prod(denom, axis=1, keepdims=True)
     output = cons * (num / tf.clip_by_value(denom, 1.e-10, 1.)) * exp_term
-    return output + 1.e-20
+    return output
 
 
 def compute_probas_via_quad(mu, sigma):
@@ -375,7 +389,8 @@ def compute_probas_via_quad(mu, sigma):
     y = tf.constant(y, dtype=tf.float32)
     y = tf.reshape(y, (1, 1, 1, 1, 11))
     y = tf.broadcast_to(y, mu.shape + (11,))
-    h_f = compute_h_f(y, mu, sigma)
-    integral = tf.reduce_sum(w * h_f, axis=-1)
+    log_h_f = compute_log_h_f(y, mu, sigma)
+    log_integral = tf.math.log(w) + log_h_f
+    integral = tf.math.exp(tf.math.reduce_logsumexp(log_integral, axis=-1))
     remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
     return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
