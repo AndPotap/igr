@@ -26,7 +26,6 @@ class Distributions:
         self.log_psi = tf.constant(0., dtype=tf.float32)
         self.psi = tf.constant(0., dtype=tf.float32)
 
-    @tf.function()
     def broadcast_params_to_sample_size(self, params: list):
         params_broad = []
         for param in params:
@@ -45,7 +44,6 @@ class Distributions:
         return epsilon
 
 
-# noinspection PyPep8Naming
 class IGR_I(Distributions):
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
         super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
@@ -74,7 +72,6 @@ class IGR_I(Distributions):
         return lam
 
 
-# noinspection PyPep8Naming
 class IGR_Planar(IGR_I):
     def __init__(self, mu, xi, temp, planar_flow, sample_size=1, noise_type='normal'):
         super().__init__(mu, xi, temp, sample_size, noise_type)
@@ -85,7 +82,6 @@ class IGR_Planar(IGR_I):
         return lam
 
 
-# noinspection PyPep8Naming
 class IGR_SB(IGR_I):
 
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal', threshold=0.99,
@@ -126,7 +122,6 @@ class IGR_SB(IGR_I):
         self.n_required = int(np.percentile(res, q=self.quantile)) + 1
 
 
-# noinspection PyPep8Naming
 class IGR_SB_Finite(IGR_SB):
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
         super().__init__(mu=mu, xi=xi, temp=temp, sample_size=sample_size, noise_type=noise_type)
@@ -154,8 +149,6 @@ class GS(Distributions):
         self.psi = tf.math.softmax(logits=self.lam, axis=1)
 
 
-# Distribution functions
-# ====================================================================================================
 def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> tf.Tensor:
     n_required = tf.constant(value=psi.shape[1], dtype=tf.float32)
     offset = tf.constant(1.e-20)
@@ -179,8 +172,6 @@ def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tens
     return log_exp_gs_dist
 
 
-# Optimization functions for the Expectation Minimization Loss
-# ====================================================================================================
 def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dist_type: str = 'sb',
                  sample_size: int = 1, threshold: float = 0.99, run_iteratively=False, run_kl=True,
                  planar_flow: str = None):
@@ -220,8 +211,6 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
     optimizer.apply_gradients(zip(gradients, variables))
 
 
-# Utils
-# =================================================================================================
 def project_to_vertices_via_softmax_pp(lam):
     delta = tf.constant(1., dtype=tf.float32)
     one = tf.constant(1.0, dtype=tf.float32)
@@ -321,13 +310,8 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
     chosen_dist = select_chosen_distribution(dist_type=dist_type, threshold=threshold,
                                              params=params, temp=temp, sample_size=sample_size,
                                              planar_flow=planar_flow)
-    # categories_n = params[0].shape[1]
     chosen_dist.generate_sample()
     if output_one_hot:
-        # vector = np.zeros(shape=(1, categories_n, sample_size, 1))
-        # n_required = chosen_dist.psi.shape[1]
-        # vector[:, :n_required, :, :] = chosen_dist.psi.numpy()
-        # return vector
         return chosen_dist.psi.numpy()
     else:
         sample = np.argmax(chosen_dist.psi.numpy(), axis=1)[0, 0, 0]
