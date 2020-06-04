@@ -347,19 +347,21 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
     return chosen_dist
 
 
-def compute_grad_log_gauss(z, mu, sigma):
-    grad_mu = compute_grad_log_gauss_mu(z, mu, sigma)
-    grad_sigma = compute_grad_log_gauss_sigma(z, mu, sigma)
+def compute_log_gauss_grad(z, params):
+    mu, xi = params
+    sigma = tf.math.exp(xi)
+    grad_mu = compute_log_gauss_grad_mu(z, mu, sigma)
+    grad_sigma = compute_log_gauss_grad_sigma(z, mu, sigma)
     grads = [grad_mu, grad_sigma]
     return grads
 
 
-def compute_grad_log_gauss_mu(z, mu, sigma):
+def compute_log_gauss_grad_mu(z, mu, sigma):
     grad = (z - mu) / (sigma ** 2)
     return grad
 
 
-def compute_grad_log_gauss_sigma(z, mu, sigma):
+def compute_log_gauss_grad_sigma(z, mu, sigma):
     grad = - 1 / sigma
     grad += (z - mu) ** 2 / sigma ** 3
     return grad
