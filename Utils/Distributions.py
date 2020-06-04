@@ -380,18 +380,22 @@ def compute_log_probs_via_quad(mu, sigma):
     w = [8.62207055355942e-02, 1.85767318955695e-01, 2.35826124129815e-01, 2.05850326841520e-01,
          1.19581170615297e-01, 4.31443275880520e-02, 8.86764989474414e-03, 9.27141875082127e-04,
          4.15719321667468e-05, 5.86857646837617e-07, 1.22714513994286e-09]
-    w = tf.constant(w, dtype=tf.float32)
-    w = tf.reshape(w, (1, 1, 1, 1, 11))
-    w = tf.broadcast_to(w, mu.shape + (11,))
+    w = reshape_for_quad(w, mu.shape)
     y = [3.38393212320868e-02, 1.73955727711686e-01, 4.10873440975301e-01, 7.26271784264131e-01,
          1.10386324647012e+00, 1.53229503458121e+00, 2.00578290247431e+00, 2.52435214152551e+00,
          3.09535170987551e+00, 3.73947860994972e+00, 4.51783596719327e+00]
-    y = tf.constant(y, dtype=tf.float32)
-    y = tf.reshape(y, (1, 1, 1, 1, 11))
-    y = tf.broadcast_to(y, mu.shape + (11,))
+    y = reshape_for_quad(y, mu.shape)
+
     log_h_f = compute_log_h_f(y, mu, sigma)
     log_integral = tf.math.reduce_logsumexp(tf.math.log(w) + log_h_f, axis=-1)
     return log_integral
+
+
+def reshape_for_quad(v, shape):
+    v = tf.constant(v, dtype=tf.float32)
+    v = tf.reshape(v, (1, 1, 1, 1, 11))
+    v = tf.broadcast_to(v, shape + (11,))
+    return v
 
 
 def compute_igr_probs(mu, sigma):
