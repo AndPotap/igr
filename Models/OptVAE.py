@@ -3,7 +3,8 @@ import tensorflow as tf
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
-from Utils.Distributions import project_to_vertices_via_softmax_pp, compute_probas_via_quad
+from Utils.Distributions import project_to_vertices_via_softmax_pp
+from Utils.Distributions import compute_igr_log_probs
 from Models.VAENet import RelaxCovNet
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -314,8 +315,7 @@ class OptRELAXIGR(OptRELAX):
         # mu -= 0.75
         sigma = tf.math.exp(xi)
         # log_probs = tf.math.log(tf.clip_by_value(compute_probas_via_quad(mu, sigma), 1.e-20, 1.))
-        log_probs = compute_probas_via_quad(mu, sigma)
-        # TODO: check if I got a negative value!
+        log_probs = compute_igr_log_probs(mu, sigma)
         # tf.math.reduce_sum(tf.cast(tf.math.is_nan(aux), dtype=tf.float32))
         return log_probs
 
