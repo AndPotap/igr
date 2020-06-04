@@ -86,12 +86,18 @@ class VAENet(tf.keras.Model):
     def generate_relax_inference_net(self):
         input_layer = tf.keras.layers.Input(shape=self.image_shape)
         flat_layer = tf.keras.layers.Flatten()(input_layer)
+        # if self.model_type == 'Relax_IGR':
+        #     bias_init = tf.keras.initializers.Constant(value=-1.75)
+        # else:
+        #     bias_init = tf.keras.initializers.Zeros()
+        bias_init = tf.keras.initializers.Zeros()
         layer1 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1',
                                        activation='relu')(2. * flat_layer - 1.)
         layer2 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_2',
                                        activation='relu')(layer1)
         layer3 = tf.keras.layers.Dense(units=self.latent_dim_in,
-                                       name='encoder_out')(layer2)
+                                       name='encoder_out',
+                                       bias_initializer=bias_init)(layer2)
         self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[layer3])
 
     def generate_relax_generative_net(self):
