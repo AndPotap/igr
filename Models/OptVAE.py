@@ -329,11 +329,11 @@ class OptRELAXIGR(OptRELAX):
         log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
         return log_categorical_pmf
 
-    def compute_log_pmf_grad(self, z, params):
-        log_probs = self.transform_params_into_log_probs(params)
-        normalized = tf.math.exp(tf.clip_by_value(log_probs, -50., 50.))
-        grad = z - normalized
-        return grad
+    #  def compute_log_pmf_grad(self, z, params):
+    #      log_probs = self.transform_params_into_log_probs(params)
+    #      normalized = tf.math.exp(tf.clip_by_value(log_probs, -50., 50.))
+    #      grad = z - normalized
+    #      return grad
 
     def get_relax_variables_from_params(self, x, params):
         mu, xi = params
@@ -390,9 +390,8 @@ class OptRELAXIGR(OptRELAX):
 
         c_phi_grad = tf.gradients(c_phi, params)
         log_gauss_grad = compute_log_gauss_grad(z_un, params)
-        log_cat_grad = self.compute_log_pmf_grad(z=one_hot, params=params)
         log_probs = self.transform_params_into_log_probs(params)
-        log_qz_x_grad = tf.gradients(log_probs, params, grad_ys=log_cat_grad)
+        log_qz_x_grad = tf.gradients(log_probs, params, grad_ys=one_hot)
         lax_grad = self.compute_lax_grad(loss, c_phi, log_qz_x_grad, log_gauss_grad, c_phi_grad)
 
         encoder_grads = tf.gradients(params, self.encoder_vars, grad_ys=lax_grad)
