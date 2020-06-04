@@ -347,6 +347,50 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
     return chosen_dist
 
 
+def compute_igr_probs(mu, sigma):
+    integral = tf.math.exp(compute_log_probs_via_quad(mu, sigma))
+    remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
+    return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
+
+
+def compute_igr_log_probs(mu, sigma):
+    log_integral_probs = compute_log_probs_via_quad(mu, sigma)
+    log_last_prob = compute_log_last_prob(mu, sigma)
+    log_probs = tf.concat([log_integral_probs, log_last_prob], axis=1)
+    return log_probs
+
+
+def compute_log_probs_via_quad(mu, sigma):
+    w = [8.62207055355942e-02, 1.85767318955695e-01, 2.35826124129815e-01, 2.05850326841520e-01,
+         1.19581170615297e-01, 4.31443275880520e-02, 8.86764989474414e-03, 9.27141875082127e-04,
+         4.15719321667468e-05, 5.86857646837617e-07, 1.22714513994286e-09]
+    w = reshape_for_quad(w, mu.shape)
+    y = [3.38393212320868e-02, 1.73955727711686e-01, 4.10873440975301e-01, 7.26271784264131e-01,
+         1.10386324647012e+00, 1.53229503458121e+00, 2.00578290247431e+00, 2.52435214152551e+00,
+         3.09535170987551e+00, 3.73947860994972e+00, 4.51783596719327e+00]
+    y = reshape_for_quad(y, mu.shape)
+
+    log_h_f = compute_log_h_f(y, mu, sigma)
+    log_integral = tf.math.reduce_logsumexp(tf.math.log(w) + log_h_f, axis=-1)
+    return log_integral
+
+
+def reshape_for_quad(v, shape):
+    v = tf.constant(v, dtype=tf.float32)
+    v = tf.reshape(v, (1, 1, 1, 1, 11))
+    v = tf.broadcast_to(v, shape + (11,))
+    return v
+
+
+def compute_log_last_prob(mu, sigma):
+    mu_expanded = tf.expand_dims(mu, -1)
+    sigma_expanded = tf.expand_dims(sigma, -1)
+    gaussian = tfp.distributions.Normal(loc=0., scale=1.)
+    cdf_broad = gaussian.log_cdf((-mu_expanded) / sigma_expanded)
+    log_last_prob = tf.math.reduce_sum(cdf_broad, axis=1)
+    return log_last_prob
+
+
 def compute_log_h_f(y, mu, sigma):
     mu_expanded = tf.expand_dims(mu, -1)
     sigma_expanded = tf.expand_dims(sigma, -1)
@@ -375,31 +419,3 @@ def compute_h_f(y, mu, sigma):
     num = tf.math.reduce_prod(denom, axis=1, keepdims=True)
     output = cons * (num / tf.clip_by_value(denom, 1.e-10, 1.)) * exp_term
     return output
-
-
-def compute_log_probs_via_quad(mu, sigma):
-    w = [8.62207055355942e-02, 1.85767318955695e-01, 2.35826124129815e-01, 2.05850326841520e-01,
-         1.19581170615297e-01, 4.31443275880520e-02, 8.86764989474414e-03, 9.27141875082127e-04,
-         4.15719321667468e-05, 5.86857646837617e-07, 1.22714513994286e-09]
-    w = reshape_for_quad(w, mu.shape)
-    y = [3.38393212320868e-02, 1.73955727711686e-01, 4.10873440975301e-01, 7.26271784264131e-01,
-         1.10386324647012e+00, 1.53229503458121e+00, 2.00578290247431e+00, 2.52435214152551e+00,
-         3.09535170987551e+00, 3.73947860994972e+00, 4.51783596719327e+00]
-    y = reshape_for_quad(y, mu.shape)
-
-    log_h_f = compute_log_h_f(y, mu, sigma)
-    log_integral = tf.math.reduce_logsumexp(tf.math.log(w) + log_h_f, axis=-1)
-    return log_integral
-
-
-def reshape_for_quad(v, shape):
-    v = tf.constant(v, dtype=tf.float32)
-    v = tf.reshape(v, (1, 1, 1, 1, 11))
-    v = tf.broadcast_to(v, shape + (11,))
-    return v
-
-
-def compute_igr_probs(mu, sigma):
-    integral = tf.math.exp(compute_log_probs_via_quad(mu, sigma))
-    remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
-    return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
