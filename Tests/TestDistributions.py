@@ -10,9 +10,32 @@ from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via
 from Utils.Distributions import compute_h_f, compute_igr_probs
 from Utils.Distributions import compute_igr_log_probs
 from Utils.Distributions import compute_log_gauss_grad
+from Utils.Distributions import project_to_vertices
 
 
 class TestDistributions(unittest.TestCase):
+
+    def test_log_cat_grad(self):
+        test_tolerance = 1.e-5
+        batch_n, categories_n, sample_size, num_of_vars = 1, 9, 1, 1
+        mu = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
+        xi = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
+        params = [mu, xi]
+        z_un = mu + tf.math.exp(tf.clip_by_value(xi, -50., 50.)) * tf.random.normal(shape=mu.shape)
+        z = project_to_vertices_via_softmax_pp(z_un)
+        one_hot = project_to_vertices(z, categories_n + 1)
+        with tf.GradientTape(persistent=True) as tape:
+            tape.watch(params)
+            log_probs = compute_igr_log_probs(mu, tf.math.exp(tf.clip_by_value(xi, -50., 50.)))
+            log_pmf = tf.reduce_sum(tf.reduce_sum(one_hot * log_probs, axis=1), axis=(1, 1))
+
+        log_pmf_g = tape.gradient(target=log_pmf, sources=params)
+        log_cat_g = compute_log_categorical_grads(one_hot, params)
+        print(f'\nTEST: log categorical grad')
+        for idx, grad in enumerate(log_pmf_g):
+            diff = np.linalg.norm(log_cat_g[idx] - grad) / np.linalg.norm(grad)
+            print(f'\nDiff {diff:1.3e}')
+            self.assertTrue(expr=diff < test_tolerance)
 
     def test_grad_log_gauss(self):
         test_tolerance = 1.e-5
@@ -372,6 +395,15 @@ def broadcast_sample_and_num(a, shape, sample_size, num_of_vars):
     a = np.broadcast_to(a, shape=shape + (sample_size, num_of_vars))
     a = tf.constant(value=a, dtype=tf.float32)
     return a
+
+
+@tf.function()
+def compute_log_categorical_grads(z, params):
+    mu, xi = params
+    sigma = tf.math.exp(xi)
+    log_probs = compute_igr_log_probs(mu, sigma)
+    log_qz_x_grad = tf.gradients(log_probs, params, grad_ys=z)
+    return log_qz_x_grad
 
 
 if __name__ == '__main__':
