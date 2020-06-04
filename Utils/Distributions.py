@@ -347,6 +347,24 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
     return chosen_dist
 
 
+def compute_grad_log_gauss(z, mu, sigma):
+    grad_mu = compute_grad_log_gauss_mu(z, mu, sigma)
+    grad_sigma = compute_grad_log_gauss_sigma(z, mu, sigma)
+    grads = [grad_mu, grad_sigma]
+    return grads
+
+
+def compute_grad_log_gauss_mu(z, mu, sigma):
+    grad = (z - mu) / (sigma ** 2)
+    return grad
+
+
+def compute_grad_log_gauss_sigma(z, mu, sigma):
+    grad = - 1 / sigma
+    grad += (z - mu) ** 2 / sigma ** 3
+    return grad
+
+
 def compute_igr_log_probs(mu, sigma):
     log_integral_probs = compute_log_probs_via_quad(mu, sigma)
     log_last_prob = compute_log_last_prob(mu, sigma)
