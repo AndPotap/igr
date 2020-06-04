@@ -29,8 +29,8 @@ model_cases = {
 }
 dataset_cases = {
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense'},
-    1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
-    # 1: {'dataset_name': 'mnist', 'architecture': 'dense_relax'},
+    # 1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
+    1: {'dataset_name': 'mnist', 'architecture': 'dense_relax'},
     # 2: {'dataset_name': 'fmnist', 'architecture': 'dense'},
     # 3: {'dataset_name': 'omniglot', 'architecture': 'dense'},
 }
