@@ -355,11 +355,9 @@ def compute_igr_log_probs(mu, sigma):
 
 
 def compute_log_last_prob(mu, sigma):
-    mu_expanded = tf.expand_dims(mu, -1)
-    sigma_expanded = tf.expand_dims(sigma, -1)
     gaussian = tfp.distributions.Normal(loc=0., scale=1.)
-    cdf_broad = gaussian.log_cdf((-mu_expanded) / sigma_expanded)
-    log_last_prob = tf.math.reduce_sum(cdf_broad, axis=1)
+    cdf_broad = gaussian.log_cdf((-mu) / sigma)
+    log_last_prob = tf.math.reduce_sum(cdf_broad, axis=1, keepdims=True)
     return log_last_prob
 
 
