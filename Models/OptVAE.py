@@ -5,6 +5,7 @@ from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
 from Utils.Distributions import project_to_vertices_via_softmax_pp
 from Utils.Distributions import compute_igr_log_probs
+from Utils.Distributions import compute_log_gauss_grad
 from Models.VAENet import RelaxCovNet
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -307,16 +308,15 @@ class OptRELAXIGR(OptRELAX):
         super().__init__(nets=nets, optimizers=optimizers, hyper=hyper)
         cov_net_shape = (self.n_required + 1, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
-        self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
+        # self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
+        self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
 
     @staticmethod
     def transform_params_into_log_probs(params):
         mu, xi = params
         mu -= 0.75
         sigma = tf.math.exp(xi)
-        # log_probs = tf.math.log(tf.clip_by_value(compute_probas_via_quad(mu, sigma), 1.e-20, 1.))
         log_probs = compute_igr_log_probs(mu, sigma)
-        # tf.math.reduce_sum(tf.cast(tf.math.is_nan(aux), dtype=tf.float32))
         return log_probs
 
     def compute_log_pmf(self, z, log_probs, normalize=False):
@@ -345,37 +345,61 @@ class OptRELAXIGR(OptRELAX):
         one_hot = tf.transpose(tf.one_hot(tf.argmax(tf.stop_gradient(z), axis=1),
                                           depth=self.n_required + 1), perm=[0, 3, 1, 2])
         c_phi = self.compute_c_phi(z=z, x=x, params=params)
-        return c_phi, one_hot
+        return c_phi, z_un, one_hot
 
-    @tf.function()
     def compute_gradients(self, x):
-        params = self.nets.encode(x)
-        c_phi, one_hot = self.get_relax_variables_from_params(x, params)
-        loss = self.compute_loss(x=x, params=params, z=one_hot)
+        with tf.GradientTape() as tape_cov:
+            with tf.GradientTape(persistent=True) as tape:
+                params = self.nets.encode(x)
+                tape.watch(params)
+                c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
+                loss = self.compute_loss(x=x, params=params, z=one_hot)
+                log_gauss_grad = compute_log_gauss_grad(z_un, params)
+                log_cat_grad = self.compute_log_pmf_grad(z=one_hot, params=params)
 
-        c_phi_grad = tf.gradients(c_phi, params)
-        log_cat_grad = self.compute_log_pmf_grad(z=one_hot, params=params)
-        log_probs = self.transform_params_into_log_probs(params)
-        log_qz_x_grad = tf.gradients(log_probs, params, grad_ys=log_cat_grad)
-        lax_grad = self.compute_lax_grad(loss, c_phi, log_qz_x_grad, c_phi_grad)
-        encoder_grads = tf.gradients(params, self.encoder_vars, grad_ys=lax_grad)
-        decoder_grads = tf.gradients(loss, self.decoder_vars)
+            c_phi_g = tape.gradient(target=c_phi, sources=params)
+            log_cat_g = tape.gradient(target=log_cat_grad, sources=params)
+            lax_grad = self.compute_lax_grad(loss, c_phi, log_cat_g, log_gauss_grad, c_phi_g)
+            c_phi_grad = tape.gradient(target=c_phi, sources=self.encoder_vars)
+            log_qz_x_grad = tape.gradient(target=log_cat_grad, sources=self.encoder_vars)
+            log_qc_x_grad = tape.gradient(target=log_gauss_grad, sources=self.encoder_vars)
+            encoder_grads = self.compute_lax_grad(loss, c_phi, log_qz_x_grad,
+                                                  log_qc_x_grad, c_phi_grad)
+            decoder_grads = tape.gradient(target=loss, sources=self.decoder_vars)
 
-        variance = compute_grad_var_over_batch(lax_grad[0])
-        cov_net_grad = tf.gradients(variance, self.con_net_vars)
+            variance = compute_grad_var_over_batch(lax_grad[0])
+        cov_net_grad = tape_cov.gradient(target=variance, sources=self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
         return gradients, loss, lax_grad, params
 
-    def compute_lax_grad(self, loss, c_phi, log_qz_x_grad, c_phi_grad):
-        # TODO: need to use proper normal
+    # @tf.function()
+    # def compute_gradients(self, x):
+    #     params = self.nets.encode(x)
+    #     c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
+    #     loss = self.compute_loss(x=x, params=params, z=one_hot)
+
+    #     c_phi_grad = tf.gradients(c_phi, params)
+    #     log_cat_grad = self.compute_log_pmf_grad(z=one_hot, params=params)
+    #     log_gauss_grad = compute_log_gauss_grad(z_un, params)
+    #     log_probs = self.transform_params_into_log_probs(params)
+    #     log_qz_x_grad = tf.gradients(log_probs, params, grad_ys=log_cat_grad)
+    #     lax_grad = self.compute_lax_grad(loss, c_phi, log_qz_x_grad, log_gauss_grad, c_phi_grad)
+    #     encoder_grads = tf.gradients(params, self.encoder_vars, grad_ys=lax_grad)
+    #     decoder_grads = tf.gradients(loss, self.decoder_vars)
+
+    #     variance = compute_grad_var_over_batch(lax_grad[0])
+    #     cov_net_grad = tf.gradients(variance, self.con_net_vars)
+
+    #     gradients = (encoder_grads, decoder_grads, cov_net_grad)
+    #     return gradients, loss, lax_grad, params
+
+    def compute_lax_grad(self, loss, c_phi, log_qz_x_grad, log_qc_grad, c_phi_grad):
         lax_grads = []
-        diff = loss - self.eta * c_phi
         for i in range(len(log_qz_x_grad)):
-            lax = diff * log_qz_x_grad[i]
-            # lax = loss * log_qz_x_grad[i]
-            # lax -= c_phi * log_qc_grad[i]
-            lax += self.eta * c_phi_grad[i]
+            lax = loss * log_qz_x_grad[i]
+            lax -= c_phi * log_qc_grad[i]
+            lax += c_phi_grad[i]
             lax += log_qz_x_grad[i]
             lax_grads.append(lax)
         return lax_grads
