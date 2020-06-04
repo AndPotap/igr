@@ -356,6 +356,7 @@ def compute_log_h_f(y, mu, sigma):
     cons = tf.constant(3.141592653589793) ** (-0.5)
     exp_term = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
     cdf_broad = gaussian.log_cdf((t - mu_expanded) / sigma_expanded)
+    # TODO: see if I should stop the gradient of cdf_broad
     cdf_term = tf.math.reduce_sum(cdf_broad, axis=1, keepdims=True) - cdf_broad
     output = tf.math.log(cons) + cdf_term + exp_term
     return output + 1.e-20
@@ -366,7 +367,7 @@ def compute_h_f(y, mu, sigma):
     sigma_expanded = tf.expand_dims(sigma, -1)
     gaussian = tfp.distributions.Normal(loc=0., scale=1.)
 
-    t = tf.math.sqrt(2) * sigma_expanded * y
+    t = tf.math.sqrt(tf.constant(2.)) * sigma_expanded * y
     cons = tf.constant(3.141592653589793) ** (-0.5)
     inner_exp = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
     exp_term = tf.math.exp(tf.clip_by_value(inner_exp, -50., 50.))
