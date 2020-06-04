@@ -9,7 +9,7 @@ from Utils.Distributions import IGR_SB, IGR_SB_Finite
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
 from Utils.Distributions import compute_h_f, compute_igr_probs
 from Utils.Distributions import compute_igr_log_probs
-from Utils.Distributions import compute_grad_log_gauss
+from Utils.Distributions import compute_log_gauss_grad
 
 
 class TestDistributions(unittest.TestCase):
@@ -19,8 +19,10 @@ class TestDistributions(unittest.TestCase):
         batch_size, categories_n, sample_size, num_of_vars = 3, 9, 1, 1
         shape = (batch_size, categories_n, sample_size, num_of_vars)
         mu_tf = tf.constant(np.random.normal(loc=-1.0, size=shape), dtype=tf.float32)
-        sigma_tf = tf.math.exp(tf.constant(np.random.normal(size=shape), dtype=tf.float32))
+        xi_tf = tf.constant(np.random.normal(size=shape), dtype=tf.float32)
+        sigma_tf = tf.math.exp(xi_tf)
         gauss = tfp.distributions.Normal(loc=mu_tf, scale=sigma_tf)
+        params = [mu_tf, xi_tf]
         z = gauss.sample()
         with tf.GradientTape(persistent=True) as tape:
             tape.watch(mu_tf)
@@ -29,7 +31,7 @@ class TestDistributions(unittest.TestCase):
         ans_mu = tape.gradient(target=density, sources=mu_tf)
         ans_sigma = tape.gradient(target=density, sources=sigma_tf)
         ans = [ans_mu, ans_sigma]
-        approx = compute_grad_log_gauss(z, mu_tf, sigma_tf)
+        approx = compute_log_gauss_grad(z, params)
         print(f'\nTEST: Gaussian log grad')
         for idx, grad in enumerate(ans):
             diff = np.linalg.norm(approx[idx] - grad) / np.linalg.norm(grad)
