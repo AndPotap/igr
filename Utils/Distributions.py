@@ -347,17 +347,20 @@ def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dty
     return chosen_dist
 
 
-def compute_igr_probs(mu, sigma):
-    integral = tf.math.exp(compute_log_probs_via_quad(mu, sigma))
-    remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
-    return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
-
-
 def compute_igr_log_probs(mu, sigma):
     log_integral_probs = compute_log_probs_via_quad(mu, sigma)
     log_last_prob = compute_log_last_prob(mu, sigma)
     log_probs = tf.concat([log_integral_probs, log_last_prob], axis=1)
     return log_probs
+
+
+def compute_log_last_prob(mu, sigma):
+    mu_expanded = tf.expand_dims(mu, -1)
+    sigma_expanded = tf.expand_dims(sigma, -1)
+    gaussian = tfp.distributions.Normal(loc=0., scale=1.)
+    cdf_broad = gaussian.log_cdf((-mu_expanded) / sigma_expanded)
+    log_last_prob = tf.math.reduce_sum(cdf_broad, axis=1)
+    return log_last_prob
 
 
 def compute_log_probs_via_quad(mu, sigma):
@@ -382,15 +385,6 @@ def reshape_for_quad(v, shape):
     return v
 
 
-def compute_log_last_prob(mu, sigma):
-    mu_expanded = tf.expand_dims(mu, -1)
-    sigma_expanded = tf.expand_dims(sigma, -1)
-    gaussian = tfp.distributions.Normal(loc=0., scale=1.)
-    cdf_broad = gaussian.log_cdf((-mu_expanded) / sigma_expanded)
-    log_last_prob = tf.math.reduce_sum(cdf_broad, axis=1)
-    return log_last_prob
-
-
 def compute_log_h_f(y, mu, sigma):
     mu_expanded = tf.expand_dims(mu, -1)
     sigma_expanded = tf.expand_dims(sigma, -1)
@@ -404,6 +398,12 @@ def compute_log_h_f(y, mu, sigma):
     cdf_term = tf.math.reduce_sum(cdf_broad, axis=1, keepdims=True) - cdf_broad
     output = tf.math.log(cons) + cdf_term + exp_term
     return output + 1.e-20
+
+
+def compute_igr_probs(mu, sigma):
+    integral = tf.math.exp(compute_log_probs_via_quad(mu, sigma))
+    remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
+    return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
 
 
 def compute_h_f(y, mu, sigma):
