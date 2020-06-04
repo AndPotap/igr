@@ -156,7 +156,9 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     gradients, loss, relax, g2 = output
     relax = relax[0] if len(relax) > 0 else relax
     g2 = g2[0]
-    if iteration_counter % 100 == 0 or iteration_counter == 1:
+    # if iteration_counter % 100 == 0 or iteration_counter == 1:
+    # if iteration_counter >= 0:
+    if iteration_counter % 10 == 0 or iteration_counter == 1:
         print('\n')
         tf.print((iteration_counter, loss))
         tf.print(tf.math.sqrt(tf.reduce_sum(relax ** 2)))
