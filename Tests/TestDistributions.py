@@ -6,7 +6,7 @@ from scipy.stats import norm
 from scipy.integrate import quad
 from Utils.Distributions import IGR_SB, IGR_SB_Finite
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
-from Utils.Distributions import compute_h_f, compute_probas_via_quad
+from Utils.Distributions import compute_h_f, compute_igr_probs
 
 
 class TestDistributions(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestDistributions(unittest.TestCase):
         mu_tf = tf.constant(mu, dtype=tf.float32)
         sigma = np.ones(shape)
         sigma_tf = tf.constant(sigma, dtype=tf.float32)
-        approx = compute_probas_via_quad(mu_tf, sigma_tf).numpy()
+        approx = compute_igr_probs(mu_tf, sigma_tf).numpy()
 
         ans = np.zeros((batch_size, categories_n + 1, sample_size, num_of_vars))
         for b in range(batch_size):
