@@ -234,10 +234,12 @@ class OptRELAX(OptVAE):
     def compute_loss(self, z, params, x,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
                      test_with_one_hot=False):
+        categories_n = tf.cast(z.shape[1], dtype=tf.float32)
         x_logit = self.decode([z])
-        log_probs = self.transform_params_into_log_probs(params)
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
-        log_p = self.compute_log_pmf(z=z, log_probs=tf.zeros_like(log_probs), normalize=True)
+        log_probs = self.transform_params_into_log_probs(params)
+        log_unif_probs = - tf.math.log(categories_n * tf.ones_like(z))
+        log_p = self.compute_log_pmf(z=z, log_probs=log_unif_probs)
         log_qz_x = self.compute_log_pmf(z=z, log_probs=log_probs)
         kl = tf.reduce_mean(log_p - log_qz_x)
         # kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
@@ -306,6 +308,11 @@ class OptRELAX(OptVAE):
 class OptRELAXIGR(OptRELAX):
     def __init__(self, nets, optimizers, hyper):
         super().__init__(nets=nets, optimizers=optimizers, hyper=hyper)
+        num_latents = self.n_required * self.num_of_vars
+        shape = (1, self.n_required, self.sample_size, self.num_of_vars)
+        initial_log_temp = tf.constant([-1.8972 for _ in range(num_latents)],
+                                       shape=shape)
+        self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
         cov_net_shape = (self.n_required + 1, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
         # self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
@@ -314,17 +321,11 @@ class OptRELAXIGR(OptRELAX):
     @staticmethod
     def transform_params_into_log_probs(params):
         mu, xi = params
-        sigma = tf.math.exp(xi)
-        log_probs = compute_igr_log_probs(mu, sigma)
+        log_probs = compute_igr_log_probs(mu, tf.math.exp(xi))
         return log_probs
 
-    def compute_log_pmf(self, z, log_probs, normalize=False):
-        if normalize:
-            log_normalized = log_probs - tf.reduce_logsumexp(log_probs, axis=1, keepdims=True)
-        else:
-            log_normalized = log_probs
-        # log_normalized = log_probs - tf.reduce_logsumexp(log_probs, axis=1, keepdims=True)
-        log_categorical_pmf = tf.math.reduce_sum(z * log_normalized, axis=1)
+    def compute_log_pmf(self, z, log_probs):
+        log_categorical_pmf = tf.math.reduce_sum(z * log_probs, axis=1)
         log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
         return log_categorical_pmf
 
