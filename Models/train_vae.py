@@ -167,9 +167,9 @@ def perform_print_gradient_analysis(relax, g2, iteration_counter, loss):
     relax = relax[0] if len(relax) > 0 else relax
     mu = g2[0]
     xi = tf.math.exp(g2[1])
-    # if iteration_counter % 100 == 0 or iteration_counter == 1:
     # if iteration_counter >= 0:
-    if iteration_counter % 10 == 0 or iteration_counter == 1:
+    # if iteration_counter % 10 == 0 or iteration_counter == 1:
+    if iteration_counter % 100 == 0 or iteration_counter == 1:
         print('\n')
         tf.print((iteration_counter, loss))
         gnorm, gmax, gmean, gmin = get_statistics(relax)
