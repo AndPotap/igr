@@ -4,6 +4,7 @@ from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
 from Utils.Distributions import project_to_vertices_via_softmax_pp
+from Utils.Distributions import project_to_vertices
 from Utils.Distributions import compute_igr_log_probs
 from Utils.Distributions import compute_log_gauss_grad
 from Models.VAENet import RelaxCovNet
@@ -52,8 +53,7 @@ class OptVAE:
             batch_n, categories_n, sample_size, var_num = z[-1].shape
             zz = []
             for idx in range(len(z)):
-                one_hot = tf.transpose(tf.one_hot(tf.argmax(z[idx], axis=1), depth=categories_n),
-                                       perm=[0, 3, 1, 2])
+                one_hot = project_to_vertices(z[idx], categories_n)
                 zz.append(one_hot)
             x_logit = self.decode(z=zz)
         else:
@@ -339,8 +339,7 @@ class OptRELAXIGR(OptRELAX):
         mu, xi = params
         z_un = mu + tf.math.exp(tf.clip_by_value(xi, -50., 50.)) * tf.random.normal(shape=mu.shape)
         z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
-        one_hot = tf.transpose(tf.one_hot(tf.argmax(tf.stop_gradient(z), axis=1),
-                                          depth=self.n_required + 1), perm=[0, 3, 1, 2])
+        one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z, x=x, params=params)
         return c_phi, z_un, one_hot
 
@@ -413,8 +412,7 @@ class OptRELAXGSDis(OptRELAX):
         offset = 1.e-20
         u = tf.random.uniform(shape=log_alpha.shape)
         z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
-        one_hot = tf.transpose(tf.one_hot(tf.argmax(z_un, axis=1), depth=self.n_required),
-                               perm=[0, 3, 1, 2])
+        one_hot = project_to_vertices(z_un, categories_n=self.n_required)
         z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
 
         # z = tf.math.softmax(z_un / tf.math.exp(self.log_temp) + log_alpha, axis=1)
@@ -494,8 +492,7 @@ class OptIGR(OptVAE):
             kl_norm = 0.
         if test_with_one_hot and not sample_from_disc_kl:
             batch_n, categories_n, sample_size, var_num = z[-1].shape
-            one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
-                                   perm=[0, 3, 1, 2])
+            one_hot = project_to_vertices(z[-1], categories_n)
             p_discrete = tf.reduce_mean(one_hot, axis=2, keepdims=True)
             kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
         else:
