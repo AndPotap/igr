@@ -390,12 +390,11 @@ def compute_log_probs_via_quad(mu, sigma):
     y = tf.reshape(y, (1, 1, 1, 1, 11))
     y = tf.broadcast_to(y, mu.shape + (11,))
     log_h_f = compute_log_h_f(y, mu, sigma)
-    log_integral = tf.math.log(w) + log_h_f
+    log_integral = tf.math.reduce_logsumexp(tf.math.log(w) + log_h_f, axis=-1)
     return log_integral
 
 
 def compute_igr_probs(mu, sigma):
-    log_integral = compute_log_probs_via_quad(mu, sigma)
-    integral = tf.math.exp(tf.math.reduce_logsumexp(log_integral, axis=-1))
+    integral = tf.math.exp(compute_log_probs_via_quad(mu, sigma))
     remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
     return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
