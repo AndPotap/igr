@@ -331,7 +331,9 @@ class OptRELAXIGR(OptRELAX):
 
     def compute_log_pmf_grad(self, z, params):
         log_probs = self.transform_params_into_log_probs(params)
-        grad = compute_log_categorical_pmf_grad(z, log_probs)
+        # normalized = tf.math.exp(log_probs)
+        normalized = tf.math.exp(tf.clip_by_value(log_probs, -50., 50.))
+        grad = z - normalized
         return grad
 
     def get_relax_variables_from_params(self, x, params):
