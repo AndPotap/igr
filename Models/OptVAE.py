@@ -312,7 +312,7 @@ class OptRELAXIGR(OptRELAX):
     @staticmethod
     def transform_params_into_log_probs(params):
         mu, xi = params
-        # mu -= 0.75
+        mu -= 0.75
         sigma = tf.math.exp(xi)
         # log_probs = tf.math.log(tf.clip_by_value(compute_probas_via_quad(mu, sigma), 1.e-20, 1.))
         log_probs = compute_igr_log_probs(mu, sigma)
@@ -324,7 +324,7 @@ class OptRELAXIGR(OptRELAX):
             log_normalized = log_probs - tf.reduce_logsumexp(log_probs, axis=1, keepdims=True)
         else:
             log_normalized = log_probs
-        log_normalized = log_probs - tf.reduce_logsumexp(log_probs, axis=1, keepdims=True)
+        # log_normalized = log_probs - tf.reduce_logsumexp(log_probs, axis=1, keepdims=True)
         log_categorical_pmf = tf.math.reduce_sum(z * log_normalized, axis=1)
         log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
         return log_categorical_pmf
@@ -336,7 +336,7 @@ class OptRELAXIGR(OptRELAX):
 
     def get_relax_variables_from_params(self, x, params):
         mu, xi = params
-        # mu -= 0.75
+        mu -= 0.75
         epsilon = tf.random.normal(shape=mu.shape)
         sigma = tf.math.exp(xi)
         z_un = mu + sigma * epsilon
