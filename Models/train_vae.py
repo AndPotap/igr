@@ -152,24 +152,8 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
                        cont_c_linspace):
     output = vae_opt.compute_gradients(x=x_train)
     # gradients, loss = output
-    # TODO: remove
     gradients, loss, relax, g2 = output
-    relax = relax[0] if len(relax) > 0 else relax
-    g2 = g2[0]
-    # if iteration_counter % 100 == 0 or iteration_counter == 1:
-    # if iteration_counter >= 0:
-    if iteration_counter % 10 == 0 or iteration_counter == 1:
-        print('\n')
-        tf.print((iteration_counter, loss))
-        tf.print(tf.math.sqrt(tf.reduce_sum(relax ** 2)))
-        tf.print(tf.reduce_max(relax))
-        tf.print(tf.math.reduce_mean(relax))
-        tf.print(tf.reduce_min(relax))
-        print('+++++++++')
-        tf.print(tf.math.sqrt(tf.reduce_sum(g2 ** 2)))
-        tf.print(tf.reduce_max(g2))
-        tf.print(tf.math.reduce_mean(g2))
-        tf.print(tf.reduce_min(g2))
+    perform_print_gradient_analysis(relax, g2, iteration_counter, loss)
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     train_loss_mean(loss)
@@ -177,6 +161,32 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
                                    disc_c_linspace=disc_c_linspace,
                                    cont_c_linspace=cont_c_linspace)
     return vae_opt, iteration_counter
+
+
+def perform_print_gradient_analysis(relax, g2, iteration_counter, loss):
+    relax = relax[0] if len(relax) > 0 else relax
+    mu = g2[0]
+    xi = tf.math.exp(g2[1])
+    # if iteration_counter % 100 == 0 or iteration_counter == 1:
+    # if iteration_counter >= 0:
+    if iteration_counter % 10 == 0 or iteration_counter == 1:
+        print('\n')
+        tf.print((iteration_counter, loss))
+        gnorm, gmax, gmean, gmin = get_statistics(relax)
+        print(f'Lax:   ({gmin:+1.2e}, {gmean:+1.2e}, {gmax:+1.2e}) -> {gnorm:+1.2e}')
+        print('+++++++++')
+        gnorm, gmax, gmean, gmin = get_statistics(mu)
+        print(f'Mu:    ({gmin:+1.2e}, {gmean:+1.2e}, {gmax:+1.2e}) -> {gnorm:+1.2e}')
+        gnorm, gmax, gmean, gmin = get_statistics(xi)
+        print(f'Sigma: ({gmin:+1.2e}, {gmean:+1.2e}, {gmax:+1.2e}) -> {gnorm:+1.2e}')
+
+
+def get_statistics(g):
+    norm = tf.math.sqrt(tf.reduce_sum(g ** 2))
+    gmax = tf.reduce_max(g)
+    gmean = tf.math.reduce_mean(g)
+    gmin = tf.reduce_min(g)
+    return norm, gmax, gmean, gmin
 
 
 def update_regularization_channels(vae_opt, iteration_counter, disc_c_linspace, cont_c_linspace):
