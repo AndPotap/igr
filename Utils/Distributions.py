@@ -211,6 +211,12 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
     optimizer.apply_gradients(zip(gradients, variables))
 
 
+def project_to_vertices(z, categories_n):
+    one_hot = tf.transpose(tf.one_hot(tf.argmax(tf.stop_gradient(z), axis=1),
+                                      depth=categories_n), perm=[0, 3, 1, 2])
+    return one_hot
+
+
 def project_to_vertices_via_softmax_pp(lam):
     delta = tf.constant(1., dtype=tf.float32)
     one = tf.constant(1.0, dtype=tf.float32)
