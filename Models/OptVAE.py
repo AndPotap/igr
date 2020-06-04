@@ -321,7 +321,7 @@ class OptRELAXIGR(OptRELAX):
     @staticmethod
     def transform_params_into_log_probs(params):
         mu, xi = params
-        log_probs = compute_igr_log_probs(mu, tf.math.exp(xi))
+        log_probs = compute_igr_log_probs(mu, tf.math.exp(tf.clip_by_value(xi, -50., 50.)))
         return log_probs
 
     def compute_log_pmf(self, z, log_probs):
@@ -338,7 +338,7 @@ class OptRELAXIGR(OptRELAX):
 
     def get_relax_variables_from_params(self, x, params):
         mu, xi = params
-        z_un = mu + tf.math.exp(xi) * tf.random.normal(shape=mu.shape)
+        z_un = mu + tf.math.exp(tf.clip_by_value(xi, -50., 50.)) * tf.random.normal(shape=mu.shape)
         z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
         one_hot = tf.transpose(tf.one_hot(tf.argmax(tf.stop_gradient(z), axis=1),
                                           depth=self.n_required + 1), perm=[0, 3, 1, 2])
