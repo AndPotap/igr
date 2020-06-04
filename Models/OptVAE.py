@@ -331,7 +331,6 @@ class OptRELAXIGR(OptRELAX):
 
     def compute_log_pmf_grad(self, z, params):
         log_probs = self.transform_params_into_log_probs(params)
-        # normalized = tf.math.exp(log_probs)
         normalized = tf.math.exp(tf.clip_by_value(log_probs, -50., 50.))
         grad = z - normalized
         return grad
@@ -359,10 +358,6 @@ class OptRELAXIGR(OptRELAX):
             c_phi_g = tape.gradient(target=c_phi, sources=params)
             log_cat_g = tape.gradient(target=log_cat_grad, sources=params)
             lax_grad = self.compute_lax_grad(loss, c_phi, log_cat_g, log_gauss_grad, c_phi_g)
-            # for g in lax_grad:
-            #     nan_finder = tf.math.reduce_sum(tf.cast(tf.math.is_nan(g), dtype=tf.float32))
-            #     if nan_finder > 0:
-            #         breakpoint()
 
             c_phi_grad = tape.gradient(target=c_phi, sources=self.encoder_vars)
             log_qz_x_grad = tape.gradient(target=log_cat_grad, sources=self.encoder_vars)
