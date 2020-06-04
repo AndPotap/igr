@@ -366,7 +366,7 @@ def compute_h_f(y, mu, sigma):
     sigma_expanded = tf.expand_dims(sigma, -1)
     gaussian = tfp.distributions.Normal(loc=0., scale=1.)
 
-    t = tf.math.sqrt(2 * sigma_expanded ** 2) * y
+    t = tf.math.sqrt(2) * sigma_expanded * y
     cons = tf.constant(3.141592653589793) ** (-0.5)
     inner_exp = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
     exp_term = tf.math.exp(tf.clip_by_value(inner_exp, -50., 50.))
@@ -376,7 +376,7 @@ def compute_h_f(y, mu, sigma):
     return output
 
 
-def compute_probas_via_quad(mu, sigma):
+def compute_log_probs_via_quad(mu, sigma):
     w = [8.62207055355942e-02, 1.85767318955695e-01, 2.35826124129815e-01, 2.05850326841520e-01,
          1.19581170615297e-01, 4.31443275880520e-02, 8.86764989474414e-03, 9.27141875082127e-04,
          4.15719321667468e-05, 5.86857646837617e-07, 1.22714513994286e-09]
@@ -391,6 +391,11 @@ def compute_probas_via_quad(mu, sigma):
     y = tf.broadcast_to(y, mu.shape + (11,))
     log_h_f = compute_log_h_f(y, mu, sigma)
     log_integral = tf.math.log(w) + log_h_f
+    return log_integral
+
+
+def compute_igr_probs(mu, sigma):
+    log_integral = compute_log_probs_via_quad(mu, sigma)
     integral = tf.math.exp(tf.math.reduce_logsumexp(log_integral, axis=-1))
     remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
     return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
