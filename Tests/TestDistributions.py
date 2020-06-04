@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 from scipy.special import logsumexp, loggamma
 from scipy.stats import norm
 from scipy.integrate import quad
@@ -8,9 +9,32 @@ from Utils.Distributions import IGR_SB, IGR_SB_Finite
 from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
 from Utils.Distributions import compute_h_f, compute_igr_probs
 from Utils.Distributions import compute_igr_log_probs
+from Utils.Distributions import compute_grad_log_gauss
 
 
 class TestDistributions(unittest.TestCase):
+
+    def test_grad_log_gauss(self):
+        test_tolerance = 1.e-5
+        batch_size, categories_n, sample_size, num_of_vars = 3, 9, 1, 1
+        shape = (batch_size, categories_n, sample_size, num_of_vars)
+        mu_tf = tf.constant(np.random.normal(loc=-1.0, size=shape), dtype=tf.float32)
+        sigma_tf = tf.math.exp(tf.constant(np.random.normal(size=shape), dtype=tf.float32))
+        gauss = tfp.distributions.Normal(loc=mu_tf, scale=sigma_tf)
+        z = gauss.sample()
+        with tf.GradientTape(persistent=True) as tape:
+            tape.watch(mu_tf)
+            tape.watch(sigma_tf)
+            density = gauss.log_prob(z)
+        ans_mu = tape.gradient(target=density, sources=mu_tf)
+        ans_sigma = tape.gradient(target=density, sources=sigma_tf)
+        ans = [ans_mu, ans_sigma]
+        approx = compute_grad_log_gauss(z, mu_tf, sigma_tf)
+        print(f'\nTEST: Gaussian log grad')
+        for idx, grad in enumerate(ans):
+            diff = np.linalg.norm(approx[idx] - grad) / np.linalg.norm(grad)
+            print(f'\nDiff {diff:1.3e}')
+            self.assertTrue(expr=diff < test_tolerance)
 
     def test_probs_integral_general_case(self):
         test_tolerance = 1.e-5
