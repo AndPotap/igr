@@ -12,9 +12,43 @@ from Models.OptVAE import bernoulli_loglikelihood
 from Models.OptVAE import bernoulli_loglikelihood_grad
 from Models.VAENet import create_nested_planar_flow
 from Tests.TestVAENet import calculate_pf_log_det_np_all
+from Utils.Distributions import project_to_vertices_via_softmax_pp
+from Utils.Distributions import project_to_vertices
+from Utils.Distributions import compute_igr_log_probs
 
 
 class TestOptandDist(unittest.TestCase):
+
+    def test_gradient_concat(self):
+        test_tolerance = 1.e-7
+        batch_n, categories_n, sample_size, num_of_var = 1, 9, 1, 1
+        shape = (batch_n, categories_n, sample_size, num_of_var)
+        x = tf.random.normal(shape=(batch_n, 3))
+        w1 = tf.random.normal(shape=(3, categories_n))
+        w2 = tf.random.normal(shape=(3, categories_n))
+        b1 = tf.random.normal(shape=(batch_n, categories_n))
+        b2 = tf.random.normal(shape=(batch_n, categories_n))
+        encoder_vars = [w1, b1, w2, b2]
+        with tf.GradientTape(persistent=True) as tape:
+            tape.watch(encoder_vars)
+            mu = tf.reshape(x @ w1 + b1, shape)
+            xi = tf.reshape(x @ w2 + b2, shape)
+            tape.watch([mu, xi])
+            sigma = tf.math.exp(tf.clip_by_value(xi, -50., 50.))
+            z_un = mu + sigma * tf.random.normal(shape=mu.shape)
+            z = project_to_vertices_via_softmax_pp(z_un)
+            one_hot = project_to_vertices(z, categories_n=categories_n + 1)
+            log_probs = compute_igr_log_probs(mu, sigma)
+            log_pmf = tf.reduce_sum(tf.reduce_sum(one_hot * log_probs, axis=1), axis=(1, 1))
+
+        log_pmf_g = tape.gradient(target=log_pmf, sources=encoder_vars)
+        log_cat_g = compute_log_categorical_grads(one_hot, encoder_vars, x, shape)
+
+        print(f'\nTEST: Gradient Concatenation')
+        for idx, grad in enumerate(log_pmf_g):
+            diff = np.linalg.norm(log_cat_g[idx] - grad) / np.linalg.norm(grad)
+            print(f'\nDiff {diff:1.3e}')
+            self.assertTrue(expr=diff < test_tolerance)
 
     def test_bernoulli_grad(self):
         tolerance = 1.e-7
@@ -357,6 +391,19 @@ def sample_conditional_gs(log_alpha, sample_size, one_hot):
             total += 1
     output = np.array(z)
     return output.T
+
+
+@tf.function()
+def compute_log_categorical_grads(z, encoder_vars, x, shape):
+    w1, b1, w2, b2 = encoder_vars
+    mu = tf.reshape(x @ w1 + b1, shape)
+    xi = tf.reshape(x @ w2 + b2, shape)
+    params = [mu, xi]
+    sigma = tf.math.exp(tf.clip_by_value(xi, -50., 50.))
+    log_probs = compute_igr_log_probs(mu, sigma)
+    log_qz_x_grad = tf.gradients(log_probs, params, grad_ys=z)
+    grad = tf.gradients(params, encoder_vars, grad_ys=log_qz_x_grad)
+    return grad
 
 
 if __name__ == '__main__':
