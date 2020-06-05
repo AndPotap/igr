@@ -318,10 +318,12 @@ class OptRELAXIGR(OptRELAX):
         # self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
 
-    @staticmethod
-    def transform_params_into_log_probs(params):
-        mu, xi = params
-        log_probs = compute_igr_log_probs(mu, tf.math.exp(tf.clip_by_value(xi, -50., 50.)))
+    def offload_params(self, params):
+        self.mu, self.xi = params
+        self.sigma = tf.math.exp(tf.clip_by_value(self.xi, -50., 50.))
+
+    def transform_params_into_log_probs(self):
+        log_probs = compute_igr_log_probs(self.mu, self.sigma)
         return log_probs
 
     def compute_log_pmf(self, z, log_probs):
@@ -329,15 +331,8 @@ class OptRELAXIGR(OptRELAX):
         log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
         return log_categorical_pmf
 
-    #  def compute_log_pmf_grad(self, z, params):
-    #      log_probs = self.transform_params_into_log_probs(params)
-    #      normalized = tf.math.exp(tf.clip_by_value(log_probs, -50., 50.))
-    #      grad = z - normalized
-    #      return grad
-
     def get_relax_variables_from_params(self, x, params):
-        mu, xi = params
-        z_un = mu + tf.math.exp(tf.clip_by_value(xi, -50., 50.)) * tf.random.normal(shape=mu.shape)
+        z_un = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
         z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
         one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z, x=x, params=params)
@@ -348,18 +343,20 @@ class OptRELAXIGR(OptRELAX):
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
                 params = self.nets.encode(x)
+                self.offload_params(params)
                 tape.watch(params)
                 c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
                 loss = self.compute_loss(x=x, params=params, z=one_hot)
                 log_gauss_grad = compute_log_gauss_grad(z_un, params)
-                log_cat_grad = self.compute_log_pmf_grad(z=one_hot, params=params)
+                log_probs = self.transform_params_into_log_probs()
+                log_pmf = self.compute_log_pmf(z=one_hot, log_probs=log_probs)
 
             c_phi_g = tape.gradient(target=c_phi, sources=params)
-            log_cat_g = tape.gradient(target=log_cat_grad, sources=params)
+            log_cat_g = tape.gradient(target=log_pmf, sources=params)
             lax_grad = self.compute_lax_grad(loss, c_phi, log_cat_g, log_gauss_grad, c_phi_g)
 
             c_phi_grad = tape.gradient(target=c_phi, sources=self.encoder_vars)
-            log_qz_x_grad = tape.gradient(target=log_cat_grad, sources=self.encoder_vars)
+            log_qz_x_grad = tape.gradient(target=log_pmf, sources=self.encoder_vars)
             log_qc_x_grad = tape.gradient(target=log_gauss_grad, sources=self.encoder_vars)
             encoder_grads = self.compute_lax_grad(loss, c_phi, log_qz_x_grad,
                                                   log_qc_x_grad, c_phi_grad)
