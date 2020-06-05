@@ -237,7 +237,7 @@ class OptRELAX(OptVAE):
         categories_n = tf.cast(z.shape[1], dtype=tf.float32)
         x_logit = self.decode([z])
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
-        log_probs = self.transform_params_into_log_probs(params)
+        log_probs = self.transform_params_into_log_probs()
         log_unif_probs = - tf.math.log(categories_n * tf.ones_like(z))
         log_p = self.compute_log_pmf(z=z, log_probs=log_unif_probs)
         log_qz_x = self.compute_log_pmf(z=z, log_probs=log_probs)
@@ -246,9 +246,11 @@ class OptRELAX(OptVAE):
         loss = -tf.math.reduce_mean(log_px_z) - kl
         return loss
 
-    @staticmethod
-    def transform_params_into_log_probs(params):
-        log_probs = params[0]
+    def offload_params(self, params):
+        self.log_alpha = params[0]
+
+    def transform_params_into_log_probs(self):
+        log_probs = self.log_alpha
         return log_probs
 
     def compute_log_pmf(self, z, log_probs):
@@ -256,12 +258,13 @@ class OptRELAX(OptVAE):
         return log_pmf
 
     def compute_log_pmf_grad(self, z, params):
-        log_probs = self.transform_params_into_log_probs(params)
+        log_probs = self.transform_params_into_log_probs()
         grad = compute_log_categorical_pmf_grad(z, log_probs)
         return grad
 
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
         params = self.nets.encode(x)
+        self.offload_params(params)
         one_hot = self.get_relax_variables_from_params(x, params)[-1]
         loss = self.compute_loss(z=one_hot, x=x, params=params)
         return loss
@@ -315,12 +318,12 @@ class OptRELAXIGR(OptRELAX):
         self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
         cov_net_shape = (self.n_required + 1, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
-        # self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
 
     def offload_params(self, params):
         self.mu, self.xi = params
-        self.sigma = tf.math.exp(tf.clip_by_value(self.xi, -50., 50.))
+        # self.sigma = tf.math.exp(tf.clip_by_value(self.xi, -50., 50.))
+        self.sigma = tf.math.softplus(tf.clip_by_value(self.xi, -50., 50.))
 
     def transform_params_into_log_probs(self):
         log_probs = compute_igr_log_probs(self.mu, self.sigma)
@@ -339,7 +342,7 @@ class OptRELAXIGR(OptRELAX):
         return c_phi, z_un, one_hot
 
     @tf.function()
-    def compute_gradients(self, x):
+    def _compute_gradients(self, x):
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
                 params = self.nets.encode(x)
@@ -379,14 +382,15 @@ class OptRELAXIGR(OptRELAX):
         return lax_grads
 
     @tf.function()
-    def compute_gradients_(self, x):
+    def compute_gradients(self, x):
         params = self.nets.encode(x)
+        self.offload_params(params)
         c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
         loss = self.compute_loss(x=x, params=params, z=one_hot)
 
         c_phi_grad = tf.gradients(c_phi, params)
         log_gauss_grad = compute_log_gauss_grad(z_un, params)
-        log_probs = self.transform_params_into_log_probs(params)
+        log_probs = self.transform_params_into_log_probs()
         log_qz_x_grad = tf.gradients(log_probs, params, grad_ys=one_hot)
         lax_grad = self.compute_lax_grad(loss, c_phi, log_qz_x_grad, log_gauss_grad, c_phi_grad)
 
