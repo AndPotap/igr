@@ -235,13 +235,14 @@ class OptRELAX(OptVAE):
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
                      test_with_one_hot=False):
         categories_n = tf.cast(z.shape[1], dtype=tf.float32)
+        num_of_vars = tf.cast(z.shape[-1], dtype=tf.float32)
+
         x_logit = self.decode([z])
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
         log_probs = self.transform_params_into_log_probs()
-        log_unif_probs = - tf.math.log(categories_n * tf.ones_like(z))
-        log_p = self.compute_log_pmf(z=z, log_probs=log_unif_probs)
+        log_p = - num_of_vars * tf.math.log(categories_n)
         log_qz_x = self.compute_log_pmf(z=z, log_probs=log_probs)
-        kl = tf.reduce_mean(log_p - log_qz_x)
+        kl = log_p - tf.reduce_mean(log_qz_x)
         # kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
         loss = -tf.math.reduce_mean(log_px_z) - kl
         return loss
@@ -342,7 +343,7 @@ class OptRELAXIGR(OptRELAX):
         c_phi = self.compute_c_phi(z=z, x=x, params=params)
         return c_phi, z_un, one_hot
 
-    @tf.function()
+    # @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
