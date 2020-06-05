@@ -487,16 +487,17 @@ class OptIGR(OptVAE):
                 kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
             mu_disc, xi_disc = params_broad
+            kl_norm = 0.
+        if not sample_from_disc_kl:
+            log_p_discrete = compute_igr_log_probs(mu_disc, tf.math.exp(xi_disc))
+            p_discrete = tf.math.exp(log_p_discrete)
+            categories_n = tf.constant(self.n_required + 1, dtype=tf.float32)
+            kl_dis = tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3))
+            kl_dis += self.num_of_vars * tf.math.log(categories_n)
+        else:
             if self.stick_the_landing:
                 mu_disc = tf.stop_gradient(mu_disc)
                 xi_disc = tf.stop_gradient(xi_disc)
-            kl_norm = 0.
-        if test_with_one_hot and not sample_from_disc_kl:
-            batch_n, categories_n, sample_size, var_num = z[-1].shape
-            one_hot = project_to_vertices(z[-1], categories_n)
-            p_discrete = tf.reduce_mean(one_hot, axis=2, keepdims=True)
-            kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
-        else:
             kl_dis = self.compute_discrete_kl(mu_disc, xi_disc, sample_from_disc_kl)
         return kl_norm, kl_dis
 
@@ -535,13 +536,10 @@ class OptIGR(OptVAE):
         mu_0 = tf.constant(parameters['mu'], dtype=tf.float32)
         xi_0 = tf.constant(parameters['xi'], dtype=tf.float32)
         categories_n = mu_0.shape[1]
-        # TODO: check if this idea is valid
         prior_shape = mu_0.shape
-        # mu_0 = tf.math.reduce_mean(mu_0 - 0.075, keepdims=True)
-        mu_0 = tf.math.reduce_mean(mu_0 + 0.05, keepdims=True)
+        mu_0 = tf.math.reduce_mean(mu_0, keepdims=True)
         mu_0 = tf.broadcast_to(mu_0, shape=prior_shape)
-        # xi_0 = tf.math.reduce_mean(xi_0 - 0.05, keepdims=True)
-        xi_0 = tf.math.reduce_mean(xi_0 + 0.05, keepdims=True)
+        xi_0 = tf.math.reduce_mean(xi_0, keepdims=True)
         xi_0 = tf.broadcast_to(xi_0, shape=prior_shape)
 
         self.mu_0 = shape_prior_to_sample_size_and_discrete_var_num(
