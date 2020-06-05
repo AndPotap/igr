@@ -272,6 +272,7 @@ class OptRELAX(OptVAE):
     @tf.function()
     def compute_gradients(self, x):
         params = self.nets.encode(x)
+        self.offload_params(params)
         c_phi, c_phi_tilde, one_hot = self.get_relax_variables_from_params(x, params)
         loss = self.compute_loss(x=x, params=params, z=one_hot)
         c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
@@ -342,7 +343,7 @@ class OptRELAXIGR(OptRELAX):
         return c_phi, z_un, one_hot
 
     @tf.function()
-    def _compute_gradients(self, x):
+    def compute_gradients(self, x):
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
                 params = self.nets.encode(x)
@@ -382,7 +383,7 @@ class OptRELAXIGR(OptRELAX):
         return lax_grads
 
     @tf.function()
-    def compute_gradients(self, x):
+    def _compute_gradients(self, x):
         params = self.nets.encode(x)
         self.offload_params(params)
         c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
@@ -409,17 +410,15 @@ class OptRELAXGSDis(OptRELAX):
         super().__init__(nets=nets, optimizers=optimizers, hyper=hyper)
 
     def get_relax_variables_from_params(self, x, params):
-        log_alpha = params[0]
-        offset = 1.e-20
-        u = tf.random.uniform(shape=log_alpha.shape)
-        z_un = log_alpha - tf.math.log(-tf.math.log(u + offset) + offset)
+        u = tf.random.uniform(shape=self.log_alpha.shape)
+        z_un = self.log_alpha - tf.math.log(-tf.math.log(u + 1.e-20) + 1.e-20)
         one_hot = project_to_vertices(z_un, categories_n=self.n_required)
-        z_tilde_un = sample_z_tilde_cat(one_hot, log_alpha)
+        z_tilde_un = sample_z_tilde_cat(one_hot, self.log_alpha)
 
-        # z = tf.math.softmax(z_un / tf.math.exp(self.log_temp) + log_alpha, axis=1)
-        # z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp) + log_alpha, axis=1)
-        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
-        z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp), axis=1)
+        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
+        z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
+        # z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
+        # z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp), axis=1)
 
         c_phi = self.compute_c_phi(z=z, x=x, params=params)
         c_phi_tilde = self.compute_c_phi(z=z_tilde, x=x, params=params)
