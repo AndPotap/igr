@@ -153,7 +153,7 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     output = vae_opt.compute_gradients(x=x_train)
     # gradients, loss = output
     gradients, loss, relax, g2 = output
-    perform_print_gradient_analysis(relax, g2, iteration_counter, loss)
+    print_gradient_analysis(relax, g2, iteration_counter, loss)
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     train_loss_mean(loss)
@@ -163,10 +163,14 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     return vae_opt, iteration_counter
 
 
-def perform_print_gradient_analysis(relax, g2, iteration_counter, loss):
+def print_gradient_analysis(relax, g2, iteration_counter, loss):
     relax = relax[0] if len(relax) > 0 else relax
-    mu = g2[0]
-    xi = tf.math.exp(g2[1])
+    if len(g2) > 1:
+        mu = g2[0]
+        xi = tf.math.exp(g2[1])
+    else:
+        mu = g2[0]
+        xi = tf.math.exp(g2)[0]
     # if iteration_counter >= 0:
     # if iteration_counter % 10 == 0 or iteration_counter == 1:
     if iteration_counter % 100 == 0 or iteration_counter == 1:
