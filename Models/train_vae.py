@@ -152,8 +152,9 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
                        cont_c_linspace):
     output = vae_opt.compute_gradients(x=x_train)
     # gradients, loss = output
-    gradients, loss, relax, g2 = output
-    print_gradient_analysis(relax, g2, iteration_counter, loss)
+    # gradients, loss, relax, g2 = output
+    gradients, loss, relax, g2, other = output
+    print_gradient_analysis(relax, g2, iteration_counter, loss, other)
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     vae_opt.iter_count += 1
@@ -164,7 +165,7 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     return vae_opt, iteration_counter
 
 
-def print_gradient_analysis(relax, g2, iteration_counter, loss):
+def print_gradient_analysis(relax, g2, iteration_counter, loss, other=None):
     relax = relax[0] if len(relax) > 0 else relax
     if len(g2) > 1:
         mu = g2[0]
@@ -184,6 +185,8 @@ def print_gradient_analysis(relax, g2, iteration_counter, loss):
         print(f'Mu:    ({gmin:+1.2e}, {gmean:+1.2e}, {gmax:+1.2e}) -> {gnorm:+1.2e}')
         gnorm, gmax, gmean, gmin = get_statistics(xi)
         print(f'Sigma: ({gmin:+1.2e}, {gmean:+1.2e}, {gmax:+1.2e}) -> {gnorm:+1.2e}')
+        recon = other.numpy()
+        print(f'Recon Loss {recon:+1.2e}')
 
 
 def get_statistics(g):
