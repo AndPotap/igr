@@ -363,23 +363,11 @@ class OptRELAXIGR(OptRELAX):
         # log_qz_x = self.compute_log_pmf(z=z, params=params)
         # kl = log_p - tf.reduce_mean(log_qz_x)
         log_p_discrete = compute_igr_log_probs(self.mu, self.sigma)
-        # p_discrete = tf.math.exp(tf.clip_by_value(log_p_discrete, -50, +50))
         p_discrete = compute_igr_probs(self.mu, self.sigma)
-        # log_p_discrete = tf.math.log(p_discrete)
-        # aux = p_discrete[0, :, 0, 10]
-        # aux
-        # tf.math.reduce_sum(aux)
-        # self.mu[0, :, 0, 10]
-        # self.sigma[0, :, 0, 10]
-        # probs[0, :, 0, 10]
-        # probs = compute_igr_probs(self.mu, self.sigma)
         kl = tf.math.reduce_mean(tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3)))
         kl -= log_p
         recon = -tf.math.reduce_mean(log_px_z)
         loss = recon - kl
-        # if self.iter_count >= 28:
-        #    breakpoint()
-        # return loss
         return loss, recon
 
     def compute_c_phi(self, z, x, params):
@@ -407,10 +395,11 @@ class OptRELAXIGR(OptRELAX):
 
     def get_relax_variables_from_params(self, x, params):
         z_un = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
-        z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
+        # z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
+        z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp) + self.mu)
         z_un1 = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
-        z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp))
-        # z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp) + self.mu)
+        # z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp))
+        z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp) + self.mu)
         one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z1, x=x, params=params)
         return c_phi, z_un, one_hot
@@ -434,9 +423,6 @@ class OptRELAXIGR(OptRELAX):
             log_cat_g = tape.gradient(target=log_pmf, sources=params)
             log_gauss_grad = tape.gradient(target=log_gauss, sources=params)
             lax_grad = self.compute_lax_grad(loss, c_phi, log_cat_g, log_gauss_grad, c_phi_g)
-            # lax_grad = tf.clip_by_norm(lax_grad, tf.constant(300.))
-            # if self.iter_count >= 28:
-            #     breakpoint()
 
             c_phi_grad = tape.gradient(target=c_phi, sources=self.encoder_vars)
             log_qz_x_grad = tape.gradient(target=log_pmf, sources=self.encoder_vars)
@@ -444,17 +430,12 @@ class OptRELAXIGR(OptRELAX):
             log_qc_x_grad = tape.gradient(target=log_gauss, sources=self.encoder_vars)
             encoder_grads = self.compute_lax_grad(loss, c_phi, log_qz_x_grad,
                                                   log_qc_x_grad, c_phi_grad)
-            encoder_grads_normed = encoder_grads
-            # encoder_grads_normed = []
-            # for g in encoder_grads:
-            #     encoder_grads_normed.append(tf.clip_by_norm(g, 300.))
             decoder_grads = tape.gradient(target=loss, sources=self.decoder_vars)
 
             variance = compute_grad_var_over_batch(lax_grad[0])
         cov_net_grad = tape_cov.gradient(target=variance, sources=self.con_net_vars)
 
-        # gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        gradients = (encoder_grads_normed, decoder_grads, cov_net_grad)
+        gradients = (encoder_grads, decoder_grads, cov_net_grad)
         return gradients, loss, lax_grad, params, recon
 
     def compute_lax_grad(self, loss, c_phi, log_qz_x_grad, log_qc_grad, c_phi_grad):
