@@ -156,6 +156,7 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
     print_gradient_analysis(relax, g2, iteration_counter, loss)
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
+    vae_opt.iter_count += 1
     train_loss_mean(loss)
     update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
                                    disc_c_linspace=disc_c_linspace,
@@ -296,6 +297,9 @@ def fill_in_dict(hyper, cases):
 def fill_model_depending_settings(hyper_copy):
     hyper_copy['latent_discrete_n'] = hyper_copy['n_required']
     if hyper_copy['model_type'].find('GS') >= 0 or hyper_copy['model_type'].find('Ber') >= 0:
+        hyper_copy['num_of_discrete_param'] = 1
+    elif hyper_copy['model_type'] == 'Relax_IGR':
+        hyper_copy['latent_discrete_n'] += 1
         hyper_copy['num_of_discrete_param'] = 1
     else:
         hyper_copy['latent_discrete_n'] += 1
