@@ -666,7 +666,6 @@ class OptSB(OptSBFinite):
         return z_discrete
 
 
-# =================================================================================================
 def compute_loss(log_px_z, kl_norm, kl_dis, sample_size=1, run_jv=False,
                  gamma=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
     if run_jv:
