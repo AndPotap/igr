@@ -45,16 +45,14 @@ class TestDistributions(unittest.TestCase):
         xi_tf = tf.constant(np.random.normal(size=shape), dtype=tf.float32)
         sigma_tf = tf.math.exp(xi_tf)
         gauss = tfp.distributions.Normal(loc=mu_tf, scale=sigma_tf)
-        params = [mu_tf, xi_tf]
         z = gauss.sample()
         with tf.GradientTape(persistent=True) as tape:
-            tape.watch(mu_tf)
-            tape.watch(sigma_tf)
+            tape.watch([mu_tf, sigma_tf])
             density = gauss.log_prob(z)
         ans_mu = tape.gradient(target=density, sources=mu_tf)
         ans_sigma = tape.gradient(target=density, sources=sigma_tf)
         ans = [ans_mu, ans_sigma]
-        approx = compute_log_gauss_grad(z, params)
+        approx = compute_log_gauss_grad(z, mu_tf, sigma_tf)
         print(f'\nTEST: Gaussian log grad')
         for idx, grad in enumerate(ans):
             diff = np.linalg.norm(approx[idx] - grad) / np.linalg.norm(grad)
@@ -62,7 +60,7 @@ class TestDistributions(unittest.TestCase):
             self.assertTrue(expr=diff < test_tolerance)
 
     def test_probs_integral_general_case(self):
-        test_tolerance = 1.e-5
+        test_tolerance = 1.e-3
         batch_size, categories_n, sample_size, num_of_vars = 3, 9, 1, 1
 
         shape = (batch_size, categories_n, sample_size, num_of_vars)
