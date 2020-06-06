@@ -271,7 +271,7 @@ class OptRELAX(OptVAE):
         return c_phi
 
     @tf.function()
-    def compute_gradients(self, x):
+    def _compute_gradients(self, x):
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
                 params = self.nets.encode(x)
@@ -309,18 +309,18 @@ class OptRELAX(OptVAE):
         return relax_grads
 
     @tf.function()
-    def _compute_gradients(self, x):
+    def compute_gradients(self, x):
         params = self.nets.encode(x)
         self.offload_params(params)
         c_phi, c_phi_tilde, one_hot = self.get_relax_variables_from_params(x, params)
-        loss = self.compute_loss(x=x, z=one_hot)
+        loss = self.compute_loss(x=x, z=one_hot, params=params)
         c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
 
-        c_phi_diff_grad = tf.gradients(c_diff, self.log_alpha)[0]
-        log_qz_x_grad = self.compute_log_pmf_grad(z=one_hot, params=params)
-        relax_grad = self.compute_relax_grad(loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad)
+        c_phi_diff_grad = tf.gradients(c_diff, params)
+        log_qz_x_grad = self.compute_log_pmf_grad(z=one_hot)
+        relax_grad = self.compute_relax_grad(loss, c_phi_tilde, [log_qz_x_grad], c_phi_diff_grad)
 
-        encoder_grads = tf.gradients(self.log_alpha, self.encoder_vars, grad_ys=relax_grad)
+        encoder_grads = tf.gradients(params, self.encoder_vars, grad_ys=relax_grad)
         decoder_grads = tf.gradients(loss, self.decoder_vars)
 
         variance = compute_grad_var_over_batch(relax_grad)
