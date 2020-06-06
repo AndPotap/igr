@@ -304,6 +304,7 @@ def fill_model_depending_settings(hyper_copy):
     elif hyper_copy['model_type'] == 'Relax_IGR':
         hyper_copy['latent_discrete_n'] += 1
         hyper_copy['num_of_discrete_param'] = 1
+        # hyper_copy['num_of_discrete_param'] = 2
     else:
         hyper_copy['latent_discrete_n'] += 1
         hyper_copy['num_of_discrete_param'] = 2
