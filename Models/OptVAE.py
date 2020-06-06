@@ -1,5 +1,6 @@
 import pickle
 import tensorflow as tf
+import tensorflow_probability as tfp
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
@@ -7,6 +8,7 @@ from Utils.Distributions import project_to_vertices_via_softmax_pp
 from Utils.Distributions import project_to_vertices
 from Utils.Distributions import compute_igr_log_probs
 from Utils.Distributions import compute_log_gauss_grad
+# from Utils.Distributions import compute_igr_probs
 from Models.VAENet import RelaxCovNet
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -347,17 +349,50 @@ class OptRELAXIGR(OptRELAX):
         cov_net_shape = (self.n_required + 1, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
+        self.iter_count = 0
+
+    def compute_loss(self, z, x, params,
+                     sample_from_cont_kl=None, sample_from_disc_kl=None,
+                     test_with_one_hot=False):
+        categories_n = tf.cast(z.shape[1], dtype=tf.float32)
+        num_of_vars = tf.cast(z.shape[-1], dtype=tf.float32)
+
+        x_logit = self.decode([z])
+        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
+        log_p = - num_of_vars * tf.math.log(categories_n)
+        # log_qz_x = self.compute_log_pmf(z=z, params=params)
+        # kl = log_p - tf.reduce_mean(log_qz_x)
+        log_p_discrete = compute_igr_log_probs(self.mu, self.sigma)
+        p_discrete = tf.math.exp(tf.clip_by_value(log_p_discrete, -50, +50))
+        # p_discrete = compute_igr_probs(self.mu, self.sigma)
+        # log_p_discrete = tf.math.log(p_discrete)
+        # aux = p_discrete[0, :, 0, 10]
+        # aux
+        # tf.math.reduce_sum(aux)
+        # self.mu[0, :, 0, 10]
+        # self.sigma[0, :, 0, 10]
+        # probs[0, :, 0, 10]
+        # probs = compute_igr_probs(self.mu, self.sigma)
+        kl = tf.math.reduce_mean(tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3)))
+        kl -= log_p
+        loss = -tf.math.reduce_mean(log_px_z) - kl
+        # if self.iter_count >= 28:
+        #     breakpoint()
+        return loss
 
     def offload_params(self, params):
-        self.mu, self.xi = params
+        # self.mu, self.xi = params
         # self.sigma = tf.math.exp(tf.clip_by_value(self.xi, -50., 50.))
-        self.sigma = tf.math.softplus(tf.clip_by_value(self.xi, -50., 50.))
+        self.mu = params[0]
+        self.sigma = tf.ones_like(self.mu)
+        # self.sigma = tf.math.softplus(tf.clip_by_value(self.xi, -50., 50.))
 
-    def transform_params_into_log_probs(self):
+    def transform_params_into_log_probs(self, params):
         log_probs = compute_igr_log_probs(self.mu, self.sigma)
         return log_probs
 
-    def compute_log_pmf(self, z, log_probs):
+    def compute_log_pmf(self, z, params):
+        log_probs = self.transform_params_into_log_probs(params)
         log_categorical_pmf = tf.math.reduce_sum(z * log_probs, axis=1)
         log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
         return log_categorical_pmf
@@ -365,11 +400,12 @@ class OptRELAXIGR(OptRELAX):
     def get_relax_variables_from_params(self, x, params):
         z_un = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
         z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
+        # z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp) + self.mu)
         one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z, x=x, params=params)
         return c_phi, z_un, one_hot
 
-    # @tf.function()
+    @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
@@ -378,17 +414,22 @@ class OptRELAXIGR(OptRELAX):
                 tape.watch(params)
                 c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
                 loss = self.compute_loss(x=x, params=params, z=one_hot)
-                log_gauss_grad = compute_log_gauss_grad(z_un, params)
-                log_probs = self.transform_params_into_log_probs()
-                log_pmf = self.compute_log_pmf(z=one_hot, log_probs=log_probs)
+                # log_gauss_grad = compute_log_gauss_grad(z_un, self.mu, self.sigma)
+                gauss = tfp.distributions.Normal(loc=self.mu, scale=self.sigma)
+                log_gauss = gauss.log_prob(tf.stop_gradient(z_un))
+                log_pmf = self.compute_log_pmf(z=one_hot, params=params)
 
             c_phi_g = tape.gradient(target=c_phi, sources=params)
             log_cat_g = tape.gradient(target=log_pmf, sources=params)
+            log_gauss_grad = tape.gradient(target=log_gauss, sources=params)
             lax_grad = self.compute_lax_grad(loss, c_phi, log_cat_g, log_gauss_grad, c_phi_g)
+            # if self.iter_count >= 28:
+            #     breakpoint()
 
             c_phi_grad = tape.gradient(target=c_phi, sources=self.encoder_vars)
             log_qz_x_grad = tape.gradient(target=log_pmf, sources=self.encoder_vars)
-            log_qc_x_grad = tape.gradient(target=log_gauss_grad, sources=self.encoder_vars)
+            # log_qc_x_grad = tape.gradient(target=log_gauss_grad, sources=self.encoder_vars)
+            log_qc_x_grad = tape.gradient(target=log_gauss, sources=self.encoder_vars)
             encoder_grads = self.compute_lax_grad(loss, c_phi, log_qz_x_grad,
                                                   log_qc_x_grad, c_phi_grad)
             decoder_grads = tape.gradient(target=loss, sources=self.decoder_vars)
@@ -402,6 +443,7 @@ class OptRELAXIGR(OptRELAX):
     def compute_lax_grad(self, loss, c_phi, log_qz_x_grad, log_qc_grad, c_phi_grad):
         lax_grads = []
         for i in range(len(log_qz_x_grad)):
+            # lax = (loss - c_phi) * log_qz_x_grad[i]
             lax = loss * log_qz_x_grad[i]
             lax -= c_phi * log_qc_grad[i]
             lax += c_phi_grad[i]
