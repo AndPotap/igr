@@ -13,8 +13,8 @@ temps = [0.15]
 seeds = [9335]
 
 model_cases = {
-    1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
-        'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
+    # 1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
+    #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
     # 2: {'model_type': 'IGR_Planar_Dis', 'n_required': 9,
     #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
     # 3: {'model_type': 'IGR_SB_Finite_Dis', 'n_required': 9,
@@ -23,14 +23,14 @@ model_cases = {
     #     'prior_file': './Results/mu_xi_unif_50_IGR_SB_Finite.pkl',
     #     'threshold': 0.9, 'truncation_option': 'quantile'},
     # 5: {'model_type': 'GS_Dis', 'n_required': 10},
-    # 6: {'model_type': 'Relax_GS_Dis', 'n_required': 10},
+    6: {'model_type': 'Relax_GS_Dis', 'n_required': 10},
     # 7: {'model_type': 'Relax_Ber_Dis', 'n_required': 200},
     # 8: {'model_type': 'Relax_IGR', 'n_required': 9},
 }
 dataset_cases = {
-    1: {'dataset_name': 'mnist', 'architecture': 'dense'},
+    # 1: {'dataset_name': 'mnist', 'architecture': 'dense'},
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
-    # 1: {'dataset_name': 'mnist', 'architecture': 'dense_relax'},
+    1: {'dataset_name': 'mnist', 'architecture': 'dense_relax'},
     # 2: {'dataset_name': 'fmnist', 'architecture': 'dense'},
     # 3: {'dataset_name': 'omniglot', 'architecture': 'dense'},
 }
