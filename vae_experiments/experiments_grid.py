@@ -36,7 +36,7 @@ dataset_cases = {
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_size_testing': 1 * int(1.e0),
-         'check_every': 25,
+         'check_every': 10,
          'sample_from_disc_kl': False,
          'test_with_one_hot': True,
          'epochs': 100,
