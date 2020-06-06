@@ -375,10 +375,17 @@ class OptRELAXIGR(OptRELAX):
         # probs = compute_igr_probs(self.mu, self.sigma)
         kl = tf.math.reduce_mean(tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3)))
         kl -= log_p
-        loss = -tf.math.reduce_mean(log_px_z) - kl
+        recon = -tf.math.reduce_mean(log_px_z)
+        loss = recon - kl
         # if self.iter_count >= 28:
-        #     breakpoint()
-        return loss
+        #    breakpoint()
+        # return loss
+        return loss, recon
+
+    def compute_c_phi(self, z, x, params):
+        r = tf.math.reduce_mean(self.relax_cov.net(z))
+        c_phi = self.compute_loss(x=x, z=z, params=params)[0] + r
+        return c_phi
 
     def offload_params(self, params):
         # self.mu, self.xi = params
@@ -413,7 +420,8 @@ class OptRELAXIGR(OptRELAX):
                 self.offload_params(params)
                 tape.watch(params)
                 c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
-                loss = self.compute_loss(x=x, params=params, z=one_hot)
+                # loss = self.compute_loss(x=x, params=params, z=one_hot)
+                loss, recon = self.compute_loss(x=x, params=params, z=one_hot)
                 # log_gauss_grad = compute_log_gauss_grad(z_un, self.mu, self.sigma)
                 gauss = tfp.distributions.Normal(loc=self.mu, scale=self.sigma)
                 log_gauss = gauss.log_prob(tf.stop_gradient(z_un))
@@ -438,13 +446,13 @@ class OptRELAXIGR(OptRELAX):
         cov_net_grad = tape_cov.gradient(target=variance, sources=self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        return gradients, loss, lax_grad, params
+        return gradients, loss, lax_grad, params, recon
 
     def compute_lax_grad(self, loss, c_phi, log_qz_x_grad, log_qc_grad, c_phi_grad):
         lax_grads = []
         for i in range(len(log_qz_x_grad)):
-            # lax = (loss - c_phi) * log_qz_x_grad[i]
-            lax = loss * log_qz_x_grad[i]
+            lax = (loss - c_phi) * log_qz_x_grad[i]
+            # lax = loss * log_qz_x_grad[i]
             lax -= c_phi * log_qc_grad[i]
             lax += c_phi_grad[i]
             lax += log_qz_x_grad[i]
