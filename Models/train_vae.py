@@ -151,10 +151,11 @@ def convert_into_linspace(limits_tuple):
 def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace,
                        cont_c_linspace):
     output = vae_opt.compute_gradients(x=x_train)
-    # gradients, loss = output
-    # gradients, loss, relax, g2 = output
-    gradients, loss, relax, g2, other = output
-    # print_gradient_analysis(relax, g2, iteration_counter, loss, other)
+    if len(output) > 2:
+        gradients, loss, relax, g2, other = output
+    else:
+        gradients, loss = output
+    print_gradient_analysis(relax, g2, iteration_counter, loss, other)
     vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     vae_opt.iter_count += 1
@@ -168,14 +169,13 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
 def print_gradient_analysis(relax, g2, iteration_counter, loss, other=None):
     relax = relax[0] if len(relax) > 0 else relax
     if len(g2) > 1:
-        mu = tf.constant(10.) * tf.math.tanh(g2[0])
+        mu = tf.constant(5.) * tf.math.tanh(g2[0])
         xi = tf.constant(2.) * tf.math.sigmoid(g2[1]) + tf.constant(0.5)
     else:
         mu = g2[0]
         xi = tf.math.exp(g2)[0]
     # if iteration_counter >= 0:
-    # if iteration_counter % 10 == 0 or iteration_counter == 1:
-    if iteration_counter % 100 == 0 or iteration_counter == 1:
+    if iteration_counter % 100 == 0:
         print('\n')
         tf.print((iteration_counter, loss))
         gnorm, gmax, gmean, gmin = get_statistics(relax)
@@ -186,7 +186,7 @@ def print_gradient_analysis(relax, g2, iteration_counter, loss, other=None):
         gnorm, gmax, gmean, gmin = get_statistics(xi)
         print(f'Sigma: ({gmin:+1.2e}, {gmean:+1.2e}, {gmax:+1.2e}) -> {gnorm:+1.2e}')
         recon = other.numpy()
-        print(f'Recon Loss {recon:+1.3e} log_qz|x {recon - loss + 46:+1.3e}')
+        print(f'Recon Loss {recon:+1.3e} || log_qz|x {-recon + loss - 46:+1.3e}')
 
 
 def get_statistics(g):
