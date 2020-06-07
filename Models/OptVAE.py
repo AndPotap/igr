@@ -29,6 +29,7 @@ class OptVAE:
         self.sample_from_disc_kl = hyper['sample_from_disc_kl']
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.stick_the_landing = hyper['stick_the_landing']
+        self.iter_count = 0
 
         self.run_jv = hyper['run_jv']
         self.gamma = hyper['gamma']
