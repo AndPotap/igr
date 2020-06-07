@@ -226,12 +226,8 @@ class OptRELAX(OptVAE):
         initial_log_temp = tf.constant([1.6093 for _ in range(num_latents)],
                                        shape=shape)
         self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
-        # initial_eta = tf.constant([1. for _ in range(num_latents)],
-        #                           shape=shape)
-        # self.eta = tf.Variable(initial_eta, name='eta', trainable=True)
         self.decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         self.encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
-        # self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp] + [self.eta]
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
 
     def compute_loss(self, z, x, params,
@@ -245,7 +241,6 @@ class OptRELAX(OptVAE):
         log_p = - num_of_vars * tf.math.log(categories_n)
         log_qz_x = self.compute_log_pmf(z=z, params=params)
         kl = log_p - tf.reduce_mean(log_qz_x)
-        # kl = tf.reduce_mean(calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True))
         loss = -tf.math.reduce_mean(log_px_z) - kl
         return loss
 
@@ -301,7 +296,6 @@ class OptRELAX(OptVAE):
 
     def compute_relax_grad(self, loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad):
         relax_grads = []
-        # diff = loss - self.eta * c_phi_tilde
         diff = loss - c_phi_tilde
         for i in range(len(log_qz_x_grad)):
             relax = diff * log_qz_x_grad[i]
@@ -376,12 +370,10 @@ class OptRELAXIGR(OptRELAX):
         return c_phi
 
     def offload_params(self, params):
-        # self.mu, self.xi = params
-        # self.sigma = tf.math.exp(tf.clip_by_value(self.xi, -50., 50.))
-        # self.sigma = tf.math.exp(self.xi)
-        self.mu = params[0]
-        self.sigma = tf.ones_like(self.mu)
-        # self.sigma = tf.math.softplus(tf.clip_by_value(self.xi, -50., 50.))
+        mu, xi = params
+        # Transformations to ensure numerical stability of the integral
+        self.mu = tf.constant(10.) * tf.math.tanh(mu)
+        self.sigma = tf.constant(2.) * tf.math.sigmoid(xi) + tf.constant(0.5)
 
     def transform_params_into_log_probs(self, params):
         log_probs = compute_igr_log_probs(self.mu, self.sigma)
@@ -395,11 +387,11 @@ class OptRELAXIGR(OptRELAX):
 
     def get_relax_variables_from_params(self, x, params):
         z_un = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
-        # z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
-        z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp) + self.mu)
+        z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
+        # z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp) + self.mu)
         z_un1 = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
-        # z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp))
-        z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp) + self.mu)
+        z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp))
+        # z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp) + self.mu)
         one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z1, x=x, params=params)
         return c_phi, z_un, one_hot
@@ -426,7 +418,6 @@ class OptRELAXIGR(OptRELAX):
 
             c_phi_grad = tape.gradient(target=c_phi, sources=self.encoder_vars)
             log_qz_x_grad = tape.gradient(target=log_pmf, sources=self.encoder_vars)
-            # log_qc_x_grad = tape.gradient(target=log_gauss_grad, sources=self.encoder_vars)
             log_qc_x_grad = tape.gradient(target=log_gauss, sources=self.encoder_vars)
             encoder_grads = self.compute_lax_grad(loss, c_phi, log_qz_x_grad,
                                                   log_qc_x_grad, c_phi_grad)
@@ -442,8 +433,6 @@ class OptRELAXIGR(OptRELAX):
         lax_grads = []
         for i in range(len(log_qz_x_grad)):
             lax = (loss - c_phi) * log_qz_x_grad[i]
-            # lax = loss * log_qz_x_grad[i]
-            # lax -= c_phi * log_qc_grad[i]
             lax += c_phi_grad[i]
             lax += log_qz_x_grad[i]
             lax_grads.append(lax)
