@@ -1,12 +1,8 @@
 import time
-# from Utils.general import calculate_test_log_likelihood, setup_logger
-# from Utils.general import load_hyper_and_data
-# from Utils.general import setup_optimizer
 from Utils.estimate_loglike import calculate_test_log_likelihood
 from Utils.estimate_loglike import setup_logger
 from Utils.estimate_loglike import load_hyper_and_data
-from Models.train_vae import construct_nets_and_optimizer
-# from Utils.estimate_loglike import setup_optimizer
+from Utils.estimate_loglike import setup_optimizer
 
 tic = time.time()
 dataset_name = 'mnist'
@@ -29,10 +25,7 @@ path_to_trained_models += models[select_case]['model_dir'] + '/'
 
 test_dataset, hyper, epoch = load_hyper_and_data(path_to_trained_models, dataset_name,
                                                  samples_n, run_with_sample)
-# vae_opt = setup_optimizer(path_to_trained_models, hyper, model_type)
-vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=model_type)
-vae_opt.nets.load_weights(filepath=path_to_trained_models + weights_file)
-vae_opt.test_with_one_hot = True
+vae_opt = setup_optimizer(path_to_trained_models, hyper, model_type)
 logger = setup_logger(log_file_name='./Log/nll.txt', logger_name='nll')
 
 calculate_test_log_likelihood(logger, vae_opt, test_dataset, epoch, model_type, tic)
