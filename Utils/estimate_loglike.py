@@ -6,9 +6,14 @@ from Models.train_vae import construct_nets_and_optimizer
 from Utils.load_data import load_vae_dataset
 
 
-def estimate_log_likelihood(datasets, versions, models):
-    # logger = setup_logger(log_file_name='./Log/nll.txt', logger_name='nll')
-    pass
+def estimate_log_likelihood(path_to_trained_models, dataset_name, samples_n,
+                            model_type, run_with_sample):
+    tic = time.time()
+    test_dataset, hyper, epoch = load_hyper_and_data(path_to_trained_models, dataset_name,
+                                                     samples_n, run_with_sample)
+    vae_opt = setup_optimizer(path_to_trained_models, hyper, model_type)
+    logger = setup_logger(log_file_name='./Log/nll.txt', logger_name='nll')
+    calculate_test_log_likelihood(logger, vae_opt, test_dataset, epoch, model_type, tic)
 
 
 def load_hyper_and_data(path_to_trained_models, dataset_name, samples_n, run_with_sample):
