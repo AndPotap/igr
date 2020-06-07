@@ -168,8 +168,8 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
 def print_gradient_analysis(relax, g2, iteration_counter, loss, other=None):
     relax = relax[0] if len(relax) > 0 else relax
     if len(g2) > 1:
-        mu = g2[0]
-        xi = tf.math.exp(g2[1])
+        mu = tf.constant(10.) * tf.math.tanh(g2[0])
+        xi = tf.constant(2.) * tf.math.sigmoid(g2[1]) + tf.constant(0.5)
     else:
         mu = g2[0]
         xi = tf.math.exp(g2)[0]
@@ -186,7 +186,7 @@ def print_gradient_analysis(relax, g2, iteration_counter, loss, other=None):
         gnorm, gmax, gmean, gmin = get_statistics(xi)
         print(f'Sigma: ({gmin:+1.2e}, {gmean:+1.2e}, {gmax:+1.2e}) -> {gnorm:+1.2e}')
         recon = other.numpy()
-        print(f'Recon Loss {recon:+1.2e}')
+        print(f'Recon Loss {recon:+1.3e} log_qz|x {recon - loss + 46:+1.3e}')
 
 
 def get_statistics(g):
@@ -301,10 +301,6 @@ def fill_model_depending_settings(hyper_copy):
     hyper_copy['latent_discrete_n'] = hyper_copy['n_required']
     if hyper_copy['model_type'].find('GS') >= 0 or hyper_copy['model_type'].find('Ber') >= 0:
         hyper_copy['num_of_discrete_param'] = 1
-    elif hyper_copy['model_type'] == 'Relax_IGR':
-        hyper_copy['latent_discrete_n'] += 1
-        hyper_copy['num_of_discrete_param'] = 1
-        # hyper_copy['num_of_discrete_param'] = 2
     else:
         hyper_copy['latent_discrete_n'] += 1
         hyper_copy['num_of_discrete_param'] = 2
