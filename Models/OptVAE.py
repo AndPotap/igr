@@ -1,13 +1,11 @@
 import pickle
 import tensorflow as tf
-import tensorflow_probability as tfp
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
 from Utils.Distributions import project_to_vertices_via_softmax_pp
 from Utils.Distributions import project_to_vertices
 from Utils.Distributions import compute_igr_log_probs
-from Utils.Distributions import compute_log_gauss_grad
 from Utils.Distributions import compute_igr_probs
 from Models.VAENet import RelaxCovNet
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -229,6 +227,7 @@ class OptRELAX(OptVAE):
         self.decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         self.encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
+        self.iter_count = 0
 
     def compute_loss(self, z, x, params,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
@@ -241,8 +240,9 @@ class OptRELAX(OptVAE):
         log_p = - num_of_vars * tf.math.log(categories_n)
         log_qz_x = self.compute_log_pmf(z=z, params=params)
         kl = log_p - tf.reduce_mean(log_qz_x)
-        loss = -tf.math.reduce_mean(log_px_z) - kl
-        return loss
+        recon = -tf.math.reduce_mean(log_px_z)
+        loss = recon - kl
+        return loss, recon
 
     def offload_params(self, params):
         self.log_alpha = params[0]
@@ -264,7 +264,7 @@ class OptRELAX(OptVAE):
 
     def compute_c_phi(self, z, x, params):
         r = tf.math.reduce_mean(self.relax_cov.net(z))
-        c_phi = self.compute_loss(x=x, z=z, params=params) + r
+        c_phi = self.compute_loss(x=x, z=z, params=params)[0] + r
         return c_phi
 
     @tf.function()
@@ -285,7 +285,6 @@ class OptRELAX(OptVAE):
             c_diff_g = tape.gradient(target=c_diff, sources=self.encoder_vars)
             log_qz_x_g = tape.gradient(target=log_pmf, sources=self.encoder_vars)
             encoder_grads = self.compute_relax_grad(loss, c_phi_tilde, log_qz_x_g, c_diff_g)
-
             decoder_grads = tape.gradient(target=loss, sources=self.decoder_vars)
 
             variance = compute_grad_var_over_batch(relax_grad)
@@ -309,7 +308,7 @@ class OptRELAX(OptVAE):
         params = self.nets.encode(x)
         self.offload_params(params)
         c_phi, c_phi_tilde, one_hot = self.get_relax_variables_from_params(x, params)
-        loss = self.compute_loss(x=x, z=one_hot, params=params)
+        loss, recon = self.compute_loss(x=x, z=one_hot, params=params)
         c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
 
         c_phi_diff_grad = tf.gradients(c_diff, params)
@@ -323,7 +322,7 @@ class OptRELAX(OptVAE):
         cov_net_grad = tf.gradients(variance, self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        return gradients, loss, relax_grad, params
+        return gradients, loss, relax_grad, params, recon
 
     def apply_gradients(self, gradients):
         encoder_grads, decoder_grads, cov_net_grad = gradients
@@ -343,7 +342,6 @@ class OptRELAXIGR(OptRELAX):
         cov_net_shape = (self.n_required + 1, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
-        self.iter_count = 0
 
     def compute_loss(self, z, x, params,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
@@ -354,8 +352,6 @@ class OptRELAXIGR(OptRELAX):
         x_logit = self.decode([z])
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
         log_p = - num_of_vars * tf.math.log(categories_n)
-        # log_qz_x = self.compute_log_pmf(z=z, params=params)
-        # kl = log_p - tf.reduce_mean(log_qz_x)
         log_p_discrete = compute_igr_log_probs(self.mu, self.sigma)
         p_discrete = compute_igr_probs(self.mu, self.sigma)
         kl = tf.math.reduce_mean(tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3)))
@@ -364,15 +360,10 @@ class OptRELAXIGR(OptRELAX):
         loss = recon - kl
         return loss, recon
 
-    def compute_c_phi(self, z, x, params):
-        r = tf.math.reduce_mean(self.relax_cov.net(z))
-        c_phi = self.compute_loss(x=x, z=z, params=params)[0] + r
-        return c_phi
-
     def offload_params(self, params):
         mu, xi = params
         # Transformations to ensure numerical stability of the integral
-        self.mu = tf.constant(10.) * tf.math.tanh(mu)
+        self.mu = tf.constant(5.) * tf.math.tanh(mu)
         self.sigma = tf.constant(2.) * tf.math.sigmoid(xi) + tf.constant(0.5)
 
     def transform_params_into_log_probs(self, params):
@@ -404,61 +395,23 @@ class OptRELAXIGR(OptRELAX):
                 self.offload_params(params)
                 tape.watch(params)
                 c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
-                # loss = self.compute_loss(x=x, params=params, z=one_hot)
                 loss, recon = self.compute_loss(x=x, params=params, z=one_hot)
-                # log_gauss_grad = compute_log_gauss_grad(z_un, self.mu, self.sigma)
-                gauss = tfp.distributions.Normal(loc=self.mu, scale=self.sigma)
-                log_gauss = gauss.log_prob(tf.stop_gradient(z_un))
                 log_pmf = self.compute_log_pmf(z=one_hot, params=params)
 
             c_phi_g = tape.gradient(target=c_phi, sources=params)
             log_cat_g = tape.gradient(target=log_pmf, sources=params)
-            log_gauss_grad = tape.gradient(target=log_gauss, sources=params)
-            lax_grad = self.compute_lax_grad(loss, c_phi, log_cat_g, log_gauss_grad, c_phi_g)
+            relax_grad = self.compute_relax_grad(loss, c_phi, log_cat_g, c_phi_g)
 
             c_phi_grad = tape.gradient(target=c_phi, sources=self.encoder_vars)
             log_qz_x_grad = tape.gradient(target=log_pmf, sources=self.encoder_vars)
-            log_qc_x_grad = tape.gradient(target=log_gauss, sources=self.encoder_vars)
-            encoder_grads = self.compute_lax_grad(loss, c_phi, log_qz_x_grad,
-                                                  log_qc_x_grad, c_phi_grad)
+            encoder_grads = self.compute_relax_grad(loss, c_phi, log_qz_x_grad, c_phi_grad)
             decoder_grads = tape.gradient(target=loss, sources=self.decoder_vars)
 
-            variance = compute_grad_var_over_batch(lax_grad[0])
+            variance = compute_grad_var_over_batch(relax_grad[0])
         cov_net_grad = tape_cov.gradient(target=variance, sources=self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        return gradients, loss, lax_grad, params, recon
-
-    def compute_lax_grad(self, loss, c_phi, log_qz_x_grad, log_qc_grad, c_phi_grad):
-        lax_grads = []
-        for i in range(len(log_qz_x_grad)):
-            lax = (loss - c_phi) * log_qz_x_grad[i]
-            lax += c_phi_grad[i]
-            lax += log_qz_x_grad[i]
-            lax_grads.append(lax)
-        return lax_grads
-
-    @tf.function()
-    def _compute_gradients(self, x):
-        params = self.nets.encode(x)
-        self.offload_params(params)
-        c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
-        loss = self.compute_loss(x=x, params=params, z=one_hot)
-
-        c_phi_grad = tf.gradients(c_phi, params)
-        log_gauss_grad = compute_log_gauss_grad(z_un, params)
-        log_probs = self.transform_params_into_log_probs()
-        log_qz_x_grad = tf.gradients(log_probs, params, grad_ys=one_hot)
-        lax_grad = self.compute_lax_grad(loss, c_phi, log_qz_x_grad, log_gauss_grad, c_phi_grad)
-
-        encoder_grads = tf.gradients(params, self.encoder_vars, grad_ys=lax_grad)
-        decoder_grads = tf.gradients(loss, self.decoder_vars)
-
-        variance = compute_grad_var_over_batch(lax_grad[0])
-        cov_net_grad = tf.gradients(variance, self.con_net_vars)
-
-        gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        return gradients, loss, lax_grad, params
+        return gradients, loss, relax_grad, params, recon
 
 
 class OptRELAXGSDis(OptRELAX):
