@@ -1,4 +1,5 @@
 import tensorflow as tf
+import os
 import logging
 import time
 import pickle
@@ -6,12 +7,28 @@ from Models.train_vae import construct_nets_and_optimizer
 from Utils.load_data import load_vae_dataset
 
 
-def estimate_log_likelihood(path_to_trained_models, dataset_name, samples_n,
-                            model_type, run_with_sample):
+def manage_files(path):
+    weights_file = 'vae.h5'
+    check_hyper = os.path.isfile(path + 'hyper.pkl')
+    check_selected_vae = os.path.isfile(path + weights_file)
+    if not check_selected_vae:
+        w_files = [f for f in os.listdir(path) if f.endswith('.h5')]
+        weights_file = w_files[-1]
+    checks = (check_hyper, check_selected_vae)
+    return checks, weights_file
+
+
+def get_available_logs(path):
+    dirs_available = [d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]
+    return dirs_available
+
+
+def estimate_log_likelihood(path_to_trained_models, dataset_name, weights_file,
+                            samples_n, model_type, run_with_sample):
     tic = time.time()
     test_dataset, hyper, epoch = load_hyper_and_data(path_to_trained_models, dataset_name,
                                                      samples_n, run_with_sample)
-    vae_opt = setup_optimizer(path_to_trained_models, hyper, model_type)
+    vae_opt = setup_optimizer(path_to_trained_models, hyper, model_type, weights_file)
     logger = setup_logger(log_file_name='./Log/nll.txt', logger_name='nll')
     calculate_test_log_likelihood(logger, vae_opt, test_dataset, epoch, model_type, tic)
 
