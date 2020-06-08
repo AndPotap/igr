@@ -1,6 +1,7 @@
 from Utils.estimate_loglike import estimate_log_likelihood
 from Utils.estimate_loglike import get_available_logs
 from Utils.estimate_loglike import manage_files
+from Utils.estimate_loglike import setup_logger
 
 run_with_sample = True
 samples_n = 1 * int(1.e3)
@@ -13,6 +14,7 @@ models = {
     # 3: {'model_dir': 'pf', 'model_type': 'IGR_Planar_Dis'},
     # 4: {'model_dir': 'sb', 'model_type': 'IGR_SB_Finite_Dis'},
 }
+logger = setup_logger(log_file_name='./Log/nll.txt', logger_name='nll')
 for dataset in datasets:
     for arch in architectures:
         for _, v in models.items():
@@ -21,7 +23,8 @@ for dataset in datasets:
             path_to_trained_models += arch + '/'
             logs = get_available_logs(path_to_trained_models)
             for l in logs:
-                path_to_trained_models += l + '/'
-                checks, weights_file = manage_files(path_to_trained_models)
-                estimate_log_likelihood(path_to_trained_models, dataset, weights_file,
+                current_path = path_to_trained_models + l + '/'
+                checks, weights_file = manage_files(path_to_trained_models + l + '/')
+                logger.info(current_path)
+                estimate_log_likelihood(current_path, dataset, weights_file, logger,
                                         samples_n, v['model_type'], run_with_sample)
