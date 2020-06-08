@@ -9,10 +9,10 @@ tic = time.time()
 dataset_name = 'mnist'
 path_to_trained_models = './Results/trained_models/' + dataset_name + '/'
 models = {
-    1: {'model_dir': 'lax', 'model_type': 'Relax_IGR'},
+    1: {'model_dir': 'relax_igr', 'model_type': 'Relax_IGR'},
     2: {'model_dir': 'relax_gs', 'model_type': 'Relax_GS_Dis'},
 }
-select_case = 2
+select_case = 1
 hyper_file = 'hyper.pkl'
 weights_file = 'vae.h5'
 model_type = models[select_case]['model_type']
