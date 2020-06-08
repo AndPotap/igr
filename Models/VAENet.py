@@ -47,6 +47,8 @@ class VAENet(tf.keras.Model):
             self.generate_dense_nonlinear_generative_net()
         elif self.architecture_type == 'dense_relax':
             self.generate_relax_inference_net()
+            if self.model_type.find('Planar') >= 0:
+                self.generate_planar_flow()
             self.generate_relax_generative_net()
         elif self.architecture_type == 'conv':
             self.generate_convolutional_inference_net()
