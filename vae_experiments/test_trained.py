@@ -1,20 +1,27 @@
 from Utils.estimate_loglike import estimate_log_likelihood
+from Utils.estimate_loglike import get_available_logs
+from Utils.estimate_loglike import manage_files
 
-dataset_name = 'mnist'
-# dataset_name = 'fmnist'
-# dataset_name = 'omniglot'
-path_to_trained_models = './Results/trained_models/' + dataset_name + '/'
-models = {
-    1: {'model_dir': 'igr', 'model_type': 'IGR_I_Dis'},
-    2: {'model_dir': 'gs', 'model_type': 'GS_Dis'},
-    3: {'model_dir': 'pf', 'model_type': 'IGR_Planar_Dis'},
-    4: {'model_dir': 'sb', 'model_type': 'IGR_SB_Finite_Dis'},
-}
-select_case = 2
 run_with_sample = True
 samples_n = 1 * int(1.e3)
-
-model_type = models[select_case]['model_type']
-path_to_trained_models += models[select_case]['model_dir'] + '/'
-
-estimate_log_likelihood(path_to_trained_models, dataset_name, samples_n, model_type, run_with_sample)
+# datasets = ['mnist', 'fmnist']
+datasets = ['mnist']
+architectures = ['nonlinear']
+models = {
+    # 1: {'model_dir': 'igr', 'model_type': 'IGR_I_Dis'},
+    2: {'model_dir': 'gs', 'model_type': 'GS_Dis'},
+    # 3: {'model_dir': 'pf', 'model_type': 'IGR_Planar_Dis'},
+    # 4: {'model_dir': 'sb', 'model_type': 'IGR_SB_Finite_Dis'},
+}
+for dataset in datasets:
+    for arch in architectures:
+        for _, v in models.items():
+            path_to_trained_models = './Results/trained_models/' + dataset + '/'
+            path_to_trained_models += v['model_dir'] + '/'
+            path_to_trained_models += arch + '/'
+            logs = get_available_logs(path_to_trained_models)
+            for l in logs:
+                path_to_trained_models += l + '/'
+                checks, weights_file = manage_files(path_to_trained_models)
+                estimate_log_likelihood(path_to_trained_models, dataset, weights_file,
+                                        samples_n, v['model_type'], run_with_sample)
