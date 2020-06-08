@@ -23,13 +23,12 @@ def get_available_logs(path):
     return dirs_available
 
 
-def estimate_log_likelihood(path_to_trained_models, dataset_name, weights_file,
+def estimate_log_likelihood(path_to_trained_models, dataset_name, weights_file, logger,
                             samples_n, model_type, run_with_sample):
     tic = time.time()
     test_dataset, hyper, epoch = load_hyper_and_data(path_to_trained_models, dataset_name,
                                                      samples_n, run_with_sample)
     vae_opt = setup_optimizer(path_to_trained_models, hyper, model_type, weights_file)
-    logger = setup_logger(log_file_name='./Log/nll.txt', logger_name='nll')
     calculate_test_log_likelihood(logger, vae_opt, test_dataset, epoch, model_type, tic)
 
 
