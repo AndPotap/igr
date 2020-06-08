@@ -86,10 +86,6 @@ class VAENet(tf.keras.Model):
     def generate_relax_inference_net(self):
         input_layer = tf.keras.layers.Input(shape=self.image_shape)
         flat_layer = tf.keras.layers.Flatten()(input_layer)
-        # if self.model_type == 'Relax_IGR':
-        #     bias_init = tf.keras.initializers.Constant(value=-1.75)
-        # else:
-        #     bias_init = tf.keras.initializers.Zeros()
         bias_init = tf.keras.initializers.Zeros()
         layer1 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1',
                                        activation='relu')(2. * flat_layer - 1.)
@@ -101,6 +97,7 @@ class VAENet(tf.keras.Model):
         self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[layer3])
 
     def generate_relax_generative_net(self):
+        activation_type = self.determine_activation_from_case()
         image_flat = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
         image_flat *= self.log_px_z_params_num
         last_shape = (self.image_shape[0], self.image_shape[1],
@@ -111,7 +108,7 @@ class VAENet(tf.keras.Model):
         layer2 = tf.keras.layers.Dense(units=200, activation='relu',
                                        name='decoder_2')(layer1)
         layer3 = tf.keras.layers.Dense(units=image_flat,
-                                       name='decoder_out')(layer2)
+                                       name='decoder_out', activation=activation_type)(layer2)
         reshaped_layer = tf.keras.layers.Reshape(target_shape=last_shape)(layer3)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[reshaped_layer])
 
