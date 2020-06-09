@@ -24,11 +24,12 @@ def get_available_logs(path):
 
 
 def estimate_log_likelihood(path_to_trained_models, dataset_name, weights_file, logger,
-                            samples_n, model_type, run_with_sample):
+                            samples_n, model_type, run_with_sample, pass_all_samples=True):
     tic = time.time()
     test_dataset, hyper, epoch = load_hyper_and_data(path_to_trained_models, dataset_name,
                                                      samples_n, run_with_sample)
-    vae_opt = setup_optimizer(path_to_trained_models, hyper, model_type, weights_file)
+    vae_opt = setup_optimizer(path_to_trained_models, hyper,
+                              model_type, weights_file, pass_all_samples)
     calculate_test_log_likelihood(logger, vae_opt, test_dataset, epoch, model_type, tic)
 
 
@@ -52,10 +53,12 @@ def load_hyper(path_to_trained_models, samples_n, hyper_file='hyper.pkl'):
     return hyper
 
 
-def setup_optimizer(path_to_trained_models, hyper, model_type, weights_file='vae.h5'):
+def setup_optimizer(path_to_trained_models, hyper, model_type, weights_file='vae.h5',
+                    pass_all_samples=True):
     vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=model_type)
     vae_opt.nets.load_weights(filepath=path_to_trained_models + weights_file)
     vae_opt.test_with_one_hot = True
+    vae_opt.pass_all_samples_to_decoder = pass_all_samples
     return vae_opt
 
 
