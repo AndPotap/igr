@@ -48,6 +48,7 @@ def load_hyper(path_to_trained_models, samples_n, hyper_file='hyper.pkl'):
     with open(file=path_to_trained_models + hyper_file, mode='rb') as f:
         hyper = pickle.load(f)
     hyper['sample_size_testing'] = samples_n
+    hyper['sample_from_disc_kl'] = False
     return hyper
 
 
