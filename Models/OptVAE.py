@@ -30,6 +30,7 @@ class OptVAE:
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.stick_the_landing = hyper['stick_the_landing']
         self.iter_count = 0
+        self.pass_all_samples_to_decoder = True
 
         self.run_jv = hyper['run_jv']
         self.gamma = hyper['gamma']
@@ -55,6 +56,8 @@ class OptVAE:
             zz = []
             for idx in range(len(z)):
                 one_hot = project_to_vertices(z[idx], categories_n)
+                self.sample_size = 1 if not self.pass_all_samples_to_decoder else self.sample_size
+                one_hot = one_hot[:, :, :self.sample_size, :]
                 zz.append(one_hot)
             x_logit = self.decode(z=zz)
         else:
@@ -498,7 +501,7 @@ class OptIGR(OptVAE):
             mu_disc, xi_disc = params_broad
             kl_norm = 0.
         if not sample_from_disc_kl:
-            if self.model_type == 'IGR_I_Dis':
+            if self.sample_size == 1 and self.model_type == 'IGR_I_Dis':
                 log_p_discrete = compute_igr_log_probs(mu_disc, tf.math.exp(xi_disc))
                 p_discrete = tf.math.exp(log_p_discrete)
                 categories_n = tf.constant(self.n_required + 1, dtype=tf.float32)
