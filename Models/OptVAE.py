@@ -498,11 +498,18 @@ class OptIGR(OptVAE):
             mu_disc, xi_disc = params_broad
             kl_norm = 0.
         if not sample_from_disc_kl:
-            log_p_discrete = compute_igr_log_probs(mu_disc, tf.math.exp(xi_disc))
-            p_discrete = tf.math.exp(log_p_discrete)
-            categories_n = tf.constant(self.n_required + 1, dtype=tf.float32)
-            kl_dis = tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3))
-            kl_dis += self.num_of_vars * tf.math.log(categories_n)
+            if self.model_type == 'IGR_I_Dis':
+                log_p_discrete = compute_igr_log_probs(mu_disc, tf.math.exp(xi_disc))
+                p_discrete = tf.math.exp(log_p_discrete)
+                categories_n = tf.constant(self.n_required + 1, dtype=tf.float32)
+                kl_dis = tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3))
+                kl_dis += self.num_of_vars * tf.math.log(categories_n)
+            else:
+                batch_n, categories_n, sample_size, var_num = z[-1].shape
+                one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
+                                       perm=[0, 3, 1, 2])
+                p_discrete = tf.reduce_mean(one_hot, axis=2, keepdims=True)
+                kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
         else:
             if self.stick_the_landing:
                 mu_disc = tf.stop_gradient(mu_disc)
