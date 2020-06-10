@@ -695,7 +695,6 @@ def compute_loss(log_px_z, kl_norm, kl_dis, sample_size=1, run_jv=False,
         kl = kl_norm + kl_dis
         elbo = log_px_z - kl
         elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
-        breakpoint()
         loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
         loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
     return loss
