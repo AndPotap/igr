@@ -324,7 +324,8 @@ class OptRELAXIGR(OptRELAX):
         num_latents = self.n_required * self.num_of_vars
         shape = (1, self.n_required, self.sample_size, self.num_of_vars)
         initial_log_temp = tf.constant([-1.8972 for _ in range(num_latents)],
-                                       shape=shape)
+                                       shape=(1, self.n_required, 1, self.num_of_vars))
+        initial_log_temp = tf.broadcast_to(initial_log_temp, shape=shape)
         self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
         cov_net_shape = (self.n_required + 1, self.sample_size, self.num_of_vars)
         self.relax_cov = RelaxCovNet(cov_net_shape)
@@ -366,10 +367,8 @@ class OptRELAXIGR(OptRELAX):
     def get_relax_variables_from_params(self, x, params):
         z_un = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
         z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
-        # z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp) + self.mu)
         z_un1 = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
         z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp))
-        # z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp) + self.mu)
         one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z1, x=x, params=params)
         return c_phi, z_un, one_hot
