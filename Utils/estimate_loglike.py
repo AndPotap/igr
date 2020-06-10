@@ -56,6 +56,7 @@ def setup_optimizer(path_to_trained_models, hyper, model_type, weights_file='vae
     vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=model_type)
     vae_opt.nets.load_weights(filepath=path_to_trained_models + weights_file)
     vae_opt.test_with_one_hot = True
+    vae_opt.run_iwae = True
     return vae_opt
 
 
