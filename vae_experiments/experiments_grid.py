@@ -1,7 +1,7 @@
 import tensorflow as tf
 from Models.train_vae import run_vae_for_all_cases
 
-run_with_sample = False
+run_with_sample = True
 temps = [0.15]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
 
@@ -21,15 +21,15 @@ model_cases = {
     # 4: {'model_type': 'IGR_SB_Dis', 'n_required': 49,
     #     'prior_file': './Results/mu_xi_unif_50_IGR_SB_Finite.pkl',
     #     'threshold': 0.9, 'truncation_option': 'quantile'},
-    # 5: {'model_type': 'GS_Dis', 'n_required': 10},
+    5: {'model_type': 'GS_Dis', 'n_required': 10},
     # 6: {'model_type': 'Relax_GS_Dis', 'n_required': 10},
     # 7: {'model_type': 'Relax_Ber_Dis', 'n_required': 200},
-    8: {'model_type': 'Relax_IGR', 'n_required': 9},
+    # 8: {'model_type': 'Relax_IGR', 'n_required': 9},
 }
 dataset_cases = {
-    # 1: {'dataset_name': 'mnist', 'architecture': 'dense'},
+    1: {'dataset_name': 'mnist', 'architecture': 'dense'},
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense_relax'},
-    1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
+    # 1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
     # 2: {'dataset_name': 'fmnist', 'architecture': 'dense'},
     # 2: {'dataset_name': 'fmnist', 'architecture': 'dense_relax'},
     # 3: {'dataset_name': 'omniglot', 'architecture': 'dense'},
@@ -38,10 +38,10 @@ dataset_cases = {
 }
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_size_testing': 1 * int(1.e0),
-         'sample_size': 4,
-         'check_every': 10,
-         'epochs': 200,
-         'learning_rate': 1 * 1.e-4,
+         'sample_size': 1,
+         'check_every': 1,
+         'epochs': 100,
+         'learning_rate': 3 * 1.e-4,
          'batch_n': 100,
          'num_of_discrete_var': 20,
          'sample_from_disc_kl': True,
