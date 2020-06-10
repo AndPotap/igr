@@ -411,10 +411,10 @@ class OptRELAXGSDis(OptRELAX):
         one_hot = project_to_vertices(z_un, categories_n=self.n_required)
         z_tilde_un = sample_z_tilde_cat(one_hot, self.log_alpha)
 
-        # z = tf.math.softmax(z_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
-        # z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
-        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
-        z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp), axis=1)
+        z = tf.math.softmax(z_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
+        z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
+        # z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
+        # z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp), axis=1)
 
         c_phi = self.compute_c_phi(z=z, x=x, params=params)
         c_phi_tilde = self.compute_c_phi(z=z_tilde, x=x, params=params)
