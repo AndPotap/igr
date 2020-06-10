@@ -689,8 +689,7 @@ def compute_log_bernoulli_pdf(x, x_logit, sample_size):
 
 def compute_log_categorical_pmf(d, log_alpha):
     log_normalized = log_alpha - tf.reduce_logsumexp(log_alpha, axis=1, keepdims=True)
-    log_categorical_pmf = tf.math.reduce_sum(d * log_normalized, axis=1)
-    log_categorical_pmf = tf.math.reduce_sum(log_categorical_pmf, axis=(1, 2))
+    log_categorical_pmf = tf.math.reduce_sum(d * log_normalized, axis=(1, 3))
     return log_categorical_pmf
 
 
