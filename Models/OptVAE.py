@@ -238,7 +238,7 @@ class OptRELAX(OptVAE):
 
     def compute_loss(self, z, x, params,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
-                     test_with_one_hot=False):
+                     test_with_one_hot=False, run_iwae=False):
         categories_n = tf.cast(z.shape[1], dtype=tf.float32)
         num_of_vars = tf.cast(z.shape[-1], dtype=tf.float32)
 
@@ -275,16 +275,17 @@ class OptRELAX(OptVAE):
         return c_phi
 
     @tf.function()
-    def _compute_gradients(self, x):
+    def compute_gradients(self, x):
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
                 params = self.nets.encode(x)
                 self.offload_params(params)
                 tape.watch(params)
                 c_phi, c_phi_tilde, one_hot = self.get_relax_variables_from_params(x, params)
-                loss = self.compute_loss(x=x, z=one_hot, params=params)
+                loss, recon = self.compute_loss(x=x, z=one_hot, params=params)
                 c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
-                log_qz_x_grad = self.compute_log_pmf_grad(z=one_hot)
+                log_qz_x_grad = tf.reduce_mean(self.compute_log_pmf_grad(z=one_hot),
+                                               axis=2, keepdims=True)
                 log_pmf = self.compute_log_pmf(one_hot, params)
             c_diff_grad = tape.gradient(target=c_diff, sources=params)
             relax_grad = self.compute_relax_grad(loss, c_phi_tilde, [log_qz_x_grad], c_diff_grad)
@@ -298,7 +299,7 @@ class OptRELAX(OptVAE):
         cov_net_grad = tape_cov.gradient(target=variance, sources=self.con_net_vars)
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        return gradients, loss, relax_grad, params
+        return gradients, loss, relax_grad, params, recon
 
     def compute_relax_grad(self, loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad):
         relax_grads = []
@@ -309,27 +310,6 @@ class OptRELAX(OptVAE):
             relax += log_qz_x_grad[i]
             relax_grads.append(relax)
         return relax_grads
-
-    @tf.function()
-    def compute_gradients(self, x):
-        params = self.nets.encode(x)
-        self.offload_params(params)
-        c_phi, c_phi_tilde, one_hot = self.get_relax_variables_from_params(x, params)
-        loss, recon = self.compute_loss(x=x, z=one_hot, params=params)
-        c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
-
-        c_phi_diff_grad = tf.gradients(c_diff, params)
-        log_qz_x_grad = self.compute_log_pmf_grad(z=one_hot)
-        relax_grad = self.compute_relax_grad(loss, c_phi_tilde, [log_qz_x_grad], c_phi_diff_grad)
-
-        encoder_grads = tf.gradients(params, self.encoder_vars, grad_ys=relax_grad)
-        decoder_grads = tf.gradients(loss, self.decoder_vars)
-
-        variance = compute_grad_var_over_batch(relax_grad)
-        cov_net_grad = tf.gradients(variance, self.con_net_vars)
-
-        gradients = (encoder_grads, decoder_grads, cov_net_grad)
-        return gradients, loss, relax_grad, params, recon
 
     def apply_gradients(self, gradients):
         encoder_grads, decoder_grads, cov_net_grad = gradients
@@ -426,7 +406,8 @@ class OptRELAXGSDis(OptRELAX):
         super().__init__(nets=nets, optimizers=optimizers, hyper=hyper)
 
     def get_relax_variables_from_params(self, x, params):
-        u = tf.random.uniform(shape=self.log_alpha.shape)
+        u = tf.random.uniform(shape=(self.batch_size, self.n_required,
+                                     self.sample_size, self.num_of_vars))
         z_un = self.log_alpha - tf.math.log(-tf.math.log(u + 1.e-20) + 1.e-20)
         one_hot = project_to_vertices(z_un, categories_n=self.n_required)
         z_tilde_un = sample_z_tilde_cat(one_hot, self.log_alpha)
@@ -785,7 +766,7 @@ def sample_z_tilde_cat(one_hot, log_alpha):
     offset = 1.e-20
     bool_one_hot = tf.cast(one_hot, dtype=tf.bool)
     theta = tf.math.softmax(log_alpha, axis=1)
-    v = tf.random.uniform(shape=log_alpha.shape)
+    v = tf.random.uniform(shape=one_hot.shape)
     v_b = tf.where(bool_one_hot, v, 0.)
     v_b = tf.math.reduce_max(v_b, axis=1, keepdims=True)
     v_b = tf.broadcast_to(v_b, shape=v.shape)
