@@ -30,7 +30,7 @@ class OptVAE:
         self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
         self.stick_the_landing = hyper['stick_the_landing']
         self.iter_count = 0
-        self.pass_all_samples_to_decoder = True
+        self.estimate_kl_w_n = self.sample_size
 
         self.run_jv = hyper['run_jv']
         self.gamma = hyper['gamma']
@@ -47,8 +47,10 @@ class OptVAE:
     def set_hyper_for_testing(self, test_with_one_hot):
         if test_with_one_hot:
             self.sample_size = self.sample_size_testing
+            self.estimate_kl_w_n = 1 * int(1.e3)
         else:
             self.sample_size = self.sample_size_training
+            self.estimate_kl_w_n = self.sample_size_training
 
     def decode_w_or_wo_one_hot(self, z, test_with_one_hot):
         if test_with_one_hot:
@@ -56,7 +58,6 @@ class OptVAE:
             zz = []
             for idx in range(len(z)):
                 one_hot = project_to_vertices(z[idx], categories_n)
-                self.sample_size = 1 if not self.pass_all_samples_to_decoder else self.sample_size
                 one_hot = one_hot[:, :, :self.sample_size, :]
                 zz.append(one_hot)
             x_logit = self.decode(z=zz)
@@ -501,7 +502,7 @@ class OptIGR(OptVAE):
             mu_disc, xi_disc = params_broad
             kl_norm = 0.
         if not sample_from_disc_kl:
-            if self.sample_size == 1 and self.model_type == 'IGR_I_Dis':
+            if self.model_type == 'IGR_I_Dis':
                 log_p_discrete = compute_igr_log_probs(mu_disc, tf.math.exp(xi_disc))
                 p_discrete = tf.math.exp(log_p_discrete)
                 categories_n = tf.constant(self.n_required + 1, dtype=tf.float32)
@@ -591,7 +592,7 @@ class OptPlanarNF(OptIGR):
 
     def select_distribution(self, mu, xi):
         self.dist = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
-                               temp=self.temp, sample_size=self.sample_size)
+                               temp=self.temp, sample_size=self.estimate_kl_w_n)
 
     def compute_sampled_discrete_kl(self, mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
         log_qz_x = compute_log_normal_pdf(self.dist.kappa,
@@ -636,7 +637,7 @@ class OptSBFinite(OptIGR):
         return z
 
     def select_distribution(self, mu, xi):
-        self.dist = IGR_SB_Finite(mu, xi, self.temp, self.sample_size)
+        self.dist = IGR_SB_Finite(mu, xi, self.temp, self.estimate_kl_w_n)
 
     def complete_discrete_vector(self):
         z_discrete = self.dist.psi
@@ -671,7 +672,7 @@ class OptSB(OptSBFinite):
         self.use_continuous = use_continuous
 
     def select_distribution(self, mu, xi):
-        self.dist = IGR_SB(mu, xi, sample_size=self.sample_size,
+        self.dist = IGR_SB(mu, xi, sample_size=self.estimate_kl_w_n,
                            temp=self.temp, threshold=self.threshold)
         self.dist.truncation_option = self.truncation_option
         self.dist.quantile = self.quantile
@@ -694,6 +695,7 @@ def compute_loss(log_px_z, kl_norm, kl_dis, sample_size=1, run_jv=False,
         kl = kl_norm + kl_dis
         elbo = log_px_z - kl
         elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
+        breakpoint()
         loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
         loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
     return loss
