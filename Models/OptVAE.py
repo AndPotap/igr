@@ -31,6 +31,7 @@ class OptVAE:
         self.stick_the_landing = hyper['stick_the_landing']
         self.iter_count = 0
         self.estimate_kl_w_n = self.sample_size
+        self.run_iwae = False
 
         self.run_jv = hyper['run_jv']
         self.gamma = hyper['gamma']
@@ -114,7 +115,8 @@ class OptVAE:
         return kl_norm, kl_dis
 
     def compute_loss(self, x, x_logit, z, params_broad,
-                     sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot):
+                     sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
+                     run_iwae):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
             log_px_z = compute_log_gaussian_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
         else:
@@ -123,20 +125,18 @@ class OptVAE:
                                                    sample_from_cont_kl=sample_from_cont_kl,
                                                    sample_from_disc_kl=sample_from_disc_kl,
                                                    test_with_one_hot=test_with_one_hot)
-        loss = compute_loss(log_px_z=log_px_z, kl_norm=kl_norm, kl_dis=kl_dis,
-                            sample_size=self.sample_size,
-                            run_jv=self.run_jv, gamma=self.gamma,
-                            discrete_c=self.discrete_c, continuous_c=self.continuous_c)
+        loss = compute_loss(log_px_z=log_px_z, kl=kl_norm + kl_dis,
+                            sample_size=self.sample_size, run_iwae=run_iwae)
         return loss
 
     @tf.function()
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
-        z, x_logit, params_broad = self.perform_fwd_pass(x=x,
-                                                         test_with_one_hot=self.test_with_one_hot)
+        z, x_logit, params_broad = self.perform_fwd_pass(x, self.test_with_one_hot)
         loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                  sample_from_cont_kl=sample_from_cont_kl,
                                  sample_from_disc_kl=sample_from_disc_kl,
-                                 test_with_one_hot=self.test_with_one_hot)
+                                 test_with_one_hot=self.test_with_one_hot,
+                                 run_iwae=self.run_iwae)
         return loss
 
     @tf.function()
@@ -146,7 +146,8 @@ class OptVAE:
             loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                      sample_from_cont_kl=self.sample_from_cont_kl,
                                      sample_from_disc_kl=self.sample_from_disc_kl,
-                                     test_with_one_hot=False)
+                                     test_with_one_hot=False,
+                                     run_iwae=False)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         return gradients, loss
 
@@ -227,7 +228,8 @@ class OptRELAX(OptVAE):
         num_latents = self.n_required * self.num_of_vars
         shape = (1, self.n_required, self.sample_size, self.num_of_vars)
         initial_log_temp = tf.constant([1.6093 for _ in range(num_latents)],
-                                       shape=shape)
+                                       shape=(1, self.n_required, 1, self.num_of_vars))
+        initial_log_temp = tf.broadcast_to(initial_log_temp, shape=shape)
         self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
         self.decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
         self.encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
@@ -686,17 +688,14 @@ class OptSB(OptSBFinite):
         return z_discrete
 
 
-def compute_loss(log_px_z, kl_norm, kl_dis, sample_size=1, run_jv=False,
-                 gamma=tf.constant(1.), discrete_c=tf.constant(0.), continuous_c=tf.constant(0.)):
-    if run_jv:
-        loss = -tf.reduce_mean(log_px_z - gamma * tf.math.abs(kl_norm - continuous_c)
-                               - gamma * tf.math.abs(kl_dis - discrete_c))
-    else:
-        kl = kl_norm + kl_dis
-        elbo = log_px_z - kl
-        elbo_iwae = tf.math.reduce_logsumexp(elbo, axis=1)
-        loss = -tf.math.reduce_mean(elbo_iwae, axis=0)
+def compute_loss(log_px_z, kl, sample_size=1, run_iwae=False):
+    elbo = log_px_z - kl
+    if run_iwae:
+        elbo = tf.math.reduce_logsumexp(elbo, axis=1)
+        loss = -tf.math.reduce_mean(elbo)
         loss += tf.math.log(tf.constant(sample_size, dtype=tf.float32))
+    else:
+        loss = -tf.math.reduce_mean(elbo)
     return loss
 
 
