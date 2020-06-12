@@ -60,6 +60,10 @@ class TestDistributions(unittest.TestCase):
             self.assertTrue(expr=diff < test_tolerance)
 
     def test_probs_integral_general_case(self):
+        '''
+        mu = [1.4171, -0.502645, 1.2011, -1.6832, -1.05, 2.55, -1.7, 0.52, -0.9899]
+        sigma = [0.138, 0.60, 3.22, 2.09, 0.51544, 0.15236, 1.44266, 0.86, 0.1410]
+        '''
         test_tolerance = 1.e-3
         batch_size, categories_n, sample_size, num_of_vars = 3, 9, 1, 1
 
