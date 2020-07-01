@@ -4,7 +4,7 @@ import pickle
 import tensorflow as tf
 from Utils.load_data import load_vae_dataset
 from Models.VAENet import construct_networks, determine_path_to_save_results
-from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBFinite, OptExpGS
+from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBFinite
 from Models.OptVAE import OptIGRDis, OptExpGSDis, OptPlanarNFDis, OptPlanarNF
 from Models.OptVAE import OptRELAXGSDis, OptRELAXBerDis, OptRELAXIGR
 from Utils.viz_vae import plot_originals
@@ -31,7 +31,8 @@ def construct_nets_and_optimizer(hyper, model_type):
     if model_type == 'VAE':
         vae_opt = OptVAE(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS':
-        vae_opt = OptExpGS(nets=nets, optimizer=optimizer, hyper=hyper)
+        # vae_opt = OptExpGS(nets=nets, optimizer=optimizer, hyper=hyper)
+        vae_opt = OptExpGSDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS_Dis':
         vae_opt = OptExpGSDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_I':
@@ -79,11 +80,11 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
     # tf.profiler.experimental.start(results_path + '/')
     for epoch in range(1, hyper['epochs'] + 1):
         t0 = time.time()
-        train_loss_mean = vae_opt.train_on_epoch(train_dataset, hyper['iter_per_epoch'])
+        vae_opt.train_on_epoch(train_dataset, hyper['iter_per_epoch'])
         t1 = time.time()
         evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
                                       hyper=hyper, logger=logger,
-                                      train_loss_mean=train_loss_mean, time_taken=t1 - t0,
+                                      train_loss_mean=vae_opt.train_loss_mean, time_taken=t1 - t0,
                                       check_every=check_every)
 
         save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path)
