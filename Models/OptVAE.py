@@ -139,6 +139,7 @@ class OptVAE:
                                  run_iwae=self.run_iwae)
         return loss
 
+    # @tf.function(experimental_compile=True)
     @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
@@ -149,10 +150,8 @@ class OptVAE:
                                      test_with_one_hot=False,
                                      run_iwae=False)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
-        return gradients, loss
-
-    def apply_gradients(self, gradients):
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
+        return gradients, loss
 
 
 class OptExpGS(OptVAE):
