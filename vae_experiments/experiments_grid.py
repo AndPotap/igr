@@ -2,7 +2,7 @@ from Models.train_vae import run_vae_for_all_cases
 
 run_with_sample = False
 temps = [0.67]
-temps = [0.15]
+# temps = [0.15]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
 
 # import numpy as np
