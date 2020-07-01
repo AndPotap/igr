@@ -68,8 +68,7 @@ def construct_nets_and_optimizer(hyper, model_type):
     return vae_opt
 
 
-def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every,
-              monitor_gradients=False, monitor_variance=True):
+def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every):
     logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
     init_vars = run_initialization_procedure(hyper, results_path)
     (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace,
@@ -80,18 +79,10 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
     # tf.profiler.experimental.start(results_path + '/')
     for epoch in range(1, hyper['epochs'] + 1):
         t0 = time.time()
-        train_loss_mean = tf.keras.metrics.Mean()
-        for x_train in train_dataset.take(hyper['iter_per_epoch']):
-            vae_opt, iteration_counter = perform_train_step(x_train, vae_opt, train_loss_mean,
-                                                            iteration_counter, disc_c_linspace,
-                                                            cont_c_linspace)
+        train_loss_mean = vae_opt.train_on_epoch(train_dataset, hyper['iter_per_epoch'])
         t1 = time.time()
-        monitor_vanishing_grads(monitor_gradients, x_train, vae_opt,
-                                iteration_counter, grad_monitor_dict, epoch)
-
         evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
                                       hyper=hyper, logger=logger,
-                                      iteration_counter=iteration_counter,
                                       train_loss_mean=train_loss_mean, time_taken=t1 - t0,
                                       check_every=check_every)
 
@@ -150,23 +141,25 @@ def convert_into_linspace(limits_tuple):
     return var_linspace
 
 
-def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, disc_c_linspace,
-                       cont_c_linspace):
-    output = vae_opt.compute_gradients(x=x_train)
-    if len(output) > 2:
-        gradients, loss, relax, g2, other = output
-        # print_gradient_analysis(relax, g2, iteration_counter, loss, other)
-    else:
-        gradients, loss = output
-    # vae_opt.apply_gradients(gradients=gradients)
-    iteration_counter += 1
+def perform_train_step(x_train, vae_opt, train_loss_mean):
+    loss = vae_opt.compute_gradients(x=x_train)
     vae_opt.iter_count += 1
     train_loss_mean(loss)
-    update_regularization_channels(vae_opt=vae_opt, iteration_counter=iteration_counter,
-                                   disc_c_linspace=disc_c_linspace,
-                                   cont_c_linspace=cont_c_linspace)
-    return vae_opt, iteration_counter
+    return vae_opt
 
+
+# def perform_train_step(x_train, vae_opt, train_loss_mean):
+#     output = vae_opt.compute_gradients(x=x_train)
+#     if len(output) > 2:
+#         gradients, loss, relax, g2, other = output
+#         # print_gradient_analysis(relax, g2, iteration_counter, loss, other)
+#     else:
+#         gradients, loss = output
+#     # vae_opt.apply_gradients(gradients=gradients)
+#     vae_opt.iter_count += 1
+#     train_loss_mean(loss)
+#     return vae_opt
+#
 
 def print_gradient_analysis(relax, g2, iteration_counter, loss, other=None):
     relax = relax[0] if len(relax) > 0 else relax
@@ -199,12 +192,6 @@ def get_statistics(g):
     return norm, gmax, gmean, gmin
 
 
-def update_regularization_channels(vae_opt, iteration_counter, disc_c_linspace, cont_c_linspace):
-    if iteration_counter < disc_c_linspace.shape[0]:
-        vae_opt.continuous_c = cont_c_linspace[iteration_counter]
-        vae_opt.discrete_c = disc_c_linspace[iteration_counter]
-
-
 def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_counter,
                             grad_monitor_dict, epoch):
     if monitor_gradients:
@@ -214,13 +201,13 @@ def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_count
             pickle.dump(obj=grad_monitor_dict, file=f)
 
 
-def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger, iteration_counter,
+def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger,
                                   time_taken, train_loss_mean, check_every=10):
     if epoch % check_every == 0 or epoch == 1 or epoch == hyper['epochs']:
         test_progress = create_test_progress_tracker(run_jv=hyper['run_jv'])
         for x_test in test_dataset.take(hyper['iter_per_epoch']):
             test_progress = update_test_progress(x_test, vae_opt, test_progress)
-        log_test_progress(logger, test_progress, epoch, time_taken, iteration_counter,
+        log_test_progress(logger, test_progress, epoch, time_taken, vae_opt.iter_count,
                           train_loss_mean, vae_opt.temp)
 
 
