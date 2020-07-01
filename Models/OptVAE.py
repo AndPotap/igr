@@ -139,7 +139,6 @@ class OptVAE:
                                  run_iwae=self.run_iwae)
         return loss
 
-    # @tf.function(experimental_compile=True)
     @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
@@ -151,7 +150,19 @@ class OptVAE:
                                      run_iwae=False)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
-        return gradients, loss
+        return loss
+
+    # @tf.function()
+    def train_on_epoch(self, train_dataset, take):
+        train_loss_mean = tf.keras.metrics.Mean()
+        for x_train in train_dataset.take(take):
+            self.perform_train_step(x_train, train_loss_mean)
+        return train_loss_mean
+
+    def perform_train_step(self, x_train, train_loss_mean):
+        loss = self.compute_gradients(x=x_train)
+        self.iter_count += 1
+        train_loss_mean(loss)
 
 
 class OptExpGS(OptVAE):
