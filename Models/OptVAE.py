@@ -32,6 +32,7 @@ class OptVAE:
         self.iter_count = 0
         self.estimate_kl_w_n = self.sample_size
         self.run_iwae = False
+        self.train_loss_mean = tf.keras.metrics.Mean()
 
         self.run_jv = hyper['run_jv']
         self.gamma = hyper['gamma']
@@ -40,7 +41,7 @@ class OptVAE:
 
     def perform_fwd_pass(self, x, test_with_one_hot=False):
         self.set_hyper_for_testing(test_with_one_hot)
-        params = self.nets.encode(x)
+        params = self.nets.encode(x, self.batch_size)
         z = self.reparameterize(params_broad=params)
         x_logit = self.decode_w_or_wo_one_hot(z, test_with_one_hot)
         return z, x_logit, params
@@ -154,53 +155,37 @@ class OptVAE:
 
     # @tf.function()
     def train_on_epoch(self, train_dataset, take):
-        train_loss_mean = tf.keras.metrics.Mean()
         for x_train in train_dataset.take(take):
-            self.perform_train_step(x_train, train_loss_mean)
-        return train_loss_mean
+            self.perform_train_step(x_train)
 
-    def perform_train_step(self, x_train, train_loss_mean):
+    def perform_train_step(self, x_train):
         loss = self.compute_gradients(x=x_train)
         self.iter_count += 1
-        train_loss_mean(loss)
+        self.train_loss_mean(loss)
 
 
-class OptExpGS(OptVAE):
+class OptExpGSDis(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.dist = GS(log_pi=tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1)),
                        temp=self.temp)
         self.log_psi = tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1))
-        self.use_continuous = True
 
     def reparameterize(self, params_broad):
-        mean, log_var, logits = params_broad
-        z_norm = sample_normal(mean=mean, log_var=log_var)
-        self.dist = GS(log_pi=logits, sample_size=self.sample_size, temp=self.temp)
+        self.dist = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
         self.dist.generate_sample()
+        self.n_required = self.dist.psi.shape[1]
         self.log_psi = self.dist.log_psi
-        z_discrete = self.dits.psi
-        self.n_required = z_discrete.shape[1]
-        z = [z_norm, z_discrete]
-        return z
+        z_discrete = [self.dist.psi]
+        return z_discrete
 
-    def compute_kl_elements(self, z, params_broad,
-                            sample_from_cont_kl, sample_from_disc_kl,
-                            test_with_one_hot):
-        if self.use_continuous:
-            mean, log_var, log_alpha = params_broad
-            z_norm, _ = z
-            if sample_from_cont_kl:
-                z_norm, _ = z
-                kl_norm = sample_kl_norm(z_norm=z, mean=mean, log_var=log_var)
-            else:
-                kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
-        else:
-            log_alpha = params_broad[0]
-            if self.stick_the_landing:
-                log_alpha = tf.stop_gradient(log_alpha)
-            kl_norm = 0.
+    def compute_kl_elements(self, z, params_broad, sample_from_cont_kl,
+                            sample_from_disc_kl, test_with_one_hot):
+        log_alpha = params_broad[0]
+        if self.stick_the_landing:
+            log_alpha = tf.stop_gradient(log_alpha)
+        kl_norm = 0.
         kl_dis = self.compute_discrete_kl(log_alpha, sample_from_disc_kl)
         return kl_norm, kl_dis
 
@@ -211,20 +196,6 @@ class OptExpGS(OptVAE):
         else:
             kl_dis = calculate_categorical_closed_kl(log_alpha=log_alpha, normalize=True)
         return kl_dis
-
-
-class OptExpGSDis(OptExpGS):
-    def __init__(self, nets, optimizer, hyper):
-        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.use_continuous = False
-
-    def reparameterize(self, params_broad):
-        self.dist = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
-        self.dist.generate_sample()
-        self.n_required = self.dist.psi.shape[1]
-        self.log_psi = self.dist.log_psi
-        z_discrete = [self.dist.psi]
-        return z_discrete
 
 
 class OptRELAX(OptVAE):
@@ -690,7 +661,9 @@ def compute_loss(log_px_z, kl, sample_size=1, run_iwae=False):
 
 
 def compute_log_bernoulli_pdf(x, x_logit, sample_size):
-    x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x.shape + (sample_size,))
+    # x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x.shape + (sample_size,))
+    # x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=(5, 28, 28, 1, 1) + (sample_size,))
+    x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=sample_size)
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
     log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
     return log_px_z
