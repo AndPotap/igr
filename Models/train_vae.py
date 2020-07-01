@@ -71,10 +71,7 @@ def construct_nets_and_optimizer(hyper, model_type):
 
 def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every):
     logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
-    init_vars = run_initialization_procedure(hyper, results_path)
-    (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace,
-     grad_monitor_dict,
-     grad_norm) = init_vars
+    hyper_file, results_file, = run_initialization_procedure(hyper, results_path)
 
     initial_time = time.time()
     # tf.profiler.experimental.start(results_path + '/')
@@ -83,10 +80,8 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
         vae_opt.train_on_epoch(train_dataset, hyper['iter_per_epoch'])
         t1 = time.time()
         evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
-                                      hyper=hyper, logger=logger,
-                                      train_loss_mean=vae_opt.train_loss_mean, time_taken=t1 - t0,
+                                      hyper=hyper, logger=logger, time_taken=t1 - t0,
                                       check_every=check_every)
-
         save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path)
 
     save_final_results(vae_opt.nets, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
@@ -108,45 +103,19 @@ def start_all_logging_instruments(hyper, test_images):
 
 
 def log_all_hyperparameters(hyper, logger):
-    logger.info(f"GPU Available: {tf.test.is_gpu_available()}")
+    logger.info(f"GPU Available: {tf.config.list_physical_devices('GPU')}")
     for key, value in hyper.items():
         logger.info(f'Hyper: {key}: {value}')
 
 
 def run_initialization_procedure(hyper, results_path):
-    init_vars = initialize_vae_variables(results_path=results_path, hyper=hyper)
-    hyper_file, *_ = init_vars
+    results_file = results_path + '/vae.h5'
+    hyper_file = results_path + '/hyper.pkl'
 
     with open(file=hyper_file, mode='wb') as f:
         pickle.dump(obj=hyper, file=f)
 
-    return init_vars
-
-
-def initialize_vae_variables(results_path, hyper):
-    iteration_counter = 0
-    results_file = results_path + '/vae.h5'
-    hyper_file = results_path + '/hyper.pkl'
-    cont_c_linspace = convert_into_linspace(hyper['cont_c_linspace'])
-    disc_c_linspace = convert_into_linspace(hyper['disc_c_linspace'])
-    grad_monitor_dict = {}
-    grad_norm = tf.constant(0., dtype=tf.float32)
-    init_vars = (hyper_file, iteration_counter, results_file, cont_c_linspace, disc_c_linspace,
-                 grad_monitor_dict,
-                 grad_norm)
-    return init_vars
-
-
-def convert_into_linspace(limits_tuple):
-    var_linspace = tf.linspace(start=limits_tuple[0], stop=limits_tuple[1], num=limits_tuple[2])
-    return var_linspace
-
-
-def perform_train_step(x_train, vae_opt, train_loss_mean):
-    loss = vae_opt.compute_gradients(x=x_train)
-    vae_opt.iter_count += 1
-    train_loss_mean(loss)
-    return vae_opt
+    return hyper_file, results_file
 
 
 # def perform_train_step(x_train, vae_opt, train_loss_mean):
@@ -203,20 +172,17 @@ def monitor_vanishing_grads(monitor_gradients, x_train, vae_opt, iteration_count
 
 
 def evaluate_progress_in_test_set(epoch, test_dataset, vae_opt, hyper, logger,
-                                  time_taken, train_loss_mean, check_every=10):
+                                  time_taken, check_every=10):
     if epoch % check_every == 0 or epoch == 1 or epoch == hyper['epochs']:
-        test_progress = create_test_progress_tracker(run_jv=hyper['run_jv'])
+        test_progress = create_test_progress_tracker()
         for x_test in test_dataset.take(hyper['iter_per_epoch']):
             test_progress = update_test_progress(x_test, vae_opt, test_progress)
         log_test_progress(logger, test_progress, epoch, time_taken, vae_opt.iter_count,
-                          train_loss_mean, vae_opt.temp)
+                          vae_opt.train_loss_mean, vae_opt.temp)
 
 
-def create_test_progress_tracker(run_jv):
-    if run_jv:
-        vars_to_track = {'TeJV': True, 'TeJVC': False, 'N': ()}
-    else:
-        vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'N': ()}
+def create_test_progress_tracker():
+    vars_to_track = {'TeELBO': True, 'TeELBOC': False, 'N': ()}
     test_track = {'vars_to_track': vars_to_track}
     for k, _ in vars_to_track.items():
         test_track[k] = tf.keras.metrics.Mean()
