@@ -30,6 +30,7 @@ class VAENet(tf.keras.Model):
         self.split_sizes_list += [self.disc_latent_in *
                                   self.disc_var_num for _ in range(self.disc_param_num)]
         self.num_var = (self.cont_var_num, self.disc_var_num)
+        # tf.keras.mixed_precision.experimental.set_policy('mixed_float16')
 
         self.inference_net = tf.keras.Sequential
         self.generative_net = tf.keras.Sequential
@@ -69,8 +70,8 @@ class VAENet(tf.keras.Model):
     # -------------------------------------------------------------------------------------------
     def generate_dense_inference_net(self, activation='linear'):
         self.inference_net = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=self.image_shape, dtype=self.fl),
-            tf.keras.layers.Flatten(dtype=self.fl),
+            tf.keras.layers.InputLayer(input_shape=self.image_shape),
+            tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1', dtype=self.fl),
         ])
 
@@ -79,9 +80,8 @@ class VAENet(tf.keras.Model):
         image_flat = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
         image_flat *= self.log_px_z_params_num
         self.generative_net = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,), dtype=self.fl),
-            tf.keras.layers.Dense(units=image_flat, activation=activation_type,
-                                  name='decoder_1', dtype=self.fl),
+            tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
+            tf.keras.layers.Dense(units=image_flat, activation=activation_type, name='decoder_1'),
             tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
                                                   self.image_shape[2] * self.log_px_z_params_num),
                                     dtype=self.fl)
