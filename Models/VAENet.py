@@ -267,7 +267,7 @@ class VAENet(tf.keras.Model):
         params = tf.split(self.inference_net(x), num_or_size_splits=self.split_sizes_list, axis=1)
         reshaped_params = []
         for idx, param in enumerate(params):
-            # batch_size = param.shape[0]
+            batch_size = batch_size if x.shape[0] is None else param.shape[0]
             if self.disc_var_num > 1:
                 param = tf.reshape(param,
                                    shape=(batch_size, self.disc_latent_in, 1, self.disc_var_num))
