@@ -259,15 +259,15 @@ class VAENet(tf.keras.Model):
         ])
 
     # --------------------------------------------------------------------------------------------
-    def encode(self, x):
-        params = self.split_and_reshape_network_parameters(x=x)
+    def encode(self, x, batch_size):
+        params = self.split_and_reshape_network_parameters(x, batch_size)
         return params
 
-    def split_and_reshape_network_parameters(self, x):
+    def split_and_reshape_network_parameters(self, x, batch_size):
         params = tf.split(self.inference_net(x), num_or_size_splits=self.split_sizes_list, axis=1)
         reshaped_params = []
         for idx, param in enumerate(params):
-            batch_size = param.shape[0]
+            # batch_size = param.shape[0]
             if self.disc_var_num > 1:
                 param = tf.reshape(param,
                                    shape=(batch_size, self.disc_latent_in, 1, self.disc_var_num))
