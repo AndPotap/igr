@@ -77,6 +77,7 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
      grad_norm) = init_vars
 
     initial_time = time.time()
+    # tf.profiler.experimental.start(results_path + '/')
     for epoch in range(1, hyper['epochs'] + 1):
         t0 = time.time()
         train_loss_mean = tf.keras.metrics.Mean()
@@ -97,6 +98,7 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
         save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path)
 
     save_final_results(vae_opt.nets, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
+    # tf.profiler.experimental.stop()
 
 
 def start_all_logging_instruments(hyper, test_images):
@@ -156,7 +158,7 @@ def perform_train_step(x_train, vae_opt, train_loss_mean, iteration_counter, dis
         # print_gradient_analysis(relax, g2, iteration_counter, loss, other)
     else:
         gradients, loss = output
-    vae_opt.apply_gradients(gradients=gradients)
+    # vae_opt.apply_gradients(gradients=gradients)
     iteration_counter += 1
     vae_opt.iter_count += 1
     train_loss_mean(loss)
