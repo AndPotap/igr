@@ -28,6 +28,8 @@ def run_vae(hyper, run_with_sample):
 def construct_nets_and_optimizer(hyper, model_type):
     nets = construct_networks(hyper=hyper)
     optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
+    optimizer = tf.keras.mixed_precision.experimental.LossScaleOptimizer(optimizer,
+                                                                         loss_scale='dynamic')
     if model_type == 'VAE':
         vae_opt = OptVAE(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS':

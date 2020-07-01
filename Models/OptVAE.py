@@ -145,8 +145,13 @@ class OptVAE:
                                      sample_from_disc_kl=self.sample_from_disc_kl,
                                      test_with_one_hot=False,
                                      run_iwae=False)
+            # scaled_loss = self.optimizer.get_scaled_loss(loss)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
+
+        # scaled_gradients = tape.gradient(scaled_loss, self.nets.trainable_variables)
+        # gradients = self.optimizer.get_unscaled_gradients(scaled_gradients)
+        # self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
         return loss
 
     # @tf.function()
