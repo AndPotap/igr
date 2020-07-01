@@ -1,7 +1,7 @@
-import tensorflow as tf
 from Models.train_vae import run_vae_for_all_cases
 
-run_with_sample = True
+run_with_sample = False
+temps = [0.67]
 temps = [0.15]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
 
@@ -12,8 +12,8 @@ seeds = [5328, 5945, 8965, 49, 9337]
 # seeds = [9335]
 
 model_cases = {
-    # 1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
-    #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
+    #  1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
+    #      'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
     # 2: {'model_type': 'IGR_Planar_Dis', 'n_required': 9,
     #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
     # 3: {'model_type': 'IGR_SB_Finite_Dis', 'n_required': 9,
@@ -47,8 +47,6 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_from_disc_kl': True,
          'stick_the_landing': True,
          'test_with_one_hot': True,
-         'sample_from_cont_kl': True, 'run_jv': False, 'gamma': tf.constant(30.),
-         'cont_c_linspace': (0., 5., 25_000), 'disc_c_linspace': (0., 5., 25_000)}
-
+         'sample_from_cont_kl': True}
 run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps,
                       seeds, run_with_sample)
