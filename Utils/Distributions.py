@@ -3,7 +3,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from typing import Tuple, List
 from os import environ as os_env
-
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -21,10 +20,10 @@ class Distributions:
         self.num_of_vars = num_of_vars
 
         self.n_required = categories_n
-        self.kappa = tf.constant(0., dtype=tf.float32)
-        self.lam = tf.constant(0., dtype=tf.float32)
-        self.log_psi = tf.constant(0., dtype=tf.float32)
-        self.psi = tf.constant(0., dtype=tf.float32)
+        self.kappa = tf.constant(0., dtype=temp.dtype)
+        self.lam = tf.constant(0., dtype=temp.dtype)
+        self.log_psi = tf.constant(0., dtype=temp.dtype)
+        self.psi = tf.constant(0., dtype=temp.dtype)
 
     def broadcast_params_to_sample_size(self, params: list):
         params_broad = []
@@ -54,7 +53,7 @@ class IGR_I(Distributions):
 
     def generate_sample(self):
         mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
-        epsilon = tf.random.normal(shape=mu_broad.shape)
+        epsilon = tf.random.normal(shape=mu_broad.shape, dtype=mu_broad.dtype)
         sigma_broad = tf.math.exp(xi_broad)
         # sigma_broad = tf.math.softplus(xi_broad + tf.constant(1.))
         self.kappa = mu_broad + sigma_broad * epsilon
@@ -132,7 +131,6 @@ class IGR_SB_Finite(IGR_SB):
 
 
 class GS(Distributions):
-
     def __init__(self, log_pi, temp, sample_size: int = 1):
         super().__init__(batch_size=log_pi.shape[0], categories_n=log_pi.shape[1],
                          sample_size=sample_size,
@@ -142,7 +140,7 @@ class GS(Distributions):
     def generate_sample(self):
         offset = 1.e-20
         log_pi_broad = self.broadcast_params_to_sample_size(params=[self.log_pi])[0]
-        uniform = tf.random.uniform(shape=log_pi_broad.shape)
+        uniform = tf.random.uniform(shape=log_pi_broad.shape, dtype=log_pi_broad.dtype)
         gumbel_sample = -tf.math.log(-tf.math.log(uniform + offset) + offset)
         self.lam = (log_pi_broad + gumbel_sample) / self.temp
         self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
@@ -163,7 +161,7 @@ def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> t
 
 
 def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> tf.Tensor:
-    categories_n = tf.constant(log_psi.shape[1], dtype=tf.float32)
+    categories_n = tf.constant(log_psi.shape[1], dtype=log_psi.dtype)
     log_cons = tf.math.lgamma(categories_n) + (categories_n - 1) * tf.math.log(temp)
     aux = logits - temp * log_psi
     log_sums = tf.math.reduce_sum(aux, axis=1)
@@ -218,8 +216,8 @@ def project_to_vertices(z, categories_n):
 
 
 def project_to_vertices_via_softmax_pp(lam):
-    delta = tf.constant(1., dtype=tf.float32)
-    one = tf.constant(1.0, dtype=tf.float32)
+    delta = tf.constant(1., dtype=lam.dtype)
+    one = tf.constant(1.0, dtype=lam.dtype)
 
     lam_max = tf.math.reduce_max(lam, axis=1, keepdims=True)
     exp_lam = tf.math.exp(lam - lam_max)
@@ -379,7 +377,8 @@ def compute_igr_log_probs(mu, sigma):
 
 
 def compute_log_last_prob(mu, sigma):
-    gaussian = tfp.distributions.Normal(loc=0., scale=1.)
+    gaussian = tfp.distributions.Normal(loc=tf.constant(0., dtype=mu.dtype),
+                                        scale=tf.constant(1., dtype=mu.dtype))
     cdf_broad = gaussian.log_cdf((-mu) / sigma)
     log_last_prob = tf.math.reduce_sum(cdf_broad, axis=1, keepdims=True)
     return log_last_prob
@@ -389,19 +388,19 @@ def compute_log_probs_via_quad(mu, sigma):
     w = [8.62207055355942e-02, 1.85767318955695e-01, 2.35826124129815e-01, 2.05850326841520e-01,
          1.19581170615297e-01, 4.31443275880520e-02, 8.86764989474414e-03, 9.27141875082127e-04,
          4.15719321667468e-05, 5.86857646837617e-07, 1.22714513994286e-09]
-    w = reshape_for_quad(w, mu.shape)
+    w = reshape_for_quad(w, mu.shape, mu.dtype)
     y = [3.38393212320868e-02, 1.73955727711686e-01, 4.10873440975301e-01, 7.26271784264131e-01,
          1.10386324647012e+00, 1.53229503458121e+00, 2.00578290247431e+00, 2.52435214152551e+00,
          3.09535170987551e+00, 3.73947860994972e+00, 4.51783596719327e+00]
-    y = reshape_for_quad(y, mu.shape)
+    y = reshape_for_quad(y, mu.shape, mu.dtype)
 
     log_h_f = compute_log_h_f(y, mu, sigma)
     log_integral = tf.math.reduce_logsumexp(tf.math.log(w) + log_h_f, axis=-1)
     return log_integral
 
 
-def reshape_for_quad(v, shape):
-    v = tf.constant(v, dtype=tf.float32)
+def reshape_for_quad(v, shape, dtype):
+    v = tf.constant(v, dtype=dtype)
     v = tf.reshape(v, (1, 1, 1, 1, 11))
     v = tf.broadcast_to(v, shape + (11,))
     return v
@@ -410,10 +409,11 @@ def reshape_for_quad(v, shape):
 def compute_log_h_f(y, mu, sigma):
     mu_expanded = tf.expand_dims(mu, -1)
     sigma_expanded = tf.expand_dims(sigma, -1)
-    gaussian = tfp.distributions.Normal(loc=0., scale=1.)
+    gaussian = tfp.distributions.Normal(loc=tf.constant(0., dtype=mu.dtype),
+                                        scale=tf.constant(1., dtype=mu.dtype))
 
     t = tf.math.sqrt(2 * sigma_expanded ** 2) * y
-    cons = tf.constant(3.141592653589793) ** (-0.5)
+    cons = tf.constant(3.141592653589793, dtype=mu.dtype) ** (-0.5)
     exp_term = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
     cdf_broad = gaussian.log_cdf((t - mu_expanded) / sigma_expanded)
     # TODO: see if I should stop the gradient of cdf_broad

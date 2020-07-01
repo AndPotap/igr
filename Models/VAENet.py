@@ -7,6 +7,7 @@ os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 class VAENet(tf.keras.Model):
     def __init__(self, hyper: dict):
         super(VAENet, self).__init__()
+        self.fl = hyper['dtype']
         self.cont_latent_n = hyper['latent_norm_n']
         self.cont_var_num = hyper['num_of_norm_var']
         self.cont_param_num = hyper['num_of_norm_param']
@@ -68,9 +69,9 @@ class VAENet(tf.keras.Model):
     # -------------------------------------------------------------------------------------------
     def generate_dense_inference_net(self, activation='linear'):
         self.inference_net = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=self.image_shape),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1'),
+            tf.keras.layers.InputLayer(input_shape=self.image_shape, dtype=self.fl),
+            tf.keras.layers.Flatten(dtype=self.fl),
+            tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1', dtype=self.fl),
         ])
 
     def generate_dense_generative_net(self, activation='linear'):
@@ -78,10 +79,12 @@ class VAENet(tf.keras.Model):
         image_flat = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
         image_flat *= self.log_px_z_params_num
         self.generative_net = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
-            tf.keras.layers.Dense(units=image_flat, activation=activation_type, name='decoder_1'),
+            tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,), dtype=self.fl),
+            tf.keras.layers.Dense(units=image_flat, activation=activation_type,
+                                  name='decoder_1', dtype=self.fl),
             tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
-                                                  self.image_shape[2] * self.log_px_z_params_num))
+                                                  self.image_shape[2] * self.log_px_z_params_num),
+                                    dtype=self.fl)
         ])
 
     # --------------------------------------------------------------------------------------------

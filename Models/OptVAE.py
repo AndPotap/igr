@@ -16,6 +16,7 @@ class OptVAE:
     def __init__(self, nets, optimizer, hyper):
         self.nets = nets
         self.optimizer = optimizer
+        self.dtype = hyper['dtype']
         self.batch_size = hyper['batch_n']
         self.n_required = hyper['n_required']
         self.sample_size = hyper['sample_size']
@@ -27,7 +28,7 @@ class OptVAE:
         self.test_with_one_hot = hyper['test_with_one_hot']
         self.sample_from_cont_kl = hyper['sample_from_cont_kl']
         self.sample_from_disc_kl = hyper['sample_from_disc_kl']
-        self.temp = tf.constant(value=hyper['temp'], dtype=tf.float32)
+        self.temp = tf.constant(value=hyper['temp'], dtype=self.dtype)
         self.stick_the_landing = hyper['stick_the_landing']
         self.iter_count = 0
         self.estimate_kl_w_n = self.sample_size
@@ -77,7 +78,7 @@ class OptVAE:
     def decode_bernoulli(self, z):
         batch_n, _ = z[0].shape[0], z[0].shape[2]
         z = reshape_and_stack_z(z=z)
-        x_logit = tf.TensorArray(dtype=tf.float32, size=self.sample_size,
+        x_logit = tf.TensorArray(dtype=self.dtype, size=self.sample_size,
                                  element_shape=(batch_n,) + self.nets.image_shape)
         for i in tf.range(self.sample_size):
             x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i])[0])
@@ -87,9 +88,9 @@ class OptVAE:
     def decode_gaussian(self, z):
         z = reshape_and_stack_z(z=z)
         batch_n, _ = z.shape[0], z.shape[2]
-        mu = tf.TensorArray(dtype=tf.float32, size=self.sample_size,
+        mu = tf.TensorArray(dtype=self.dtype, size=self.sample_size,
                             element_shape=(batch_n,) + self.nets.image_shape)
-        xi = tf.TensorArray(dtype=tf.float32, size=self.sample_size,
+        xi = tf.TensorArray(dtype=self.dtype, size=self.sample_size,
                             element_shape=(batch_n,) + self.nets.image_shape)
         for i in tf.range(self.sample_size):
             z_mu, z_xi = self.nets.decode(z[:, :, i])
@@ -164,9 +165,9 @@ class OptExpGSDis(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.dist = GS(log_pi=tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1)),
+        self.dist = GS(log_pi=tf.constant(1., dtype=self.dtype, shape=(1, 1, 1, 1)),
                        temp=self.temp)
-        self.log_psi = tf.constant(1., dtype=tf.float32, shape=(1, 1, 1, 1))
+        self.log_psi = tf.constant(1., dtype=self.dtype, shape=(1, 1, 1, 1))
 
     def reparameterize(self, params_broad):
         self.dist = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
@@ -464,7 +465,7 @@ class OptIGR(OptVAE):
             if self.model_type == 'IGR_I_Dis':
                 log_p_discrete = compute_igr_log_probs(mu_disc, tf.math.exp(xi_disc))
                 p_discrete = tf.math.exp(log_p_discrete)
-                categories_n = tf.constant(self.n_required + 1, dtype=tf.float32)
+                categories_n = tf.constant(self.n_required + 1, dtype=self.dtype)
                 kl_dis = tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3))
                 kl_dis += self.num_of_vars * tf.math.log(categories_n)
             else:
@@ -512,8 +513,8 @@ class OptIGR(OptVAE):
         with open(file=self.prior_file, mode='rb') as f:
             parameters = pickle.load(f)
 
-        mu_0 = tf.constant(parameters['mu'], dtype=tf.float32)
-        xi_0 = tf.constant(parameters['xi'], dtype=tf.float32)
+        mu_0 = tf.constant(parameters['mu'], dtype=self.dtype)
+        xi_0 = tf.constant(parameters['xi'], dtype=self.dtype)
         categories_n = mu_0.shape[1]
         prior_shape = mu_0.shape
         mu_0 = tf.math.reduce_mean(mu_0, keepdims=True)
@@ -811,7 +812,7 @@ def calculate_planar_flow_log_determinant(z, planar_flow):
 
 
 def compute_log_normal_pdf(sample, mean, log_var):
-    pi = 3.141592653589793
+    pi = tf.constant(3.141592653589793, dtype=mean.dtype)
     log2pi = -0.5 * tf.math.log(2 * pi)
     log_exp_sum = -0.5 * (sample - mean) ** 2 * tf.math.exp(-log_var)
     log_normal_pdf = tf.reduce_sum(log2pi + -0.5 * log_var + log_exp_sum, axis=1)
@@ -820,7 +821,7 @@ def compute_log_normal_pdf(sample, mean, log_var):
 
 def calculate_categorical_closed_kl(log_alpha, normalize=True):
     offset = 1.e-20
-    categories_n = tf.constant(log_alpha.shape[1], dtype=tf.float32)
+    categories_n = tf.constant(log_alpha.shape[1], dtype=log_alpha.dtype)
     log_uniform_inv = tf.math.log(categories_n)
     pi = tf.math.softmax(log_alpha, axis=1) if normalize else log_alpha
     kl_discrete = tf.reduce_sum(pi * (tf.math.log(pi + offset) + log_uniform_inv), axis=(1, 3))
@@ -828,9 +829,9 @@ def calculate_categorical_closed_kl(log_alpha, normalize=True):
 
 
 def sample_kl_exp_gs(log_psi, log_pi, temp):
-    uniform_probs = get_broadcasted_uniform_probs(shape=log_psi.shape)
+    uniform_probs = get_broadcasted_uniform_probs(log_psi.shape, log_pi.dtype)
     # log_pz = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(uniform_probs), temp=temp)
-    temp_prior = tf.constant(0.5, dtype=tf.float32)
+    temp_prior = tf.constant(0.5, dtype=log_pi.dtype)
     log_pz = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(uniform_probs),
                                      temp=temp_prior)
     log_qz_x = compute_log_exp_gs_dist(log_psi=log_psi, logits=log_pi, temp=temp)
@@ -838,9 +839,9 @@ def sample_kl_exp_gs(log_psi, log_pi, temp):
     return kl_discrete
 
 
-def get_broadcasted_uniform_probs(shape):
+def get_broadcasted_uniform_probs(shape, dtype):
     batch_n, categories_n, sample_size, disc_var_num = shape
-    uniform_probs = tf.constant([1 / categories_n for _ in range(categories_n)], dtype=tf.float32,
+    uniform_probs = tf.constant([1 / categories_n for _ in range(categories_n)], dtype=dtype,
                                 shape=(1, categories_n, 1, 1))
     uniform_probs = shape_prior_to_sample_size_and_discrete_var_num(uniform_probs, batch_n,
                                                                     categories_n, sample_size,
@@ -869,7 +870,7 @@ def reshape_and_stack_z(z):
 
 def flatten_discrete_variables(original_z):
     batch_n, disc_latent_n, sample_size, disc_var_num = original_z.shape
-    z_discrete = tf.TensorArray(dtype=tf.float32, size=sample_size,
+    z_discrete = tf.TensorArray(dtype=original_z.dtype, size=sample_size,
                                 element_shape=(batch_n, disc_var_num * disc_latent_n))
     for i in tf.range(sample_size):
         value = tf.reshape(original_z[:, :, i, :],

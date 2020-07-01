@@ -40,6 +40,7 @@ def plot_originals(test_images, results_path):
     plt.figure(figsize=(5, 4), dpi=100)
     for i in range(test_images.shape[0]):
         plt.subplot(5, 4, i + 1)
+        test_images = test_images.astype('float32')
         plot_based_on_color_or_black(recon_image=test_images[i, :, :])
         plt.axis('off')
     plt.savefig(results_path + f'/Reconstruction.png')

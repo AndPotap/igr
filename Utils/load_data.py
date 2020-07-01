@@ -6,32 +6,37 @@ import tensorflow_datasets as tfds
 def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True, architecture='dense'):
     images_to_display = [10, 25, 5, 29, 1, 35, 18, 30,
                          6, 19, 15, 23, 11, 21, 17, 26, 344, 3567, 9, 20]
+    dtype = 'float32'
+    if hyper['dtype'] == tf.float64:
+        dtype = 'float64'
+    elif hyper['dtype'] == tf.float16:
+        dtype = 'float16'
     if dataset_name == 'fmnist':
         if architecture == 'conv_jointvae':
-            _, np_test_images = fetch_and_binarize_mnist_data(use_fashion=True)
+            _, np_test_images = fetch_and_binarize_mnist_data(dtype=dtype, use_fashion=True)
             image_shape = (32, 32, 1)
             data = load_mnist_data(batch_n=batch_n, epochs=epochs, run_with_sample=run_with_sample,
-                                   resize=True, use_fashion=True)
+                                   resize=True, use_fashion=True, dtype=dtype)
             np_test_images = tf.image.resize(np_test_images, size=image_shape[0:2]).numpy()
         else:
-            _, np_test_images = fetch_and_binarize_mnist_data(use_fashion=True)
+            _, np_test_images = fetch_and_binarize_mnist_data(dtype=dtype, use_fashion=True)
             image_shape = (28, 28, 1)
             data = load_mnist_data(batch_n=batch_n, epochs=epochs, run_with_sample=run_with_sample,
-                                   resize=False, use_fashion=True)
+                                   resize=False, use_fashion=True, dtype=dtype)
         np_test_images = np_test_images[images_to_display, :, :, :]
         train_dataset, test_dataset, batch_n, epochs = data
     elif dataset_name == 'mnist':
         if architecture == 'conv_jointvae':
-            _, np_test_images = fetch_and_binarize_mnist_data()
+            _, np_test_images = fetch_and_binarize_mnist_data(dtype)
             image_shape = (32, 32, 1)
             data = load_mnist_data(batch_n=batch_n, epochs=epochs, run_with_sample=run_with_sample,
-                                   resize=True)
+                                   resize=True, dtype=dtype)
             np_test_images = tf.image.resize(np_test_images, size=image_shape[0:2]).numpy()
         else:
-            _, np_test_images = fetch_and_binarize_mnist_data()
+            _, np_test_images = fetch_and_binarize_mnist_data(dtype=dtype)
             image_shape = (28, 28, 1)
             data = load_mnist_data(batch_n=batch_n, epochs=epochs, run_with_sample=run_with_sample,
-                                   resize=False)
+                                   resize=False, dtype=dtype)
         np_test_images = np_test_images[images_to_display, :, :, :]
         train_dataset, test_dataset, batch_n, epochs = data
     elif dataset_name == 'celeb_a':
@@ -67,8 +72,8 @@ def refresh_hyper(hyper, batch_n, epochs, image_shape, dataset_name, run_with_sa
     return hyper
 
 
-def load_mnist_data(batch_n, epochs, use_fashion=False, run_with_sample=False, resize=False):
-    train_images, test_images = fetch_and_binarize_mnist_data(use_fashion=use_fashion)
+def load_mnist_data(dtype, batch_n, epochs, use_fashion=False, run_with_sample=False, resize=False):
+    train_images, test_images = fetch_and_binarize_mnist_data(dtype, use_fashion=use_fashion)
     if run_with_sample:
         train_buffer, test_buffer, batch_n, epochs = 60, 10, 5, 10
         train_images, test_images = train_images[:60, :, :, :], test_images[:10, :, :, :]
@@ -101,15 +106,17 @@ def load_mnist_sop_data(batch_n, run_with_sample=False):
     return train_dataset, test_dataset
 
 
-def fetch_and_binarize_mnist_data(use_fashion=False, output_labels=False):
+def fetch_and_binarize_mnist_data(dtype, use_fashion=False, output_labels=False):
     if use_fashion:
         (train_images, train_labels), (test_images,
                                        test_labels) = tf.keras.datasets.fashion_mnist.load_data()
         train_images, test_images = reshape_binarize_and_scale_images((train_images, test_images),
-                                                                      round_images=False)
+                                                                      round_images=False,
+                                                                      dtype=dtype)
     else:
         (train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.mnist.load_data()
-        train_images, test_images = reshape_binarize_and_scale_images((train_images, test_images))
+        train_images, test_images = reshape_binarize_and_scale_images((train_images, test_images),
+                                                                      dtype=dtype)
 
     if output_labels:
         return (train_images, train_labels), (test_images, test_labels)
@@ -234,10 +241,10 @@ def determine_iter_per_epoch(dataset_name, run_with_sample, batch_n):
     return iter_per_epoch
 
 
-def reshape_binarize_and_scale_images(images, round_images=True):
+def reshape_binarize_and_scale_images(images, round_images=True, dtype='float32'):
     output = []
     for im in images:
-        im = np.reshape(im, newshape=im.shape + (1,)).astype('float32')
+        im = np.reshape(im, newshape=im.shape + (1,)).astype(dtype)
         im /= 255.
         if round_images:
             im[im >= 0.5] = 1.
