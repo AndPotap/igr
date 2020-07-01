@@ -34,11 +34,6 @@ class OptVAE:
         self.run_iwae = False
         self.train_loss_mean = tf.keras.metrics.Mean()
 
-        self.run_jv = hyper['run_jv']
-        self.gamma = hyper['gamma']
-        self.discrete_c = tf.constant(0.)
-        self.continuous_c = tf.constant(0.)
-
     def perform_fwd_pass(self, x, test_with_one_hot=False):
         self.set_hyper_for_testing(test_with_one_hot)
         params = self.nets.encode(x, self.batch_size)
@@ -155,6 +150,7 @@ class OptVAE:
 
     # @tf.function()
     def train_on_epoch(self, train_dataset, take):
+        self.train_loss_mean.reset_states()
         for x_train in train_dataset.take(take):
             self.perform_train_step(x_train)
 
@@ -661,8 +657,6 @@ def compute_loss(log_px_z, kl, sample_size=1, run_iwae=False):
 
 
 def compute_log_bernoulli_pdf(x, x_logit, sample_size):
-    # x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=x.shape + (sample_size,))
-    # x_broad = tf.broadcast_to(tf.expand_dims(x, 4), shape=(5, 28, 28, 1, 1) + (sample_size,))
     x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=sample_size)
     cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad, logits=x_logit)
     log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
