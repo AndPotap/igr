@@ -101,8 +101,12 @@ def load_mnist_sop_data(batch_n, run_with_sample=False):
 
     train_dataset = tf.data.Dataset.from_tensor_slices(
         train_images).shuffle(train_buffer).batch(batch_n)
+    train_dataset = train_dataset.cache()
+    train_dataset = train_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     test_dataset = tf.data.Dataset.from_tensor_slices(
         test_images).shuffle(test_buffer).batch(batch_n)
+    test_dataset = test_dataset.cache()
+    test_dataset = test_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     return train_dataset, test_dataset
 
 
@@ -146,11 +150,16 @@ class ProcessData:
 
     def preprocess(self, data_split, buffer_size, batch_size):
         if self.dataset_name == 'omniglot':
-            return data_split.map(preprocess_omniglot).shuffle(buffer_size).batch(batch_size)
+            data_split = data_split.map(preprocess_omniglot)
         elif self.dataset_name == 'celeb_a':
-            return data_split.map(preprocess_celeb_a).shuffle(buffer_size).batch(batch_size)
+            data_split = data_split.map(preprocess_celeb_a)
         else:
             raise RuntimeError
+        data_split = data_split.shuffle(buffer_size)
+        data_split = data_split.batch(batch_size)
+        data_split = data_split.cache()
+        data_split = data_split.prefetch(tf.data.experimental.AUTOTUNE)
+        return data_split
 
     def fetch_test_numpy_images_batch(self, test_ds, run_with_sample):
         test_images = iterate_over_dataset_container(data_iterable=test_ds,
