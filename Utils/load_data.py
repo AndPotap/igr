@@ -150,9 +150,10 @@ class ProcessData:
 
     def preprocess(self, data_split, buffer_size, batch_size):
         if self.dataset_name == 'omniglot':
-            data_split = data_split.map(preprocess_omniglot)
+            # data_split = data_split.map(preprocess_omniglot)
+            data_split = data_split.map(preprocess_omniglot, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         elif self.dataset_name == 'celeb_a':
-            data_split = data_split.map(preprocess_celeb_a)
+            data_split = data_split.map(preprocess_celeb_a, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         else:
             raise RuntimeError
         data_split = data_split.shuffle(buffer_size)
