@@ -334,7 +334,7 @@ class OptRELAXIGR(OptRELAX):
     def offload_params(self, params):
         mu, xi = params
         # Transformations to ensure numerical stability of the integral
-        self.mu = tf.constant(5.) * tf.math.tanh(mu)
+        self.mu = tf.constant(2.) * tf.math.tanh(mu)
         self.sigma = tf.constant(2.) * tf.math.sigmoid(xi) + tf.constant(0.5)
 
     def transform_params_into_log_probs(self, params):
@@ -356,11 +356,11 @@ class OptRELAXIGR(OptRELAX):
         c_phi = self.compute_c_phi(z=z1, x=x, params=params)
         return c_phi, z_un, one_hot
 
-    @tf.function()
+    # @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape_cov:
             with tf.GradientTape(persistent=True) as tape:
-                params = self.nets.encode(x)
+                params = self.nets.encode(x, self.batch_size)
                 self.offload_params(params)
                 tape.watch(params)
                 c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
