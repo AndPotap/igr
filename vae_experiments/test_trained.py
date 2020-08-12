@@ -3,9 +3,9 @@ from Utils.estimate_loglike import get_available_logs
 from Utils.estimate_loglike import manage_files
 from Utils.estimate_loglike import setup_logger
 
-run_with_sample = False
+run_with_sample = True
 check_only = False
-samples_n = 1 * int(1.e4)
+samples_n = 1 * int(1.e1)
 # datasets = ['mnist', 'fmnist', 'omniglot']
 # datasets = ['fmnist', 'omniglot']
 # datasets = ['mnist']

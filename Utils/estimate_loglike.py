@@ -41,7 +41,8 @@ def load_hyper_and_data(path_to_trained_models, dataset_name, samples_n, run_wit
                             architecture=hyper['architecture'], hyper=hyper)
     train_dataset, test_dataset, np_test_images, hyper = data
     epoch = hyper['epochs']
-    return test_dataset, hyper, epoch
+    # return test_dataset, hyper, epoch
+    return train_dataset, hyper, epoch
 
 
 def load_hyper(path_to_trained_models, samples_n, hyper_file='hyper.pkl'):
@@ -49,6 +50,8 @@ def load_hyper(path_to_trained_models, samples_n, hyper_file='hyper.pkl'):
         hyper = pickle.load(f)
     hyper['sample_size_testing'] = samples_n
     hyper['sample_from_disc_kl'] = False
+    if 'dtype' not in hyper.keys():
+        hyper['dtype'] = tf.float32
     return hyper
 
 
