@@ -47,6 +47,9 @@ class VAENet(tf.keras.Model):
             if self.model_type.find('Planar') >= 0:
                 self.generate_planar_flow()
             self.generate_dense_nonlinear_generative_net()
+        elif self.architecture_type == 'cifar':
+            self.generate_cifar_inference_net
+            self.generate_cifar_generative_net
         elif self.architecture_type == 'dense_relax':
             self.generate_relax_inference_net()
             if self.model_type.find('Planar') >= 0:
@@ -262,6 +265,32 @@ class VAENet(tf.keras.Model):
         ])
 
     # --------------------------------------------------------------------------------------------
+    def generate_cifar_inference_net(self):
+        input_layer = tf.keras.layers.Input(shape=self.image_shape)
+        layer1 = tf.keras.layers.Conv2D(filters=64, kernel_size=4, strides=2,
+                                        activation='relu', padding='same')(input_layer)
+        layer2 = tf.keras.layers.Conv2D(filters=128, kernel_size=4, strides=2,
+                                        activation='relu', padding='same')(layer1)
+        layer3 = tf.keras.layers.Conv2D(filters=512, kernel_size=4, strides=2,
+                                        activation='relu', padding='same')(layer2)
+        output_layer = tf.keras.layers.Flatten()(layer3)
+        self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[output_layer])
+
+    def generate_cifar_generative_net(self):
+        input_layer = tf.keras.layers.Dense(units=(self.latent_dim_out,))
+        reshaped_layer = tf.keras.layers.Reshape(target_shape=(4, 4, 128),
+                                                 input_shape=(None, 1024))(input_layer)
+        layer1 = tf.keras.layers.Conv2DTranspose(filters=256, kernel_size=4, strides=2,
+                                                 activation='relu', padding='same')(reshaped_layer)
+        layer2 = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=4, strides=2,
+                                                 activation='relu', padding='same')(layer1)
+        layer3 = tf.keras.layers.Conv2DTranspose(filters=3, kernel_size=4, strides=2,
+                                                 activation='relu', padding='same')(layer2)
+        output_layer = tf.keras.layers.Flatten()(layer3)
+        self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[output_layer])
+
+        # --------------------------------------------------------------------------------------------
+
     def encode(self, x, batch_size):
         params = self.split_and_reshape_network_parameters(x, batch_size)
         return params
