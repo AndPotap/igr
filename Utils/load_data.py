@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
+from tensorflow.data.experimental import AUTOTUNE as autotune
 
 
 def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True, architecture='dense'):
@@ -49,6 +50,13 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True,
         train_dataset, test_dataset = split_data
     elif dataset_name == 'omniglot':
         image_shape = (28, 28, 1)
+        pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
+                         image_shape=image_shape)
+        output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs)
+        split_data, batch_size, epochs, np_test_images = output
+        train_dataset, test_dataset = split_data
+    elif dataset_name == 'cifar':
+        image_shape = (32, 32, 1)
         pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
                          image_shape=image_shape)
         output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs)
@@ -151,9 +159,11 @@ class ProcessData:
     def preprocess(self, data_split, buffer_size, batch_size):
         if self.dataset_name == 'omniglot':
             # data_split = data_split.map(preprocess_omniglot)
-            data_split = data_split.map(preprocess_omniglot, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            data_split = data_split.map(preprocess_omniglot, num_parallel_calls=autotune)
         elif self.dataset_name == 'celeb_a':
-            data_split = data_split.map(preprocess_celeb_a, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            data_split = data_split.map(preprocess_celeb_a, num_parallel_calls=autotune)
+        elif self.dataset_name == 'cifar':
+            data_split = data_split.map(preprocess_cifar, num_parallel_calls=autotune)
         else:
             raise RuntimeError
         data_split = data_split.shuffle(buffer_size)
@@ -191,6 +201,10 @@ def determine_buffer_re_assign_batch_and_epochs(run_with_sample, batch_size, epo
     else:
         buffer = 1000
     return buffer, batch_size, epochs
+
+
+def preprocess_cifar(example):
+    return example['image']
 
 
 def preprocess_celeb_a(example):
