@@ -7,13 +7,15 @@ run_with_sample = False
 check_only = False
 samples_n = 1 * int(1.e0)
 # datasets = ['mnist', 'fmnist', 'omniglot']
-# datasets = ['fmnist', 'omniglot']
-datasets = ['mnist']
-# datasets = ['omniglot']
+datasets = ['fmnist', 'omniglot']
+# datasets = ['mnist']
 # datasets = ['fmnist']
-architectures = ['nonlinear']
+# datasets = ['omniglot']
+# architectures = ['nonlinear']
 # architectures = ['linear']
-# architectures = ['linear_w_sl']
+# architectures = ['linear_no_sl']
+architectures = ['linear_w_sl']
+# architectures = ['linear_no_sl', 'linear_w_sl']
 models = {
     # 1: {'model_dir': 'igr', 'model_type': 'IGR_I_Dis'},
     # 2: {'model_dir': 'pf', 'model_type': 'IGR_Planar_Dis'},
