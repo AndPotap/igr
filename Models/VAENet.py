@@ -124,25 +124,30 @@ class VAENet(tf.keras.Model):
     # --------------------------------------------------------------------------------------------
     def generate_dense_nonlinear_inference_net(self, activation='relu'):
         self.inference_net = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=self.image_shape),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=512, activation=activation, name='encoder_1'),
-            tf.keras.layers.Dense(units=256, activation=activation, name='encoder_2'),
-            tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_3'),
+            tf.keras.layers.InputLayer(input_shape=self.image_shape, dtype=self.fl),
+            tf.keras.layers.Flatten(dtype=self.fl),
+            tf.keras.layers.Dense(units=512, activation=activation,
+                                  name='encoder_1', dtype=self.fl),
+            tf.keras.layers.Dense(units=256, activation=activation,
+                                  name='encoder_2', dtype=self.fl),
+            tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_3', dtype=self.fl),
         ])
 
     def generate_dense_nonlinear_generative_net(self, activation='relu'):
         activation_type = self.determine_activation_from_case()
         self.generative_net = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
-            tf.keras.layers.Dense(units=256, activation=activation, name='decoder_1'),
-            tf.keras.layers.Dense(units=512, activation=activation, name='decoder_2'),
+            tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,), dtype=self.fl),
+            tf.keras.layers.Dense(units=256, activation=activation,
+                                  name='decoder_1', dtype=self.fl),
+            tf.keras.layers.Dense(units=512, activation=activation,
+                                  name='decoder_2', dtype=self.fl),
             tf.keras.layers.Dense(units=self.image_shape[0] * self.image_shape[1] *
                                   self.image_shape[2] *
                                   self.log_px_z_params_num, activation=activation_type,
-                                  name='decoder_3'),
+                                  name='decoder_3', dtype=self.fl),
             tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
-                                                  self.image_shape[2] * self.log_px_z_params_num))
+                                                  self.image_shape[2] * self.log_px_z_params_num),
+                                    dtype=self.fl)
         ])
 
     def determine_activation_from_case(self):
@@ -379,7 +384,8 @@ class RelaxCovNet(tf.keras.models.Model):
 
         input_layer = tf.keras.layers.Input(shape=self.cov_net_shape, dtype=self.fl)
         flat_layer = tf.keras.layers.Flatten(dtype=self.fl)(input_layer)
-        layer1 = tf.keras.layers.Dense(units=50, activation='relu', dtype=self.fl)(2. * flat_layer - 1.)
+        layer1 = tf.keras.layers.Dense(units=50, activation='relu',
+                                       dtype=self.fl)(2. * flat_layer - 1.)
         layer2 = tf.keras.layers.Dense(units=1, dtype=self.fl)(layer1)
         # one = tf.constant(1., dtype=self.fl)
         scale = tf.Variable(1., trainable=True, dtype=self.fl)
