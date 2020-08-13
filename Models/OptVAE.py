@@ -126,7 +126,7 @@ class OptVAE:
                             sample_size=self.sample_size, run_iwae=run_iwae)
         return loss
 
-    @tf.function()
+    # @tf.function()
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x, self.test_with_one_hot)
         loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
@@ -136,7 +136,7 @@ class OptVAE:
                                  run_iwae=self.run_iwae)
         return loss
 
-    @tf.function()
+    # @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
@@ -163,7 +163,9 @@ class OptVAE:
     def perform_train_step(self, x_train):
         loss = self.compute_gradients(x=x_train)
         self.iter_count += 1
-        self.train_loss_mean(loss)
+        # self.train_loss_mean(loss)
+        # TODO: change improvisation
+        self.train_loss_mean(loss[1])
 
 
 class OptExpGSDis(OptVAE):
@@ -246,7 +248,7 @@ class OptRELAX(OptVAE):
         return grad
 
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
-        params = self.nets.encode(x)
+        params = self.nets.encode(x, self.batch_size)
         self.offload_params(params)
         one_hot = self.get_relax_variables_from_params(x, params)[-1]
         loss = self.compute_loss(z=one_hot, x=x, params=params)
