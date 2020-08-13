@@ -92,16 +92,16 @@ class VAENet(tf.keras.Model):
 
     # --------------------------------------------------------------------------------------------
     def generate_relax_inference_net(self):
-        input_layer = tf.keras.layers.Input(shape=self.image_shape)
-        flat_layer = tf.keras.layers.Flatten()(input_layer)
+        input_layer = tf.keras.layers.Input(shape=self.image_shape, dtype=self.fl)
+        flat_layer = tf.keras.layers.Flatten(dtype=self.fl)(input_layer)
         bias_init = tf.keras.initializers.Zeros()
         layer1 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1',
-                                       activation='relu')(2. * flat_layer - 1.)
+                                       activation='relu', dtype=self.fl)(2. * flat_layer - 1.)
         layer2 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_2',
-                                       activation='relu')(layer1)
+                                       activation='relu', dtype=self.fl)(layer1)
         layer3 = tf.keras.layers.Dense(units=self.latent_dim_in,
                                        name='encoder_out',
-                                       bias_initializer=bias_init)(layer2)
+                                       bias_initializer=bias_init, dtype=self.fl)(layer2)
         self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[layer3])
 
     def generate_relax_generative_net(self):
@@ -110,14 +110,15 @@ class VAENet(tf.keras.Model):
         image_flat *= self.log_px_z_params_num
         last_shape = (self.image_shape[0], self.image_shape[1],
                       self.image_shape[2] * self.log_px_z_params_num)
-        output_layer = tf.keras.layers.Input(shape=(self.latent_dim_out,))
-        layer1 = tf.keras.layers.Dense(units=200, activation='relu',
+        output_layer = tf.keras.layers.Input(shape=(self.latent_dim_out,), dtype=self.fl)
+        layer1 = tf.keras.layers.Dense(units=200, activation='relu', dtype=self.fl,
                                        name='decoder_1')(2. * output_layer - 1.)
-        layer2 = tf.keras.layers.Dense(units=200, activation='relu',
+        layer2 = tf.keras.layers.Dense(units=200, activation='relu', dtype=self.fl,
                                        name='decoder_2')(layer1)
         layer3 = tf.keras.layers.Dense(units=image_flat,
-                                       name='decoder_out', activation=activation_type)(layer2)
-        reshaped_layer = tf.keras.layers.Reshape(target_shape=last_shape)(layer3)
+                                       name='decoder_out', activation=activation_type,
+                                       dtype=self.fl)(layer2)
+        reshaped_layer = tf.keras.layers.Reshape(target_shape=last_shape, dtype=self.fl)(layer3)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[reshaped_layer])
 
     # --------------------------------------------------------------------------------------------
@@ -363,9 +364,10 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
 
 class RelaxCovNet(tf.keras.models.Model):
 
-    def __init__(self, cov_net_shape, **kwargs):
+    def __init__(self, cov_net_shape, dtype, **kwargs):
         super().__init__(**kwargs)
         self.cov_net_shape = cov_net_shape
+        self.fl = dtype
         # self.net = tf.keras.Sequential([
         #     tf.keras.layers.InputLayer(input_shape=self.cov_net_shape),
         #     tf.keras.layers.Flatten(),
@@ -375,11 +377,12 @@ class RelaxCovNet(tf.keras.models.Model):
         #     tf.keras.layers.Dense(units=1),
         # ])
 
-        input_layer = tf.keras.layers.Input(shape=self.cov_net_shape)
-        flat_layer = tf.keras.layers.Flatten()(input_layer)
-        layer1 = tf.keras.layers.Dense(units=50, activation='relu')(2. * flat_layer - 1.)
-        layer2 = tf.keras.layers.Dense(units=1)(layer1)
-        scale = tf.Variable(1., trainable=True)
+        input_layer = tf.keras.layers.Input(shape=self.cov_net_shape, dtype=self.fl)
+        flat_layer = tf.keras.layers.Flatten(dtype=self.fl)(input_layer)
+        layer1 = tf.keras.layers.Dense(units=50, activation='relu', dtype=self.fl)(2. * flat_layer - 1.)
+        layer2 = tf.keras.layers.Dense(units=1, dtype=self.fl)(layer1)
+        # one = tf.constant(1., dtype=self.fl)
+        scale = tf.Variable(1., trainable=True, dtype=self.fl)
         out = scale * layer2
         # out = layer2
         self.net = tf.keras.Model(inputs=[input_layer], outputs=[out])

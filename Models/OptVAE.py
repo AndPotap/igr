@@ -126,7 +126,7 @@ class OptVAE:
                             sample_size=self.sample_size, run_iwae=run_iwae)
         return loss
 
-    # @tf.function()
+    @tf.function()
     def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x, self.test_with_one_hot)
         loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
@@ -136,7 +136,7 @@ class OptVAE:
                                  run_iwae=self.run_iwae)
         return loss
 
-    # @tf.function()
+    @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
@@ -209,7 +209,7 @@ class OptRELAX(OptVAE):
         self.optimizer_decoder = optimizers[1]
         self.optimizer_var = optimizers[2]
         cov_net_shape = (self.n_required, self.sample_size, self.num_of_vars)
-        self.relax_cov = RelaxCovNet(cov_net_shape)
+        self.relax_cov = RelaxCovNet(cov_net_shape, self.dtype)
         num_latents = self.n_required * self.num_of_vars
         shape = (1, self.n_required, self.sample_size, self.num_of_vars)
         initial_log_temp = tf.constant([1.6093 for _ in range(num_latents)],
@@ -309,18 +309,19 @@ class OptRELAXIGR(OptRELAX):
         num_latents = self.n_required * self.num_of_vars
         shape = (1, self.n_required, self.sample_size, self.num_of_vars)
         initial_log_temp = tf.constant([-1.8972 for _ in range(num_latents)],
-                                       shape=(1, self.n_required, 1, self.num_of_vars))
+                                       shape=(1, self.n_required, 1, self.num_of_vars),
+                                       dtype=self.dtype)
         initial_log_temp = tf.broadcast_to(initial_log_temp, shape=shape)
         self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
         cov_net_shape = (self.n_required + 1, self.sample_size, self.num_of_vars)
-        self.relax_cov = RelaxCovNet(cov_net_shape)
+        self.relax_cov = RelaxCovNet(cov_net_shape, self.dtype)
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
 
     def compute_loss(self, z, x, params,
                      sample_from_cont_kl=None, sample_from_disc_kl=None,
                      test_with_one_hot=False):
-        categories_n = tf.cast(z.shape[1], dtype=tf.float32)
-        num_of_vars = tf.cast(z.shape[-1], dtype=tf.float32)
+        categories_n = tf.cast(z.shape[1], dtype=self.dtype)
+        num_of_vars = tf.cast(z.shape[-1], dtype=self.dtype)
 
         x_logit = self.decode([z])
         log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
@@ -336,8 +337,9 @@ class OptRELAXIGR(OptRELAX):
     def offload_params(self, params):
         mu, xi = params
         # Transformations to ensure numerical stability of the integral
-        self.mu = tf.constant(2.) * tf.math.tanh(mu)
-        self.sigma = tf.constant(2.) * tf.math.sigmoid(xi) + tf.constant(0.5)
+        self.mu = tf.constant(5., self.dtype) * tf.math.tanh(mu)
+        self.sigma = (tf.constant(2., self.dtype) * tf.math.sigmoid(xi) +
+                      tf.constant(0.5, self.dtype))
 
     def transform_params_into_log_probs(self, params):
         log_probs = compute_igr_log_probs(self.mu, self.sigma)
@@ -350,9 +352,9 @@ class OptRELAXIGR(OptRELAX):
         return log_categorical_pmf
 
     def get_relax_variables_from_params(self, x, params):
-        z_un = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
+        z_un = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape, dtype=self.dtype)
         z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
-        z_un1 = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape)
+        z_un1 = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape, dtype=self.dtype)
         z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp))
         one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z1, x=x, params=params)

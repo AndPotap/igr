@@ -211,7 +211,7 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 
 def project_to_vertices(z, categories_n):
     one_hot = tf.transpose(tf.one_hot(tf.argmax(tf.stop_gradient(z), axis=1),
-                                      depth=categories_n), perm=[0, 3, 1, 2])
+                                      depth=categories_n, dtype=z.dtype), perm=[0, 3, 1, 2])
     return one_hot
 
 
@@ -424,7 +424,7 @@ def compute_log_h_f(y, mu, sigma):
 
 def compute_igr_probs(mu, sigma):
     integral = tf.math.exp(compute_log_probs_via_quad(mu, sigma))
-    remainder = tf.constant(1.) - tf.reduce_sum(integral, axis=1, keepdims=True)
+    remainder = tf.constant(1., dtype=mu.dtype) - tf.reduce_sum(integral, axis=1, keepdims=True)
     return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
 
 
