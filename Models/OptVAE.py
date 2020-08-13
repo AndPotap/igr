@@ -464,9 +464,9 @@ class OptIGR(OptVAE):
             else:
                 kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
-            # mu_disc, xi_disc = params_broad
-            mu_disc = params_broad[0]
-            xi_disc = tf.constant(0., dtype=mu_disc.dtype, shape=mu_disc.shape)
+            mu_disc, xi_disc = params_broad
+            # mu_disc = params_broad[0]
+            # xi_disc = tf.constant(0., dtype=mu_disc.dtype, shape=mu_disc.shape)
             kl_norm = 0.
         if not sample_from_disc_kl:
             if self.model_type == 'IGR_I_Dis':
@@ -545,9 +545,9 @@ class OptIGRDis(OptIGR):
         self.load_prior_values()
 
     def reparameterize(self, params_broad):
-        # mu, xi = params_broad
-        mu = params_broad[0]
-        xi = tf.constant(0., dtype=mu.dtype, shape=mu.shape)
+        mu, xi = params_broad
+        # mu = params_broad[0]
+        # xi = tf.constant(0., dtype=mu.dtype, shape=mu.shape)
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
         z_discrete = [self.dist.psi]

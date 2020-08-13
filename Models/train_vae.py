@@ -261,9 +261,8 @@ def fill_model_depending_settings(hyper_copy):
         hyper_copy['num_of_discrete_param'] = 1
     else:
         hyper_copy['latent_discrete_n'] += 1
-        # hyper_copy['num_of_discrete_param'] = 2
-        # TODO: revert back to 2!
-        hyper_copy['num_of_discrete_param'] = 1
+        hyper_copy['num_of_discrete_param'] = 2
+        # hyper_copy['num_of_discrete_param'] = 1
     return hyper_copy
 
 
