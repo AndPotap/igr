@@ -29,6 +29,7 @@ for dataset in datasets:
     for arch in architectures:
         for _, v in models.items():
             path_to_trained_models = './Results/trained_models/' + dataset + '/'
+            # path_to_trained_models = './Results/rebuttal/' + dataset + '/'
             path_to_trained_models += v['model_dir'] + '/'
             path_to_trained_models += arch + '/'
             logs = get_available_logs(path_to_trained_models)
