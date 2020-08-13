@@ -1,7 +1,7 @@
 import tensorflow as tf
 from Models.train_vae import run_vae_for_all_cases
 
-run_with_sample = True
+run_with_sample = False
 # temps = [0.67]
 temps = [0.15]
 # temps = [0.03, 0.07, 0.10, 0.15, 0.25, 0.50, 0.67]
@@ -13,8 +13,8 @@ temps = [0.15]
 seeds = [9335]
 
 model_cases = {
-    # 1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
-    #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
+    1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
+        'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
     # 2: {'model_type': 'IGR_Planar_Dis', 'n_required': 9,
     #     'prior_file': './Results/mu_xi_unif_10_IGR_I.pkl'},
     # 3: {'model_type': 'IGR_SB_Finite_Dis', 'n_required': 9,
@@ -25,7 +25,7 @@ model_cases = {
     # 5: {'model_type': 'GS_Dis', 'n_required': 10},
     # 6: {'model_type': 'Relax_GS_Dis', 'n_required': 10},
     # 7: {'model_type': 'Relax_Ber_Dis', 'n_required': 200},
-    8: {'model_type': 'Relax_IGR', 'n_required': 9},
+    # 8: {'model_type': 'Relax_IGR', 'n_required': 9},
 }
 dataset_cases = {
     1: {'dataset_name': 'mnist', 'architecture': 'dense'},
