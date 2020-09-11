@@ -163,9 +163,9 @@ class OptVAE:
     def perform_train_step(self, x_train):
         loss = self.compute_gradients(x=x_train)
         self.iter_count += 1
-        # self.train_loss_mean(loss)
+        self.train_loss_mean(loss)
         # TODO: change improvisation
-        self.train_loss_mean(loss[1])
+        # self.train_loss_mean(loss[1])
 
 
 class OptExpGSDis(OptVAE):
