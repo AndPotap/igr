@@ -220,9 +220,8 @@ def log_test_progress(logger, test_progress, epoch, time_taken,
     tf.summary.scalar(name='Temp', data=temp, step=epoch)
 
 
-def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path,
-                              save_every=10):
-    if epoch % save_every == 0:
+def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path):
+    if epoch % hyper['save_every'] == 0:
         vae_opt.nets.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
 
 
