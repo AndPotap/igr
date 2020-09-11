@@ -207,10 +207,7 @@ def log_test_progress(logger, test_progress, epoch, time_taken,
     test_print = f'Epoch {epoch:4d} || '
     for k, _ in test_progress['vars_to_track'].items():
         loss = test_progress[k].result().numpy()
-        if k != 'N':
-            test_print += f'{k} {-loss:2.5e} || '
-        else:
-            test_print += f'{k} {int(loss):2d} || '
+        test_print += f'{k} {-loss:2.5e} || ' if k != 'N' else f'{k} {int(loss):2d} || '
     test_print += (f'TrL {train_loss_mean.result().numpy():2.5e} || ' +
                    f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ')
     logger.info(test_print)
