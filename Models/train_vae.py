@@ -81,6 +81,8 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
         t0 = time.time()
         vae_opt.train_on_epoch(train_dataset, hyper['iter_per_epoch'])
         t1 = time.time()
+        log_train_progress(logger, epoch, t1 - t0, vae_opt.iter_count,
+                           vae_opt.train_loss_mean, vae_opt.temp.numpy())
         evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
                                       hyper=hyper, logger=logger, time_taken=t1 - t0,
                                       check_every=check_every)
@@ -204,17 +206,24 @@ def update_test_progress(x_test, vae_opt, test_progress):
 
 def log_test_progress(logger, test_progress, epoch, time_taken,
                       iteration_counter, train_loss_mean, temp):
-    test_print = f'Epoch {epoch:4d} || '
+    print_msg = f'Epoch {epoch:4d} || '
     for k, _ in test_progress['vars_to_track'].items():
         loss = test_progress[k].result().numpy()
-        test_print += f'{k} {-loss:2.5e} || ' if k != 'N' else f'{k} {int(loss):2d} || '
-    test_print += (f'TrL {train_loss_mean.result().numpy():2.5e} || ' +
-                   f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ')
-    logger.info(test_print)
+        print_msg += f'{k} {-loss:2.5e} || ' if k != 'N' else f'{k} {int(loss):2d} || '
+    print_msg += (f'TrL {train_loss_mean.result().numpy():2.5e} || ' +
+                  f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ')
+    logger.info(print_msg)
     var_name = list(test_progress['vars_to_track'].keys())[0]
     tf.summary.scalar(name='Test ELBO', data=-test_progress[var_name].result(), step=epoch)
     tf.summary.scalar(name='N Required', data=test_progress['N'].result(), step=epoch)
     tf.summary.scalar(name='Temp', data=temp, step=epoch)
+
+
+def log_train_progress(logger, epoch, time_taken, iteration_counter, train_loss_mean, temp):
+    print_msg = f'Epoch {epoch:4d} || '
+    print_msg += (f'TrL {train_loss_mean.result().numpy():2.5e} || ' +
+                  f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ')
+    logger.info(print_msg)
 
 
 def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path):
