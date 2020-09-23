@@ -21,8 +21,10 @@ class VAENet(tf.keras.Model):
         self.image_shape = hyper['image_shape']
 
         self.log_px_z_params_num = 1 if self.dataset_name == 'mnist' else 2
-        self.latent_dim_in = (self.cont_param_num * self.cont_latent_n * self.cont_var_num +
-                              self.disc_param_num * self.disc_latent_in * self.disc_var_num)
+        self.latent_dim_in = (self.cont_param_num * self.cont_latent_n *
+                              self.cont_var_num +
+                              self.disc_param_num * self.disc_latent_in *
+                              self.disc_var_num)
         self.latent_dim_out = (self.cont_var_num * self.cont_latent_n +
                                self.disc_var_num * self.disc_latent_out)
         self.split_sizes_list = [self.cont_latent_n *
@@ -75,7 +77,8 @@ class VAENet(tf.keras.Model):
         self.inference_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=self.image_shape),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1', dtype=self.fl),
+            tf.keras.layers.Dense(units=self.latent_dim_in,
+                                  name='encoder_1', dtype=self.fl),
         ])
 
     def generate_dense_generative_net(self, activation='linear'):
@@ -84,9 +87,12 @@ class VAENet(tf.keras.Model):
         image_flat *= self.log_px_z_params_num
         self.generative_net = tf.keras.Sequential([
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
-            tf.keras.layers.Dense(units=image_flat, activation=activation_type, name='decoder_1'),
-            tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
-                                                  self.image_shape[2] * self.log_px_z_params_num),
+            tf.keras.layers.Dense(
+                units=image_flat, activation=activation_type, name='decoder_1'),
+            tf.keras.layers.Reshape(target_shape=(self.image_shape[0],
+                                                  self.image_shape[1],
+                                                  (self.image_shape[2] *
+                                                      self.log_px_z_params_num)),
                                     dtype=self.fl)
         ])
 
@@ -96,7 +102,8 @@ class VAENet(tf.keras.Model):
         flat_layer = tf.keras.layers.Flatten(dtype=self.fl)(input_layer)
         bias_init = tf.keras.initializers.Zeros()
         layer1 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_1',
-                                       activation='relu', dtype=self.fl)(2. * flat_layer - 1.)
+                                       activation='relu',
+                                       dtype=self.fl)(2. * flat_layer - 1.)
         layer2 = tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_2',
                                        activation='relu', dtype=self.fl)(layer1)
         layer3 = tf.keras.layers.Dense(units=self.latent_dim_in,
@@ -118,8 +125,10 @@ class VAENet(tf.keras.Model):
         layer3 = tf.keras.layers.Dense(units=image_flat,
                                        name='decoder_out', activation=activation_type,
                                        dtype=self.fl)(layer2)
-        reshaped_layer = tf.keras.layers.Reshape(target_shape=last_shape, dtype=self.fl)(layer3)
-        self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[reshaped_layer])
+        reshaped_layer = tf.keras.layers.Reshape(
+            target_shape=last_shape, dtype=self.fl)(layer3)
+        self.generative_net = tf.keras.Model(
+            inputs=[output_layer], outputs=[reshaped_layer])
 
     # --------------------------------------------------------------------------------------------
     def generate_dense_nonlinear_inference_net(self, activation='relu'):
@@ -130,13 +139,15 @@ class VAENet(tf.keras.Model):
                                   name='encoder_1', dtype=self.fl),
             tf.keras.layers.Dense(units=256, activation=activation,
                                   name='encoder_2', dtype=self.fl),
-            tf.keras.layers.Dense(units=self.latent_dim_in, name='encoder_3', dtype=self.fl),
+            tf.keras.layers.Dense(units=self.latent_dim_in,
+                                  name='encoder_3', dtype=self.fl),
         ])
 
     def generate_dense_nonlinear_generative_net(self, activation='relu'):
         activation_type = self.determine_activation_from_case()
         self.generative_net = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,), dtype=self.fl),
+            tf.keras.layers.InputLayer(input_shape=(
+                self.latent_dim_out,), dtype=self.fl),
             tf.keras.layers.Dense(units=256, activation=activation,
                                   name='decoder_1', dtype=self.fl),
             tf.keras.layers.Dense(units=512, activation=activation,
@@ -145,8 +156,10 @@ class VAENet(tf.keras.Model):
                                   self.image_shape[2] *
                                   self.log_px_z_params_num, activation=activation_type,
                                   name='decoder_3', dtype=self.fl),
-            tf.keras.layers.Reshape(target_shape=(self.image_shape[0], self.image_shape[1],
-                                                  self.image_shape[2] * self.log_px_z_params_num),
+            tf.keras.layers.Reshape(target_shape=(self.image_shape[0],
+                                                  self.image_shape[1],
+                                                  self.image_shape[2] *
+                                                  self.log_px_z_params_num),
                                     dtype=self.fl)
         ])
 
@@ -163,7 +176,8 @@ class VAENet(tf.keras.Model):
 
     def generate_planar_flow(self):
         self.planar_flow = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(self.disc_latent_in, 1, self.disc_var_num)),
+            tf.keras.layers.InputLayer(input_shape=(
+                self.disc_latent_in, 1, self.disc_var_num)),
             PlanarFlowLayer(units=self.disc_latent_in, var_num=self.disc_var_num),
             PlanarFlowLayer(units=self.disc_latent_in, var_num=self.disc_var_num)])
 
@@ -182,7 +196,8 @@ class VAENet(tf.keras.Model):
         flat_layer = tf.keras.layers.Flatten()(conv)
         dense_layer = tf.keras.layers.Dense(units=256, activation='relu')(flat_layer)
         if len(self.split_sizes_list) == 1:
-            concat_layer = tf.keras.layers.Dense(units=self.split_sizes_list[0])(dense_layer)
+            concat_layer = tf.keras.layers.Dense(
+                units=self.split_sizes_list[0])(dense_layer)
         else:
             params_layer = [tf.keras.layers.Dense(units=u)(dense_layer)
                             for u in self.split_sizes_list]
@@ -195,13 +210,20 @@ class VAENet(tf.keras.Model):
         layer = tf.keras.layers.Dense(units=4 * 4 * 64, activation='relu')(layer)
         layer = tf.keras.layers.Reshape(target_shape=(4, 4, 64))(layer)
         if self.image_shape[0] == 64:
-            layer = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=(4, 4), strides=(2, 2),
-                                                    activation='relu', padding='same')(layer)
-        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4), strides=(2, 2),
-                                                activation='relu', padding='same')(layer)
-        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4), strides=(2, 2),
-                                                activation='relu', padding='same')(layer)
-        layer = tf.keras.layers.Conv2DTranspose(filters=self.image_shape[2], kernel_size=(4, 4),
+            layer = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=(4, 4),
+                                                    strides=(2, 2),
+                                                    activation='relu',
+                                                    padding='same')(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4),
+                                                strides=(2, 2),
+                                                activation='relu',
+                                                padding='same')(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4),
+                                                strides=(2, 2),
+                                                activation='relu',
+                                                padding='same')(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=self.image_shape[2],
+                                                kernel_size=(4, 4),
                                                 strides=(2, 2), padding='same')(layer)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[layer])
 
@@ -220,7 +242,8 @@ class VAENet(tf.keras.Model):
         flat_layer = tf.keras.layers.Flatten()(conv)
         dense_layer = tf.keras.layers.Dense(units=256, activation='relu')(flat_layer)
         if len(self.split_sizes_list) == 1:
-            concat_layer = tf.keras.layers.Dense(units=self.split_sizes_list[0])(dense_layer)
+            concat_layer = tf.keras.layers.Dense(
+                units=self.split_sizes_list[0])(dense_layer)
         else:
             params_layer = [tf.keras.layers.Dense(units=u)(dense_layer)
                             for u in self.split_sizes_list]
@@ -233,15 +256,22 @@ class VAENet(tf.keras.Model):
         layer = tf.keras.layers.Dense(units=4 * 4 * 64, activation='relu')(layer)
         layer = tf.keras.layers.Reshape(target_shape=(4, 4, 64))(layer)
         if self.image_shape[0] == 64:
-            layer = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=(4, 4), strides=(2, 2),
-                                                    activation='relu', padding='same')(layer)
-        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4), strides=(2, 2),
-                                                activation='relu', padding='same')(layer)
-        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4), strides=(2, 2),
-                                                activation='relu', padding='same')(layer)
+            layer = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=(4, 4),
+                                                    strides=(2, 2),
+                                                    activation='relu',
+                                                    padding='same')(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4),
+                                                strides=(2, 2),
+                                                activation='relu',
+                                                padding='same')(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4),
+                                                strides=(2, 2),
+                                                activation='relu',
+                                                padding='same')(layer)
         layer = tf.keras.layers.Conv2DTranspose(filters=self.image_shape[2] *
                                                 self.log_px_z_params_num,
-                                                kernel_size=(4, 4), strides=(2, 2), padding='same',
+                                                kernel_size=(4, 4), strides=(2, 2),
+                                                padding='same',
                                                 activation='elu')(layer)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[layer])
 
@@ -263,9 +293,11 @@ class VAENet(tf.keras.Model):
             tf.keras.layers.Dense(units=7 * 7 * 32, activation='relu'),
             tf.keras.layers.Reshape(target_shape=(7, 7, 32)),
             tf.keras.layers.Conv2DTranspose(
-                filters=64, kernel_size=3, strides=(2, 2), padding="SAME", activation='relu'),
+                filters=64, kernel_size=3, strides=(2, 2), padding="SAME",
+                activation='relu'),
             tf.keras.layers.Conv2DTranspose(
-                filters=32, kernel_size=3, strides=(2, 2), padding="SAME", activation='relu'),
+                filters=32, kernel_size=3, strides=(2, 2), padding="SAME",
+                activation='relu'),
             tf.keras.layers.Conv2DTranspose(
                 filters=1, kernel_size=3, strides=(1, 1), padding="SAME"),
         ])
@@ -287,11 +319,14 @@ class VAENet(tf.keras.Model):
         reshaped_layer = tf.keras.layers.Reshape(target_shape=(4, 4, 128),
                                                  input_shape=(None, 1024))(input_layer)
         layer1 = tf.keras.layers.Conv2DTranspose(filters=256, kernel_size=4, strides=2,
-                                                 activation='relu', padding='same')(reshaped_layer)
+                                                 activation='relu',
+                                                 padding='same')(reshaped_layer)
         layer2 = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=4, strides=2,
-                                                 activation='relu', padding='same')(layer1)
+                                                 activation='relu',
+                                                 padding='same')(layer1)
         layer3 = tf.keras.layers.Conv2DTranspose(filters=3, kernel_size=4, strides=2,
-                                                 activation='relu', padding='same')(layer2)
+                                                 activation='relu',
+                                                 padding='same')(layer2)
         output_layer = tf.keras.layers.Flatten()(layer3)
         self.inference_net = tf.keras.Model(inputs=[input_layer], outputs=[output_layer])
 
@@ -302,16 +337,19 @@ class VAENet(tf.keras.Model):
         return params
 
     def split_and_reshape_network_parameters(self, x, batch_size):
-        params = tf.split(self.inference_net(x), num_or_size_splits=self.split_sizes_list, axis=1)
+        params = tf.split(self.inference_net(
+            x), num_or_size_splits=self.split_sizes_list, axis=1)
         reshaped_params = []
         for idx, param in enumerate(params):
             batch_size = batch_size if x.shape[0] is None else param.shape[0]
             if self.disc_var_num > 1:
                 param = tf.reshape(param,
-                                   shape=(batch_size, self.disc_latent_in, 1, self.disc_var_num))
+                                   shape=(batch_size, self.disc_latent_in,
+                                          1, self.disc_var_num))
             else:
                 param = tf.reshape(param,
-                                   shape=(batch_size, self.split_sizes_list[idx], 1, self.disc_var_num))
+                                   shape=(batch_size, self.split_sizes_list[idx],
+                                          1, self.disc_var_num))
             reshaped_params.append(param)
         return reshaped_params
 
@@ -348,8 +386,10 @@ class PlanarFlowLayer(tf.keras.layers.Layer):
         if batch_n is None:
             batch_n = 1
 
-        w_broad = tf.broadcast_to(self.w, shape=(batch_n, n_required, sample_size, var_num))
-        u_tilde_broad = tf.broadcast_to(u_tilde, shape=(batch_n, n_required, sample_size, var_num))
+        w_broad = tf.broadcast_to(self.w, shape=(
+            batch_n, n_required, sample_size, var_num))
+        u_tilde_broad = tf.broadcast_to(u_tilde, shape=(
+            batch_n, n_required, sample_size, var_num))
 
         prod_wTinputs = tf.math.reduce_sum(inputs * w_broad, axis=1, keepdims=True)
         tanh = tf.math.tanh(prod_wTinputs + self.b)
@@ -394,10 +434,12 @@ class RelaxCovNet(tf.keras.models.Model):
         self.net = tf.keras.Model(inputs=[input_layer], outputs=[out])
 
 
-def create_nested_planar_flow(nested_layers, latent_n, var_num, initializer='random_normal'):
+def create_nested_planar_flow(nested_layers, latent_n, var_num,
+                              initializer='random_normal'):
     sequence = [tf.keras.layers.InputLayer(input_shape=(latent_n, 1, var_num))]
-    for l in range(nested_layers):
-        sequence.append(PlanarFlowLayer(units=latent_n, var_num=var_num, initializer=initializer))
+    for _ in range(nested_layers):
+        sequence.append(PlanarFlowLayer(
+            units=latent_n, var_num=var_num, initializer=initializer))
     planar_flow = tf.keras.Sequential(sequence)
     return planar_flow
 
@@ -423,11 +465,14 @@ def generate_random_planar_flow_weights(nested_layers, latent_n, var_num):
 
 
 def generate_random_layer_weights(latent_n, var_num):
-    w = tf.Variable(tf.random.normal(mean=0., stddev=1., shape=(1, latent_n, 1, var_num)),
+    w = tf.Variable(tf.random.normal(mean=0., stddev=1.,
+                                     shape=(1, latent_n, 1, var_num)),
                     name='w')
-    b = tf.Variable(tf.random.normal(mean=0., stddev=1., shape=(1, 1, 1, var_num)),
+    b = tf.Variable(tf.random.normal(mean=0., stddev=1.,
+                                     shape=(1, 1, 1, var_num)),
                     name='b')
-    u = tf.Variable(tf.random.normal(mean=0., stddev=1., shape=(1, latent_n, 1, var_num)),
+    u = tf.Variable(tf.random.normal(mean=0., stddev=1.,
+                                     shape=(1, latent_n, 1, var_num)),
                     name='u')
     return w, b, u
 
