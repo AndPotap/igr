@@ -115,19 +115,22 @@ class OptVAE:
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
         if self.dataset_name == 'celeb_a' or self.dataset_name == 'fmnist':
-            log_px_z = compute_log_gaussian_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
+            log_px_z = compute_log_gaussian_pdf(
+                x=x, x_logit=x_logit, sample_size=self.sample_size)
         else:
-            log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
-        kl_norm, kl_dis = self.compute_kl_elements(z=z, params_broad=params_broad,
-                                                   sample_from_cont_kl=sample_from_cont_kl,
-                                                   sample_from_disc_kl=sample_from_disc_kl,
-                                                   test_with_one_hot=test_with_one_hot)
+            log_px_z = compute_log_bernoulli_pdf(
+                x=x, x_logit=x_logit, sample_size=self.sample_size)
+        kl_norm, kl_dis = self.compute_kl_elements(z, params_broad,
+                                                   sample_from_cont_kl,
+                                                   sample_from_disc_kl,
+                                                   test_with_one_hot)
         loss = compute_loss(log_px_z=log_px_z, kl=kl_norm + kl_dis,
                             sample_size=self.sample_size, run_iwae=run_iwae)
         return loss
 
     @tf.function()
-    def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
+    def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl,
+                                           sample_from_disc_kl):
         z, x_logit, params_broad = self.perform_fwd_pass(x, self.test_with_one_hot)
         loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
                                  sample_from_cont_kl=sample_from_cont_kl,
@@ -139,8 +142,10 @@ class OptVAE:
     @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
-            z, x_logit, params_broad = self.perform_fwd_pass(x=x, test_with_one_hot=False)
-            loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
+            z, x_logit, params_broad = self.perform_fwd_pass(
+                x=x, test_with_one_hot=False)
+            loss = self.compute_loss(x=x, x_logit=x_logit, z=z,
+                                     params_broad=params_broad,
                                      sample_from_cont_kl=self.sample_from_cont_kl,
                                      sample_from_disc_kl=self.sample_from_disc_kl,
                                      test_with_one_hot=False,
@@ -177,7 +182,8 @@ class OptExpGSDis(OptVAE):
         self.log_psi = tf.constant(1., dtype=self.dtype, shape=(1, 1, 1, 1))
 
     def reparameterize(self, params_broad):
-        self.dist = GS(log_pi=params_broad[0], sample_size=self.sample_size, temp=self.temp)
+        self.dist = GS(log_pi=params_broad[0],
+                       sample_size=self.sample_size, temp=self.temp)
         self.dist.generate_sample()
         self.n_required = self.dist.psi.shape[1]
         self.log_psi = self.dist.log_psi
@@ -216,8 +222,10 @@ class OptRELAX(OptVAE):
                                        shape=(1, self.n_required, 1, self.num_of_vars))
         initial_log_temp = tf.broadcast_to(initial_log_temp, shape=shape)
         self.log_temp = tf.Variable(initial_log_temp, name='log_temp', trainable=True)
-        self.decoder_vars = [v for v in self.nets.trainable_variables if 'decoder' in v.name]
-        self.encoder_vars = [v for v in self.nets.trainable_variables if 'encoder' in v.name]
+        self.decoder_vars = [
+            v for v in self.nets.trainable_variables if 'decoder' in v.name]
+        self.encoder_vars = [
+            v for v in self.nets.trainable_variables if 'encoder' in v.name]
         self.con_net_vars = self.relax_cov.net.trainable_variables + [self.log_temp]
         self.iter_count = 0
 
@@ -228,7 +236,8 @@ class OptRELAX(OptVAE):
         num_of_vars = tf.cast(z.shape[-1], dtype=tf.float32)
 
         x_logit = self.decode([z])
-        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
+        log_px_z = compute_log_bernoulli_pdf(
+            x=x, x_logit=x_logit, sample_size=self.sample_size)
         log_p = - num_of_vars * tf.math.log(categories_n)
         log_qz_x = self.compute_log_pmf(z=z, params=params)
         kl = log_p - tf.reduce_mean(log_qz_x)
@@ -249,7 +258,8 @@ class OptRELAX(OptVAE):
         grad = z - tf.math.softmax(self.log_alpha, axis=1)
         return grad
 
-    def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl, sample_from_disc_kl):
+    def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl,
+                                           sample_from_disc_kl):
         params = self.nets.encode(x, self.batch_size)
         self.offload_params(params)
         one_hot = self.get_relax_variables_from_params(x, params)[-1]
@@ -268,18 +278,21 @@ class OptRELAX(OptVAE):
                 params = self.nets.encode(x, self.batch_size)
                 self.offload_params(params)
                 tape.watch(params)
-                c_phi, c_phi_tilde, one_hot = self.get_relax_variables_from_params(x, params)
+                c_phi, c_phi_tilde, one_hot = self.get_relax_variables_from_params(
+                    x, params)
                 loss, recon = self.compute_loss(x=x, z=one_hot, params=params)
                 c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
                 log_qz_x_grad = tf.reduce_mean(self.compute_log_pmf_grad(z=one_hot),
                                                axis=2, keepdims=True)
                 log_pmf = self.compute_log_pmf(one_hot, params)
             c_diff_grad = tape.gradient(target=c_diff, sources=params)
-            relax_grad = self.compute_relax_grad(loss, c_phi_tilde, [log_qz_x_grad], c_diff_grad)
+            relax_grad = self.compute_relax_grad(
+                loss, c_phi_tilde, [log_qz_x_grad], c_diff_grad)
 
             c_diff_g = tape.gradient(target=c_diff, sources=self.encoder_vars)
             log_qz_x_g = tape.gradient(target=log_pmf, sources=self.encoder_vars)
-            encoder_grads = self.compute_relax_grad(loss, c_phi_tilde, log_qz_x_g, c_diff_g)
+            encoder_grads = self.compute_relax_grad(
+                loss, c_phi_tilde, log_qz_x_g, c_diff_g)
             decoder_grads = tape.gradient(target=loss, sources=self.decoder_vars)
 
             variance = compute_grad_var_over_batch(relax_grad)
@@ -327,11 +340,13 @@ class OptRELAXIGR(OptRELAX):
         num_of_vars = tf.cast(z.shape[-1], dtype=self.dtype)
 
         x_logit = self.decode([z])
-        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit, sample_size=self.sample_size)
+        log_px_z = compute_log_bernoulli_pdf(
+            x=x, x_logit=x_logit, sample_size=self.sample_size)
         log_p = - num_of_vars * tf.math.log(categories_n)
         log_p_discrete = compute_igr_log_probs(self.mu, self.sigma)
         p_discrete = compute_igr_probs(self.mu, self.sigma)
-        kl = tf.math.reduce_mean(tf.math.reduce_sum(log_p_discrete * p_discrete, axis=(1, 3)))
+        kl = tf.math.reduce_mean(tf.math.reduce_sum(
+            log_p_discrete * p_discrete, axis=(1, 3)))
         kl -= log_p
         recon = -tf.math.reduce_mean(log_px_z)
         loss = recon - kl
@@ -355,9 +370,11 @@ class OptRELAXIGR(OptRELAX):
         return log_categorical_pmf
 
     def get_relax_variables_from_params(self, x, params):
-        z_un = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape, dtype=self.dtype)
+        z_un = self.mu + self.sigma * \
+            tf.random.normal(shape=self.mu.shape, dtype=self.dtype)
         z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
-        z_un1 = self.mu + self.sigma * tf.random.normal(shape=self.mu.shape, dtype=self.dtype)
+        z_un1 = self.mu + self.sigma * \
+            tf.random.normal(shape=self.mu.shape, dtype=self.dtype)
         z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp))
         one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z1, x=x, params=params)
@@ -380,7 +397,8 @@ class OptRELAXIGR(OptRELAX):
 
             c_phi_grad = tape.gradient(target=c_phi, sources=self.encoder_vars)
             log_qz_x_grad = tape.gradient(target=log_pmf, sources=self.encoder_vars)
-            encoder_grads = self.compute_relax_grad(loss, c_phi, log_qz_x_grad, c_phi_grad)
+            encoder_grads = self.compute_relax_grad(
+                loss, c_phi, log_qz_x_grad, c_phi_grad)
             decoder_grads = tape.gradient(target=loss, sources=self.decoder_vars)
 
             variance = compute_grad_var_over_batch(relax_grad[0])
@@ -403,7 +421,8 @@ class OptRELAXGSDis(OptRELAX):
         z_tilde_un = sample_z_tilde_cat(one_hot, self.log_alpha)
 
         z = tf.math.softmax(z_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
-        z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
+        z_tilde = tf.math.softmax(
+            z_tilde_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
         # z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
         # z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp), axis=1)
 
@@ -485,10 +504,12 @@ class OptIGR(OptVAE):
                 kl_dis += self.num_of_vars * tf.math.log(categories_n)
             else:
                 batch_n, categories_n, sample_size, var_num = z[-1].shape
-                one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1), depth=categories_n),
+                one_hot = tf.transpose(tf.one_hot(tf.argmax(z[-1], axis=1),
+                                                  depth=categories_n),
                                        perm=[0, 3, 1, 2])
                 p_discrete = tf.reduce_mean(one_hot, axis=2, keepdims=True)
-                kl_dis = calculate_categorical_closed_kl(log_alpha=p_discrete, normalize=False)
+                kl_dis = calculate_categorical_closed_kl(
+                    log_alpha=p_discrete, normalize=False)
         else:
             if self.stick_the_landing:
                 mu_disc = tf.stop_gradient(mu_disc)
@@ -571,7 +592,8 @@ class OptPlanarNF(OptIGR):
         self.dist = IGR_Planar(mu=mu, xi=xi, planar_flow=self.nets.planar_flow,
                                temp=self.temp, sample_size=self.estimate_kl_w_n)
 
-    def compute_sampled_discrete_kl(self, mu_disc, xi_disc, mu_disc_prior, xi_disc_prior):
+    def compute_sampled_discrete_kl(self, mu_disc, xi_disc, mu_disc_prior,
+                                    xi_disc_prior):
         log_qz_x = compute_log_normal_pdf(self.dist.kappa,
                                           mean=mu_disc, log_var=2. * xi_disc)
         log_pz = compute_log_normal_pdf(self.dist.lam,
@@ -658,9 +680,14 @@ class OptSB(OptSBFinite):
         batch_size, n_required = self.dist.psi.shape[0], self.dist.psi.shape[1]
         missing = self.max_categories - n_required
         zeros = tf.constant(value=0., dtype=tf.float32,
-                            shape=(batch_size, missing, self.sample_size, self.num_of_vars))
+                            shape=(batch_size, missing, self.sample_size,
+                                   self.num_of_vars))
         z_discrete = tf.concat([self.dist.psi, zeros], axis=1)
         return z_discrete
+
+
+def compute_dlgmm_log_px_z():
+    pass
 
 
 def compute_loss(log_px_z, kl, sample_size=1, run_iwae=False):
@@ -800,7 +827,8 @@ def calculate_simple_closed_gauss_kl(mean, log_var):
     return kl_norm
 
 
-def calculate_general_closed_form_gauss_kl(mean_q, log_var_q, mean_p, log_var_p, axis=(1,)):
+def calculate_general_closed_form_gauss_kl(mean_q, log_var_q, mean_p,
+                                           log_var_p, axis=(1,)):
     var_q = tf.math.exp(log_var_q)
     var_p = tf.math.exp(log_var_p)
 
@@ -841,13 +869,13 @@ def calculate_categorical_closed_kl(log_alpha, normalize=True):
     categories_n = tf.constant(log_alpha.shape[1], dtype=log_alpha.dtype)
     log_uniform_inv = tf.math.log(categories_n)
     pi = tf.math.softmax(log_alpha, axis=1) if normalize else log_alpha
-    kl_discrete = tf.reduce_sum(pi * (tf.math.log(pi + offset) + log_uniform_inv), axis=(1, 3))
+    kl_discrete = tf.reduce_sum(
+        pi * (tf.math.log(pi + offset) + log_uniform_inv), axis=(1, 3))
     return kl_discrete
 
 
 def sample_kl_exp_gs(log_psi, log_pi, temp):
     uniform_probs = get_broadcasted_uniform_probs(log_psi.shape, log_pi.dtype)
-    # log_pz = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(uniform_probs), temp=temp)
     temp_prior = tf.constant(0.5, dtype=log_pi.dtype)
     log_pz = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(uniform_probs),
                                      temp=temp_prior)
@@ -858,21 +886,27 @@ def sample_kl_exp_gs(log_psi, log_pi, temp):
 
 def get_broadcasted_uniform_probs(shape, dtype):
     batch_n, categories_n, sample_size, disc_var_num = shape
-    uniform_probs = tf.constant([1 / categories_n for _ in range(categories_n)], dtype=dtype,
+    uniform_probs = tf.constant([1 / categories_n for _ in range(categories_n)],
+                                dtype=dtype,
                                 shape=(1, categories_n, 1, 1))
-    uniform_probs = shape_prior_to_sample_size_and_discrete_var_num(uniform_probs, batch_n,
-                                                                    categories_n, sample_size,
+    uniform_probs = shape_prior_to_sample_size_and_discrete_var_num(uniform_probs,
+                                                                    batch_n,
+                                                                    categories_n,
+                                                                    sample_size,
                                                                     disc_var_num)
     return uniform_probs
 
 
-def shape_prior_to_sample_size_and_discrete_var_num(prior_param, batch_size, categories_n,
+def shape_prior_to_sample_size_and_discrete_var_num(prior_param, batch_size,
+                                                    categories_n,
                                                     sample_size, discrete_var_num):
     prior_param = tf.reshape(prior_param, shape=(1, categories_n, 1, 1))
     prior_param = tf.broadcast_to(prior_param, shape=(batch_size, categories_n, 1, 1))
-    prior_param = tf.broadcast_to(prior_param, shape=(batch_size, categories_n, sample_size, 1))
+    prior_param = tf.broadcast_to(prior_param, shape=(
+        batch_size, categories_n, sample_size, 1))
     prior_param = tf.broadcast_to(prior_param,
-                                  shape=(batch_size, categories_n, sample_size, discrete_var_num))
+                                  shape=(batch_size, categories_n,
+                                         sample_size, discrete_var_num))
     return prior_param
 
 
