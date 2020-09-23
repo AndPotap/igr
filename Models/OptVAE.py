@@ -173,6 +173,20 @@ class OptVAE:
         # self.train_loss_mean(loss[1])
 
 
+class OptDLGMM(OptVAE):
+
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+
+    def reparameterize(self, params_broad):
+        z = []
+        for k in range(len(params_broad)):
+            _, mean, log_var = params_broad[k]
+            z_k = sample_normal(mean=mean, log_var=log_var)
+            z.append(z_k)
+        return z
+
+
 class OptExpGSDis(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
@@ -684,10 +698,6 @@ class OptSB(OptSBFinite):
                                    self.num_of_vars))
         z_discrete = tf.concat([self.dist.psi, zeros], axis=1)
         return z_discrete
-
-
-def compute_dlgmm_log_px_z():
-    pass
 
 
 def compute_loss(log_px_z, kl, sample_size=1, run_iwae=False):
