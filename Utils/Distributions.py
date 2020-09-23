@@ -28,7 +28,8 @@ class Distributions:
     def broadcast_params_to_sample_size(self, params: list):
         params_broad = []
         for param in params:
-            shape = (self.batch_size, self.categories_n, self.sample_size, self.num_of_vars)
+            shape = (self.batch_size, self.categories_n,
+                     self.sample_size, self.num_of_vars)
             param_w_samples = tf.broadcast_to(input=param, shape=shape)
             params_broad.append(param_w_samples)
         return params_broad
@@ -45,20 +46,23 @@ class Distributions:
 
 class IGR_I(Distributions):
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
-        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1], sample_size=sample_size,
+        super().__init__(batch_size=mu.shape[0], categories_n=mu.shape[1],
+                         sample_size=sample_size,
                          noise_type=noise_type, temp=temp, num_of_vars=mu.shape[3])
 
         self.mu = mu
         self.xi = xi
 
     def generate_sample(self):
-        mu_broad, xi_broad = self.broadcast_params_to_sample_size(params=[self.mu, self.xi])
+        mu_broad, xi_broad = self.broadcast_params_to_sample_size(
+            params=[self.mu, self.xi])
         epsilon = tf.random.normal(shape=mu_broad.shape, dtype=mu_broad.dtype)
         sigma_broad = tf.math.exp(xi_broad)
         # sigma_broad = tf.math.softplus(xi_broad + tf.constant(1.))
         self.kappa = mu_broad + sigma_broad * epsilon
         self.lam = self.transform()
-        self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
+        self.log_psi = self.lam - \
+            tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
         self.psi = project_to_vertices_via_softmax_pp(self.lam / self.temp)
 
         # self.psi = tf.math.softmax(self.lam / self.temp, axis=1)
@@ -98,7 +102,8 @@ class IGR_SB(IGR_I):
         return lam
 
     def apply_stick_break(self, kappa):
-        eta = iterative_sb(kappa) if self.run_iteratively else self.perform_matrix_sb(kappa)
+        eta = iterative_sb(
+            kappa) if self.run_iteratively else self.perform_matrix_sb(kappa)
         self.perform_truncation_via_threshold(vector=eta)
         return eta[:, :self.n_required, :, :]
 
@@ -123,10 +128,12 @@ class IGR_SB(IGR_I):
 
 class IGR_SB_Finite(IGR_SB):
     def __init__(self, mu, xi, temp, sample_size=1, noise_type='normal'):
-        super().__init__(mu=mu, xi=xi, temp=temp, sample_size=sample_size, noise_type=noise_type)
+        super().__init__(mu=mu, xi=xi, temp=temp, sample_size=sample_size,
+                         noise_type=noise_type)
 
     def apply_stick_break(self, kappa):
-        eta = iterative_sb(kappa) if self.run_iteratively else self.perform_matrix_sb(kappa)
+        eta = iterative_sb(
+            kappa) if self.run_iteratively else self.perform_matrix_sb(kappa)
         return eta
 
 
@@ -143,7 +150,8 @@ class GS(Distributions):
         uniform = tf.random.uniform(shape=log_pi_broad.shape, dtype=log_pi_broad.dtype)
         gumbel_sample = -tf.math.log(-tf.math.log(uniform + offset) + offset)
         self.lam = (log_pi_broad + gumbel_sample) / self.temp
-        self.log_psi = self.lam - tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
+        self.log_psi = self.lam - \
+            tf.math.reduce_logsumexp(self.lam, axis=1, keepdims=True)
         self.psi = tf.math.softmax(logits=self.lam, axis=1)
 
 
@@ -152,7 +160,8 @@ def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> t
     offset = tf.constant(1.e-20)
 
     log_const = tf.math.lgamma(n_required) + (n_required - 1) * tf.math.log(temp)
-    log_sum = tf.reduce_sum(logits - (temp + tf.constant(1.)) * tf.math.log(psi + offset), axis=1)
+    log_sum = tf.reduce_sum(logits - (temp + tf.constant(1.))
+                            * tf.math.log(psi + offset), axis=1)
     log_norm = - n_required * \
         tf.math.log(tf.reduce_sum(tf.math.exp(logits) / psi ** temp, axis=1) + offset)
 
@@ -160,7 +169,8 @@ def compute_log_gs_dist(psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> t
     return log_p_concrete
 
 
-def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tensor) -> tf.Tensor:
+def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor,
+                            temp: tf.Tensor) -> tf.Tensor:
     categories_n = tf.constant(log_psi.shape[1], dtype=log_psi.dtype)
     log_cons = tf.math.lgamma(categories_n) + (categories_n - 1) * tf.math.log(temp)
     aux = logits - temp * log_psi
@@ -170,11 +180,15 @@ def compute_log_exp_gs_dist(log_psi: tf.Tensor, logits: tf.Tensor, temp: tf.Tens
     return log_exp_gs_dist
 
 
-def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dist_type: str = 'sb',
-                 sample_size: int = 1, threshold: float = 0.99, run_iteratively=False, run_kl=True,
+def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor,
+                 dist_type: str = 'sb',
+                 sample_size: int = 1, threshold: float = 0.99,
+                 run_iteratively=False, run_kl=True,
                  planar_flow: str = None):
-    chosen_dist = select_chosen_distribution(dist_type=dist_type, params=params, temp=temp,
-                                             sample_size=sample_size, threshold=threshold,
+    chosen_dist = select_chosen_distribution(dist_type=dist_type, params=params,
+                                             temp=temp,
+                                             sample_size=sample_size,
+                                             threshold=threshold,
                                              run_iteratively=run_iteratively,
                                              planar_flow=planar_flow)
 
@@ -182,7 +196,8 @@ def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dis
     psi_mean = tf.reduce_mean(chosen_dist.psi, axis=[0, 2, 3])
     if run_kl:
         if dist_type == 'GS':
-            loss = psi_mean * (tf.math.log(psi_mean) - tf.math.log(probs[:chosen_dist.n_required]))
+            loss = psi_mean * (tf.math.log(psi_mean) -
+                               tf.math.log(probs[:chosen_dist.n_required]))
         else:
             loss = psi_mean * (tf.math.log(psi_mean) -
                                tf.math.log(probs[:chosen_dist.n_required + 1]))
@@ -193,14 +208,16 @@ def compute_loss(params: List[tf.Tensor], temp: tf.Tensor, probs: tf.Tensor, dis
 
 
 def compute_gradients(params, temp: tf.Tensor, probs: tf.Tensor, run_kl=True,
-                      dist_type: str = 'sb', sample_size: int = 1, run_iteratively=False,
-                      threshold: float = 0.99,
+                      dist_type: str = 'sb', sample_size: int = 1,
+                      run_iteratively=False, threshold: float = 0.99,
                       planar_flow: str = None) -> Tuple[tf.Tensor, tf.Tensor, int]:
     with tf.GradientTape() as tape:
         loss, n_required = compute_loss(params=params, temp=temp, probs=probs,
                                         sample_size=sample_size,
-                                        threshold=threshold, dist_type=dist_type, run_kl=run_kl,
-                                        run_iteratively=run_iteratively, planar_flow=planar_flow)
+                                        threshold=threshold, dist_type=dist_type,
+                                        run_kl=run_kl,
+                                        run_iteratively=run_iteratively,
+                                        planar_flow=planar_flow)
         gradient = tape.gradient(target=loss, sources=params)
     return gradient, loss, n_required
 
@@ -211,7 +228,8 @@ def apply_gradients(optimizer: tf.keras.optimizers, gradients: tf.Tensor, variab
 
 def project_to_vertices(z, categories_n):
     one_hot = tf.transpose(tf.one_hot(tf.argmax(tf.stop_gradient(z), axis=1),
-                                      depth=categories_n, dtype=z.dtype), perm=[0, 3, 1, 2])
+                                      depth=categories_n, dtype=z.dtype),
+                           perm=[0, 3, 1, 2])
     return one_hot
 
 
@@ -278,9 +296,11 @@ def generate_lower_and_upper_triangular_matrices(categories_n):
     return lower, upper
 
 
-def broadcast_matrices_to_shape(lower, upper, batch_size, categories_n, sample_size, num_of_vars):
+def broadcast_matrices_to_shape(lower, upper, batch_size, categories_n,
+                                sample_size, num_of_vars):
     upper = np.broadcast_to(upper, shape=(batch_size, categories_n, categories_n - 1))
-    upper = np.reshape(upper, newshape=(batch_size, categories_n, categories_n - 1, 1, 1))
+    upper = np.reshape(upper, newshape=(
+        batch_size, categories_n, categories_n - 1, 1, 1))
     upper = np.broadcast_to(upper, shape=(batch_size, categories_n,
                                           categories_n - 1, sample_size, 1))
     upper = np.broadcast_to(upper, shape=(batch_size, categories_n,
@@ -298,21 +318,25 @@ def iterative_sb(kappa):
                          element_shape=(batch_size, sample_size, num_of_vars))
     eta = eta.write(index=0, value=kappa[:, 0, :, :])
     cumsum = tf.identity(kappa[:, 0, :, :])
-    next_cumsum = tf.identity(kappa[:, 1, :, :] * (1 - kappa[:, 0, :, :]) + kappa[:, 0, :, :])
+    next_cumsum = tf.identity(
+        kappa[:, 1, :, :] * (1 - kappa[:, 0, :, :]) + kappa[:, 0, :, :])
     max_iter = tf.constant(value=max_size - 1, dtype=tf.int32)
     for i in tf.range(1, max_iter):
         eta = eta.write(index=i, value=kappa[:, i, :, :] * (1. - cumsum))
         cumsum += kappa[:, i, :, :] * (1. - cumsum)
         next_cumsum += kappa[:, i + 1, :, :] * (1. - next_cumsum)
 
-    eta = eta.write(index=max_size - 1, value=kappa[:, max_size - 1, :, :] * (1. - cumsum))
+    eta = eta.write(index=max_size - 1,
+                    value=kappa[:, max_size - 1, :, :] * (1. - cumsum))
     return tf.transpose(eta.stack(), perm=[1, 0, 2, 3])
 
 
-def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: float = 0.99,
+def generate_sample(sample_size: int, params, dist_type: str, temp,
+                    threshold: float = 0.99,
                     output_one_hot=False, planar_flow=None):
     chosen_dist = select_chosen_distribution(dist_type=dist_type, threshold=threshold,
-                                             params=params, temp=temp, sample_size=sample_size,
+                                             params=params, temp=temp,
+                                             sample_size=sample_size,
                                              planar_flow=planar_flow)
     chosen_dist.generate_sample()
     if output_one_hot:
@@ -322,12 +346,14 @@ def generate_sample(sample_size: int, params, dist_type: str, temp, threshold: f
         return sample
 
 
-def select_chosen_distribution(dist_type: str, params, temp=tf.constant(0.1, dtype=tf.float32),
+def select_chosen_distribution(dist_type: str, params,
+                               temp=tf.constant(0.1, dtype=tf.float32),
                                sample_size: int = 1, threshold: float = 0.99,
                                run_iteratively=False, planar_flow=None):
     if dist_type == 'IGR_SB':
         mu, xi = params
-        chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
+        chosen_dist = IGR_SB(mu=mu, xi=xi, temp=temp,
+                             sample_size=sample_size, threshold=threshold)
         if run_iteratively:
             chosen_dist.run_iteratively = True
     elif dist_type == 'IGR_SB_Finite':
@@ -385,19 +411,30 @@ def compute_log_last_prob(mu, sigma):
 
 
 def compute_log_probs_via_quad(mu, sigma):
-    # w = [8.62207055355942e-02, 1.85767318955695e-01, 2.35826124129815e-01, 2.05850326841520e-01,
-    #      1.19581170615297e-01, 4.31443275880520e-02, 8.86764989474414e-03, 9.27141875082127e-04,
+    # w = [8.62207055355942e-02, 1.85767318955695e-01,
+    #      2.35826124129815e-01, 2.05850326841520e-01,
+    #      1.19581170615297e-01, 4.31443275880520e-02,
+    #      8.86764989474414e-03, 9.27141875082127e-04,
     #      4.15719321667468e-05, 5.86857646837617e-07, 1.22714513994286e-09]
-    # y = [3.38393212320868e-02, 1.73955727711686e-01, 4.10873440975301e-01, 7.26271784264131e-01,
-    #      1.10386324647012e+00, 1.53229503458121e+00, 2.00578290247431e+00, 2.52435214152551e+00,
+    # y = [3.38393212320868e-02, 1.73955727711686e-01,
+    #      4.10873440975301e-01, 7.26271784264131e-01,
+    #      1.10386324647012e+00, 1.53229503458121e+00,
+    #      2.00578290247431e+00, 2.52435214152551e+00,
     #      3.09535170987551e+00, 3.73947860994972e+00, 4.51783596719327e+00]
-    w = [5.54433663102343e-02, 1.24027738987730e-01, 1.75290943892075e-01, 1.91488340747342e-01,
-         1.63473797144070e-01, 1.05937637278492e-01, 5.00270211534535e-02, 1.64429690052673e-02,
-         3.57320421428311e-03, 4.82896509305201e-04, 3.74908650266318e-05, 1.49368411589636e-06,
-         2.55270496934465e-08, 1.34217679136316e-10, 9.56227446736465e-14]
-    y = [2.16869474675590e-02, 1.12684220347775e-01, 2.70492671421899e-01, 4.86902370381935e-01,
-         7.53043683072978e-01, 1.06093100362236e+00, 1.40425495820363e+00, 1.77864637941183e+00,
-         2.18170813144494e+00, 2.61306084533352e+00, 3.07461811380851e+00, 3.57140815113714e+00,
+    w = [5.54433663102343e-02, 1.24027738987730e-01,
+         1.75290943892075e-01, 1.91488340747342e-01,
+         1.63473797144070e-01, 1.05937637278492e-01,
+         5.00270211534535e-02, 1.64429690052673e-02,
+         3.57320421428311e-03, 4.82896509305201e-04,
+         3.74908650266318e-05, 1.49368411589636e-06,
+         2.55270496934465e-08, 1.34217679136316e-10,
+         9.56227446736465e-14]
+    y = [2.16869474675590e-02, 1.12684220347775e-01,
+         2.70492671421899e-01, 4.86902370381935e-01,
+         7.53043683072978e-01, 1.06093100362236e+00,
+         1.40425495820363e+00, 1.77864637941183e+00,
+         2.18170813144494e+00, 2.61306084533352e+00,
+         3.07461811380851e+00, 3.57140815113714e+00,
          4.11373608977209e+00, 4.72351306243148e+00, 5.46048893678335e+00]
     w = reshape_for_quad(w, mu.shape, mu.dtype)
     y = reshape_for_quad(y, mu.shape, mu.dtype)
@@ -434,7 +471,8 @@ def compute_log_h_f(y, mu, sigma):
 
 def compute_igr_probs(mu, sigma):
     integral = tf.math.exp(compute_log_probs_via_quad(mu, sigma))
-    remainder = tf.constant(1., dtype=mu.dtype) - tf.reduce_sum(integral, axis=1, keepdims=True)
+    remainder = tf.constant(1., dtype=mu.dtype) - \
+        tf.reduce_sum(integral, axis=1, keepdims=True)
     return tf.clip_by_value(tf.concat([integral, remainder], axis=1), 1.e-20, 1.)
 
 
@@ -445,7 +483,8 @@ def compute_h_f(y, mu, sigma):
 
     t = tf.math.sqrt(tf.constant(2.)) * sigma_expanded * y
     cons = tf.constant(3.141592653589793) ** (-0.5)
-    inner_exp = (1 / (2 * sigma_expanded ** 2)) * (2 * mu_expanded * t - mu_expanded ** 2)
+    inner_exp = (1 / (2 * sigma_expanded ** 2)) * \
+        (2 * mu_expanded * t - mu_expanded ** 2)
     exp_term = tf.math.exp(tf.clip_by_value(inner_exp, -50., 50.))
     denom = gaussian.cdf((t - mu_expanded) / sigma_expanded)
     num = tf.math.reduce_prod(denom, axis=1, keepdims=True)
