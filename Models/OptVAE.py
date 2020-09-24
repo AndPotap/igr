@@ -1,6 +1,5 @@
 import pickle
 import tensorflow as tf
-from tensorflow_probability import distributions as tfpd
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
@@ -220,9 +219,13 @@ class OptDLGMM(OptVAE):
         return log_pz
 
     def compute_kld(self, log_a, log_b):
-        dist = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
-                                concentration1=tf.math.exp(log_b))
-        log_qpi_x = dist.entropy()
+        sample_axis = 3
+        a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+        euler_mascheroni = 0.577215664901532860606512090082
+        H_b = tf.math.digamma(b + 1) + euler_mascheroni
+        log_qpi_x = (1 - 1 / b) + (1 - 1 / a) * H_b - tf.math.log(a * b)
+        log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
+        log_qpi_x = tf.reduce_sum(log_qpi_x)
         return log_qpi_x
 
     def compute_log_qz_x(self, z, pi, mean, log_var):
