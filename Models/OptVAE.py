@@ -232,12 +232,12 @@ class OptDLGMM(OptVAE):
     def compute_kld(self, log_a, log_b):
         sample_axis = 2
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
-        euler_mascheroni = tf.constant(0.577215664901532860606512090082,
-                                       dtype=log_a.dtype)
-        H_b = tf.math.digamma(b + 1) + euler_mascheroni
-        log_qpi_x = (1 - 1 / b) + (1 - 1 / a) * H_b - tf.math.log(a * b)
+        dist = tfpd.Kumaraswamy(concentration0=a,
+                                concentration1=b)
+        log_qpi_x = dist.entropy()
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
-        log_qpi_x = tf.reduce_sum(log_qpi_x)
+        log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
+        log_qpi_x = tf.reduce_mean(log_qpi_x, axis=0)
         return log_qpi_x
 
     def compute_log_qz_x(self, z, pi, mean, log_var):
