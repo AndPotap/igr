@@ -198,12 +198,14 @@ class OptDLGMM(OptVAE):
 
     def compute_log_px_z(self, x, x_logit, pi):
         sample_axis = 3
-        pi_bar_k = tf.reduce_mean(pi, axis=sample_axis, keepdims=True)
-        x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=self.sample_size)
+        pi_bar_k = tf.reduce_mean(pi, axis=sample_axis)
+        pi_bar_k = tf.reduce_sum(pi_bar_k, axis=-1)
+        x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=self.n_required)
         cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad,
                                                              logits=x_logit)
-        log_px_z = tf.reduce_mean(cross_ent, axis=sample_axis, keepdims=True)
-        log_px_z = tf.reduce_sum(pi_bar_k * log_px_z)
+        log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
+        log_px_z = tf.reduce_sum(pi_bar_k * log_px_z, axis=1)
+        log_px_z = tf.reduce_mean(log_px_z, axis=0)
         return log_px_z
 
     def compute_log_pz(self, z, pi):

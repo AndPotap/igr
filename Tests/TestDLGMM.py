@@ -17,6 +17,29 @@ class TestDLGMM(unittest.TestCase):
                       'model_type': 'linear', 'temp': 1.0,
                       'sample_from_cont_kl': True}
 
+    def test_log_px_z(self):
+        test_tolerance = 1.e-6
+        pi = tf.constant([[0.1, 0.2, 0.3, 0.4]])
+        pi = tf.expand_dims(tf.expand_dims(pi, axis=-1), axis=-1)
+        n_required = pi.shape[1]
+        x = tf.random.uniform(shape=(1, 4, 4, 1))
+        x_logit = tf.random.normal(shape=(1, 4, 4, 1, n_required))
+        self.hyper['n_required'] = n_required
+        nets, optimizer = [], []
+        optvae = OptDLGMM(nets, optimizer, self.hyper)
+        approx = optvae.compute_log_px_z(x, x_logit, pi)
+        x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=n_required)
+        x_broad = tf.reshape(x_broad, shape=(16, 4))
+        x_logit = tf.reshape(x_logit, shape=(16, 4))
+        dist = tfpd.Bernoulli(logits=x_logit)
+        ans = dist.log_prob(x_broad)
+        ans = tf.reduce_sum(dist.log_prob(x_broad), axis=0)
+        ans = tf.reduce_sum(pi[0, :, 0, 0] * ans)
+        diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
+        print('\nTEST: Reconstruction')
+        print(f'Diff {diff:1.3e}')
+        self.assertTrue(expr=diff < test_tolerance)
+
     def test_kld(self):
         test_tolerance = 1.e-6
         log_a = tf.constant([[0., -1., 1., 2.0, -2.0]])
