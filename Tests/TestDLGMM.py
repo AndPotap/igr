@@ -8,6 +8,18 @@ from Models.OptVAE import OptDLGMM
 
 class TestDLGMM(unittest.TestCase):
 
+    def test_kumaraswamy_reparam(self):
+        log_a = tf.random.normal(shape=(2, 4, 1, 1))
+        log_b = tf.random.normal(shape=(2, 4, 1, 1))
+        with tf.GradientTape() as tape:
+            tape.watch([log_a, log_b])
+            kumar = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
+                                     concentration1=tf.math.exp(log_b))
+            z_kumar = kumar.sample()
+        grad = tape.gradient(target=z_kumar, sources=[log_a, log_b])
+        print('\nTEST: Kumaraswamy Reparameterization Gradient')
+        self.assertTrue(expr=grad is not None)
+
     def test_sb(self):
         test_tolerance = 1.e-6
         z_kumar = tf.constant([[0.1, 0.2, 0.3, 0.4],
