@@ -44,7 +44,39 @@ class TestDLGMM(unittest.TestCase):
                       'sample_from_cont_kl': True}
 
     def test_loss(self):
-        pass
+        test_tolerance = 1.e-2
+        tf.random.set_seed(seed=21)
+        batch_n, n_required, sample_size, dim = 2, 4, 1, 3
+        shape = (batch_n, n_required, sample_size, dim)
+        log_a = tf.random.normal(shape=(batch_n, n_required, 1, 1))
+        log_b = tf.random.normal(shape=log_a.shape)
+        kumar = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
+                                 concentration1=tf.math.exp(log_b))
+        z_kumar = kumar.sample()
+        z_norm = tf.random.normal(shape=shape)
+        mean = tf.random.normal(shape=shape)
+        log_var = tf.zeros_like(z_norm)
+        pi = iterative_sb(z_kumar)
+        x = tf.random.uniform(shape=(1, 4, 4, 1))
+        x_logit = tf.random.normal(shape=(1, 4, 4, 1, n_required))
+        self.hyper['n_required'] = n_required
+        optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
+        z = [z_kumar, z_norm]
+        params_broad = [log_a, log_b, mean, log_var]
+        optvae.mu_prior = create_separated_prior_means(batch_n, n_required, sample_size,
+                                                       dim, pi.dtype)
+        optvae.log_var_prior = tf.zeros_like(z_norm)
+
+        approx = optvae.compute_loss(x, x_logit, z, params_broad,
+                                     True, True, True, True)
+        ans = calculate_kumar_entropy(log_a, log_b)
+        ans += calculate_log_qz_x(z_norm, pi, mean, log_var)
+        ans -= calculate_log_px_z(x, x_logit, pi)
+        ans -= calculate_log_pz(z_norm, pi, optvae.mu_prior, optvae.log_var_prior)
+        diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
+        print('\nTEST: Loss')
+        print(f'Diff {diff:1.3e}')
+        self.assertTrue(expr=diff < test_tolerance)
 
     def test_log_px_z(self):
         test_tolerance = 1.e-6
@@ -54,9 +86,8 @@ class TestDLGMM(unittest.TestCase):
         x = tf.random.uniform(shape=(1, 4, 4, 1))
         x_logit = tf.random.normal(shape=(1, 4, 4, 1, n_required))
         self.hyper['n_required'] = n_required
-        nets, optimizer = [], []
 
-        optvae = OptDLGMM(nets, optimizer, self.hyper)
+        optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
         approx = optvae.compute_log_px_z(x, x_logit, pi)
         ans = calculate_log_px_z(x, x_logit, pi)
 
@@ -73,8 +104,7 @@ class TestDLGMM(unittest.TestCase):
         n_required = pi.shape[1]
         z = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
         self.hyper['n_required'] = n_required
-        nets, optimizer = [], []
-        optvae = OptDLGMM(nets, optimizer, self.hyper)
+        optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
         optvae.mu_prior = create_separated_prior_means(batch_n, n_required, sample_size,
                                                        dim, pi.dtype)
         optvae.log_var_prior = tf.zeros_like(z)
@@ -88,13 +118,16 @@ class TestDLGMM(unittest.TestCase):
 
     def test_kld(self):
         test_tolerance = 1.e-6
-        log_a = tf.constant([[0., -1., 1., 2.0, -2.0]])
-        log_a = tf.expand_dims(tf.expand_dims(log_a, axis=-1), axis=-1)
-        log_b = tf.constant([[0., -1., 1., 2.0, -2.0]])
-        log_b = tf.expand_dims(tf.expand_dims(log_b, axis=-1), axis=-1)
+        batch_n, n_required = 2, 4
+        tf.random.set_seed(seed=21)
+        # log_a = tf.constant([[0., -1., 1., 2.0, -2.0]])
+        # log_a = tf.expand_dims(tf.expand_dims(log_a, axis=-1), axis=-1)
+        # log_b = tf.constant([[0., -1., 1., 2.0, -2.0]])
+        # log_b = tf.expand_dims(tf.expand_dims(log_b, axis=-1), axis=-1)
+        log_a = tf.random.normal(shape=(batch_n, n_required, 1, 1))
+        log_b = tf.random.normal(shape=log_a.shape)
         self.hyper['n_required'] = log_a.shape[1]
-        nets, optimizer = [], []
-        optvae = OptDLGMM(nets, optimizer, self.hyper)
+        optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
 
         approx = optvae.compute_kld(log_a, log_b)
         ans = calculate_kumar_entropy(log_a, log_b)
@@ -111,8 +144,7 @@ class TestDLGMM(unittest.TestCase):
         n_required = pi.shape[1]
         z = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
         self.hyper['n_required'] = n_required
-        nets, optimizer = [], []
-        optvae = OptDLGMM(nets, optimizer, self.hyper)
+        optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
         mean = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
         log_var = tf.zeros_like(z)
         approx = optvae.compute_log_qz_x(z, pi, mean, log_var)
@@ -152,6 +184,7 @@ def calculate_kumar_entropy(log_a, log_b):
         dist = tfpd.Kumaraswamy(concentration0=a[:, k, 0, 0],
                                 concentration1=b[:, k, 0, 0])
         ans += dist.entropy()
+    ans = tf.reduce_mean(ans)
     return ans
 
 
@@ -171,7 +204,7 @@ def calculate_log_qz_x(z, pi, mean, log_var):
 def create_separated_prior_means(batch_n, n_required, sample_size, dim, dtype):
     mu_prior = tf.zeros(shape=(batch_n, 1, sample_size, dim))
     mult = 1. / tf.sqrt(tf.constant(dim, dtype=dtype))
-    for k in range(n_required - 1):
+    for _ in range(n_required - 1):
         mu = tf.ones(shape=(batch_n, 1, sample_size, dim))
         u = tf.random.uniform(shape=mu.shape)
         mu = tf.where(u < 0.5, -1.0, 1.0)
