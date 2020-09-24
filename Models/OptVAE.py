@@ -221,7 +221,8 @@ class OptDLGMM(OptVAE):
     def compute_kld(self, log_a, log_b):
         sample_axis = 3
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
-        euler_mascheroni = 0.577215664901532860606512090082
+        euler_mascheroni = tf.constant(0.577215664901532860606512090082,
+                                       dtype=log_a.dtype)
         H_b = tf.math.digamma(b + 1) + euler_mascheroni
         log_qpi_x = (1 - 1 / b) + (1 - 1 / a) * H_b - tf.math.log(a * b)
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
