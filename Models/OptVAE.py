@@ -1,7 +1,7 @@
 import pickle
 import tensorflow as tf
-from tensorflow_probability import distributions as tfpd
 from os import environ as os_env
+from tensorflow_probability import distributions as tfpd
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
 from Utils.Distributions import project_to_vertices_via_softmax_pp
@@ -54,7 +54,7 @@ class OptVAE:
 
     def decode_w_or_wo_one_hot(self, z, test_with_one_hot):
         if test_with_one_hot:
-            batch_n, categories_n, sample_size, var_num = z[-1].shape
+            _, categories_n, _, _ = z[-1].shape
             zz = []
             for idx in range(len(z)):
                 one_hot = project_to_vertices(z[idx], categories_n)
@@ -208,8 +208,8 @@ class OptDLGMM(OptVAE):
         pi_bar_k = tf.reduce_mean(pi, axis=sample_axis)
         pi_bar_k = tf.reduce_sum(pi_bar_k, axis=-1)
         x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=self.n_required)
-        cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad,
-                                                             logits=x_logit)
+        cross_ent = - tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad,
+                                                              logits=x_logit)
         log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
         log_px_z = tf.reduce_sum(pi_bar_k * log_px_z, axis=1)
         log_px_z = tf.reduce_mean(log_px_z, axis=0)
