@@ -1,5 +1,6 @@
 import pickle
 import tensorflow as tf
+from tensorflow_probability import distributions as tfpd
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
@@ -178,13 +179,63 @@ class OptDLGMM(OptVAE):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
 
+    # def reparameterize(self, params_broad):
+    #     z = []
+    #     for k in range(len(params_broad)):
+    #         _, mean, log_var = params_broad[k]
+    #         z_k = sample_normal(mean=mean, log_var=log_var)
+    #         z.append(z_k)
+    #     return z
+
     def reparameterize(self, params_broad):
-        z = []
-        for k in range(len(params_broad)):
-            _, mean, log_var = params_broad[k]
-            z_k = sample_normal(mean=mean, log_var=log_var)
-            z.append(z_k)
+        _, mean, log_var = params_broad
+        z = sample_normal(mean=mean, log_var=log_var)
         return z
+
+    def compute_loss(self, x, x_logit, z, params_broad,
+                     sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
+                     run_iwae):
+        pass
+
+    def compute_log_px_z(self, x, x_logit, pi):
+        sample_axis = 3
+        pi_bar_k = tf.reduce_mean(pi, axis=sample_axis, keepdims=True)
+        x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=self.sample_size)
+        cross_ent = -tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad,
+                                                             logits=x_logit)
+        log_px_z = tf.reduce_mean(cross_ent, axis=sample_axis, keepdims=True)
+        log_px_z = tf.reduce_sum(pi_bar_k * log_px_z)
+        return log_px_z
+
+    def compute_log_pz(self, z, pi):
+        sample_axis = 3
+        pi_bar_k = tf.reduce_mean(pi, axis=sample_axis, keepdims=True)
+        pi_const = tf.constant(3.141592653589793, dtype=self.mu_prior.dtype)
+        log2pi = -0.5 * tf.math.log(2 * pi_const)
+        log_exp_sum = (-0.5 * (z - self.mu_prior) ** 2 *
+                       tf.math.exp(-self.log_var_prior))
+        log_pz = tf.reduce_mean(log2pi + -0.5 * self.log_var_prior + log_exp_sum,
+                                axis=sample_axis, keepdims=True)
+        log_pz = tf.reduce_sum(pi_bar_k * log_pz)
+        return log_pz
+
+    def compute_kld(self, log_a, log_b):
+        dist = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
+                                concentration1=tf.math.exp(log_b))
+        log_qpi_x = dist.entropy()
+        return log_qpi_x
+
+    def compute_log_qz_x(self, z, pi, mean, log_var):
+        cat_axis, sample_axis = 2, 3
+        log_pi = tf.math.log(pi)
+        pi_const = tf.constant(3.141592653589793, dtype=mean.dtype)
+        log2pi = -0.5 * tf.math.log(2 * pi_const)
+        log_exp_sum = (-0.5 * (z - mean) ** 2 * tf.math.exp(-log_var))
+        lse = (log_pi + log2pi + -0.5 * log_var + log_exp_sum)
+        log_qz_x = tf.math.reduce_logsumexp(lse, axis=cat_axis, keepdims=True)
+        log_qz_x = tf.reduce_mean(log_qz_x, axis=sample_axis)
+        log_qz_x = tf.reduce_sum(log_qz_x)
+        return log_qz_x
 
 
 class OptExpGSDis(OptVAE):
@@ -853,8 +904,8 @@ def calculate_planar_flow_log_determinant(z, planar_flow):
     log_det = tf.constant(0., dtype=tf.float32)
     nested_layers = int(len(planar_flow.weights) / 3)
     zl = z
-    for l in range(nested_layers):
-        pf_layer = planar_flow.get_layer(index=l)
+    for lay in range(nested_layers):
+        pf_layer = planar_flow.get_layer(index=lay)
         w, b, _ = pf_layer.weights
         u = pf_layer.get_u_tilde()
         uTw = tf.math.reduce_sum(u * w, axis=1)
