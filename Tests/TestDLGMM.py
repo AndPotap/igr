@@ -1,10 +1,24 @@
 import unittest
 import tensorflow as tf
 from tensorflow_probability import distributions as tfpd
+from Utils.Distributions import iterative_sb
+from Tests.TestDistributions import calculate_eta_from_kappa
 from Models.OptVAE import OptDLGMM
 
 
 class TestDLGMM(unittest.TestCase):
+
+    def test_sb(self):
+        test_tolerance = 1.e-6
+        z_kumar = tf.constant([[0.1, 0.2, 0.3, 0.4],
+                               [0.2, 0.3, 0.4, 0.1]])
+        z_kumar = tf.expand_dims(tf.expand_dims(z_kumar, axis=-1), axis=-1)
+        approx = iterative_sb(z_kumar)
+        ans = tf.constant(calculate_eta_from_kappa(z_kumar.numpy()), dtype=z_kumar.dtype)
+        diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
+        print('\nTEST: Stick-Break Kumar')
+        print(f'Diff {diff:1.3e}')
+        self.assertTrue(expr=diff < test_tolerance)
 
     def setUp(self):
         self.hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
@@ -16,6 +30,9 @@ class TestDLGMM(unittest.TestCase):
                       'dataset_name': 'mnist',
                       'model_type': 'linear', 'temp': 1.0,
                       'sample_from_cont_kl': True}
+
+    def test_loss(self):
+        pass
 
     def test_log_px_z(self):
         test_tolerance = 1.e-6
