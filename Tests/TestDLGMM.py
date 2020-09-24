@@ -62,14 +62,11 @@ class TestDLGMM(unittest.TestCase):
         optvae.log_var_prior = tf.zeros_like(z)
         approx = optvae.compute_log_pz(z, pi)
 
-        ans = 0
-        for k in range(n_required):
-            loc = optvae.mu_prior[:, k, 0, :]
-            scale = tf.math.exp(0.5 * optvae.log_var_prior[:, k, 0, :])
-            dist = tfpd.Normal(loc=loc, scale=scale)
-            aux = tf.reduce_sum(dist.log_prob(z[:, k, 0, :]), axis=1)
-            ans += pi[0, k, 0, 0] * aux
-        ans = tf.reduce_mean(ans)
+        loc = optvae.mu_prior
+        scale = tf.math.exp(0.5 * optvae.log_var_prior)
+        dist = tfpd.Normal(loc, scale)
+        ans = pi * tf.reduce_sum(dist.log_prob(z), axis=3, keepdims=True)
+        ans = tf.reduce_mean(tf.reduce_sum(ans, axis=(1, 2, 3)))
         diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
         print('\nTEST: Normal Prior')
         print(f'Diff {diff:1.3e}')
