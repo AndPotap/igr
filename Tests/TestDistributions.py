@@ -6,7 +6,8 @@ from scipy.special import logsumexp, loggamma
 from scipy.stats import norm
 from scipy.integrate import quad
 from Utils.Distributions import IGR_SB, IGR_SB_Finite
-from Utils.Distributions import compute_log_exp_gs_dist, project_to_vertices_via_softmax_pp
+from Utils.Distributions import compute_log_exp_gs_dist
+from Utils.Distributions import project_to_vertices_via_softmax_pp
 from Utils.Distributions import compute_h_f, compute_igr_probs
 from Utils.Distributions import compute_igr_log_probs
 from Utils.Distributions import compute_log_gauss_grad
@@ -21,17 +22,20 @@ class TestDistributions(unittest.TestCase):
         mu = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
         xi = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
         params = [mu, xi]
-        z_un = mu + tf.math.exp(tf.clip_by_value(xi, -50., 50.)) * tf.random.normal(shape=mu.shape)
+        z_un = (mu + tf.math.exp(tf.clip_by_value(xi, -50., 50.)) *
+                tf.random.normal(shape=mu.shape))
         z = project_to_vertices_via_softmax_pp(z_un)
         one_hot = project_to_vertices(z, categories_n + 1)
         with tf.GradientTape(persistent=True) as tape:
             tape.watch(params)
-            log_probs = compute_igr_log_probs(mu, tf.math.exp(tf.clip_by_value(xi, -50., 50.)))
-            log_pmf = tf.reduce_sum(tf.reduce_sum(one_hot * log_probs, axis=1), axis=(1, 1))
+            log_probs = compute_igr_log_probs(
+                mu, tf.math.exp(tf.clip_by_value(xi, -50., 50.)))
+            log_pmf = tf.reduce_sum(tf.reduce_sum(
+                one_hot * log_probs, axis=1), axis=(1, 1))
 
         log_pmf_g = tape.gradient(target=log_pmf, sources=params)
         log_cat_g = compute_log_categorical_grads(one_hot, params)
-        print(f'\nTEST: log categorical grad')
+        print('\nTEST: log categorical grad')
         for idx, grad in enumerate(log_pmf_g):
             diff = np.linalg.norm(log_cat_g[idx] - grad) / np.linalg.norm(grad)
             print(f'\nDiff {diff:1.3e}')
@@ -53,7 +57,7 @@ class TestDistributions(unittest.TestCase):
         ans_sigma = tape.gradient(target=density, sources=sigma_tf)
         ans = [ans_mu, ans_sigma]
         approx = compute_log_gauss_grad(z, mu_tf, sigma_tf)
-        print(f'\nTEST: Gaussian log grad')
+        print('\nTEST: Gaussian log grad')
         for idx, grad in enumerate(ans):
             diff = np.linalg.norm(approx[idx] - grad) / np.linalg.norm(grad)
             print(f'\nDiff {diff:1.3e}')
@@ -80,11 +84,12 @@ class TestDistributions(unittest.TestCase):
                 for var in range(num_of_vars):
                     mu0, sigma0 = mu[b, :, s, var], sigma[b, :, s, var]
                     for j in range(categories_n):
-                        ans[b, j, s, var], _ = quad(compute_probas_integrand2, a=0., b=np.inf,
+                        ans[b, j, s, var], _ = quad(compute_probas_integrand2, a=0.,
+                                                    b=np.inf,
                                                     args=(mu0, sigma0, j))
                     ans[b, categories_n, s, var] = 1. - np.sum(ans[b, :, s, var])
 
-        print(f'\nTEST: Gaussian Probas integral')
+        print('\nTEST: Gaussian Probas integral')
         diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans)
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
@@ -106,17 +111,18 @@ class TestDistributions(unittest.TestCase):
                 for var in range(num_of_vars):
                     mu0, sigma0 = mu[b, :, s, var], sigma[b, :, s, var]
                     for j in range(categories_n):
-                        ans[b, j, s, var], _ = quad(compute_probas_integrand, a=0., b=np.inf,
+                        ans[b, j, s, var], _ = quad(compute_probas_integrand, a=0.,
+                                                    b=np.inf,
                                                     args=(mu0, sigma0, j))
                     ans[b, categories_n, s, var] = 1. - np.sum(ans[b, :, s, var])
 
-        print(f'\nTEST: Gaussian Probas integral for uniform case')
+        print('\nTEST: Gaussian Probas integral for uniform case')
         diff = np.linalg.norm(approx - ans) / np.linalg.norm(ans)
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
 
     def test_h_f_tf_implementation(self):
-        test_tolerance = 1.e-6
+        test_tolerance = 1.e-5
         num_points = 5
         batch_size, categories_n, sample_size, num_of_vars = 3, 10, 1, 2
         shape = (batch_size, categories_n, sample_size, num_of_vars)
@@ -133,7 +139,7 @@ class TestDistributions(unittest.TestCase):
         ans = compute_h_np(y, mu, sigma)
         h_tf = compute_h_f(tf.constant(y, dtype=tf.float32), mu_tf, sigma_tf).numpy()
 
-        print(f'\nTEST: Gaussian integral TF implementation')
+        print('\nTEST: Gaussian Integral TF implementation')
         diff = np.linalg.norm(h_tf - ans) / np.linalg.norm(ans)
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
@@ -155,7 +161,7 @@ class TestDistributions(unittest.TestCase):
         cons = (2 * np.pi * sigma ** 2) ** (-0.5)
         den = cons * np.exp(-0.5 * ((t - mu) / sigma) ** 2)
         ans = mult * den
-        print(f'\nTEST: Gaussian integral change')
+        print('\nTEST: Gaussian integral change')
         diff = np.linalg.norm(h_term - ans) / np.linalg.norm(ans)
         print(f'\nDiff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
@@ -163,7 +169,8 @@ class TestDistributions(unittest.TestCase):
     def test_softmaxpp(self):
         test_tolerance = 1.e-4
         batch_size, categories_n, sample_size, num_of_vars = 2, 3, 4, 5
-        lam = tf.constant(0., shape=(batch_size, categories_n - 1, sample_size, num_of_vars))
+        lam = tf.constant(0., shape=(
+            batch_size, categories_n - 1, sample_size, num_of_vars))
         psi_ans = compute_softmaxpp_for_all(lam=lam.numpy(), delta=1.0)
         psi = project_to_vertices_via_softmax_pp(lam).numpy()
         relative_diff = np.linalg.norm(psi - psi_ans) / np.linalg.norm(psi_ans)
@@ -173,7 +180,8 @@ class TestDistributions(unittest.TestCase):
         test_tolerance = 1.e-4
         batch_n, categories_n, sample_size, num_of_vars = 2, 10, 1, 3
         temp = tf.constant(value=0.6, dtype=tf.float32)
-        log_pi = tf.random.normal(shape=(batch_n, categories_n, sample_size, num_of_vars))
+        log_pi = tf.random.normal(
+            shape=(batch_n, categories_n, sample_size, num_of_vars))
 
         uniform_sample = np.random.uniform(size=log_pi.shape)
         gumbel_sample = tf.constant(-np.log(-np.log(uniform_sample)), dtype=tf.float32)
@@ -187,14 +195,17 @@ class TestDistributions(unittest.TestCase):
         relative_diff = tf.linalg.norm(log_exp_gs.numpy() - log_exp_gs_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
-        pi = tf.constant(np.random.dirichlet(alpha=np.array([i + 1 for i in range(categories_n)]),
+        aux = np.array([i + 1 for i in range(categories_n)])
+        pi = tf.constant(np.random.dirichlet(alpha=aux,
                                              size=(batch_n, sample_size, num_of_vars)),
                          dtype=tf.float32)
         pi = tf.transpose(pi, perm=[0, 3, 1, 2])
         y = (tf.math.log(pi) + gumbel_sample) / temp
         log_psi = y.numpy() - logsumexp(y.numpy(), keepdims=True)
-        log_exp_gs_ans = calculate_log_exp_concrete_for_tensor(log_psi=log_psi, alpha=pi, temp=temp)
-        log_exp_gs = compute_log_exp_gs_dist(log_psi=log_psi, logits=tf.math.log(pi), temp=temp)
+        log_exp_gs_ans = calculate_log_exp_concrete_for_tensor(
+            log_psi=log_psi, alpha=pi, temp=temp)
+        log_exp_gs = compute_log_exp_gs_dist(
+            log_psi=log_psi, logits=tf.math.log(pi), temp=temp)
         relative_diff = tf.linalg.norm(log_exp_gs.numpy() - log_exp_gs_ans)
         self.assertTrue(expr=relative_diff < test_tolerance)
 
@@ -204,8 +215,10 @@ class TestDistributions(unittest.TestCase):
         self.kappa_stick = np.array([[0.1, 0.22222224, 0.42857146, 0.75000006],
                                      [0.3, 0.4, 0.5, 0.6],
                                      [0.3, 0.28571428571428575, 0.2, 0.5]])
-        self.batch_size, self.max_size = self.kappa_stick.shape[0], self.kappa_stick.shape[1]
-        self.kappa_stick = broadcast_sample_and_num(self.kappa_stick, self.kappa_stick.shape,
+        self.batch_size = self.kappa_stick.shape[0]
+        self.max_size = self.kappa_stick.shape[1]
+        self.kappa_stick = broadcast_sample_and_num(self.kappa_stick,
+                                                    self.kappa_stick.shape,
                                                     self.sample_size, self.num_of_vars)
         self.eta_ans = np.array([[0.1, 0.2, 0.3, 0.3],
                                  [0.3, 0.28, 0.21, 0.126],
@@ -221,7 +234,8 @@ class TestDistributions(unittest.TestCase):
             self.batch_size, self.max_size, 1, self.num_of_vars))
 
         sb = IGR_SB_Finite(mu, xi, self.temp, sample_size=self.sample_size)
-        eta_matrix = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=False)
+        eta_matrix = compute_and_threshold_eta(
+            sb, self.kappa_stick, run_iteratively=False)
         eta_iter = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=True)
         eta_np = calculate_eta_from_kappa(self.kappa_stick)
 
@@ -243,7 +257,8 @@ class TestDistributions(unittest.TestCase):
             self.batch_size, self.max_size, 1, self.num_of_vars))
 
         sb = IGR_SB(mu, xi, self.temp, sample_size=self.sample_size, threshold=threshold)
-        eta_matrix = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=False)
+        eta_matrix = compute_and_threshold_eta(
+            sb, self.kappa_stick, run_iteratively=False)
         eta_iter = compute_and_threshold_eta(sb, self.kappa_stick, run_iteratively=True)
         eta_np = calculate_eta_from_kappa(self.kappa_stick)[:, :n_required_ans, :]
 
@@ -258,10 +273,13 @@ class TestDistributions(unittest.TestCase):
         temp = tf.constant(0.1, dtype=tf.float32)
         batch_size, max_size, sample_size, num_of_vars = 2, 20, 10, 4
         thresholds = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
-        mu = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
-        xi = tf.constant(value=1, dtype=tf.float32, shape=(batch_size, max_size, 1, num_of_vars))
+        mu = tf.constant(value=1, dtype=tf.float32, shape=(
+            batch_size, max_size, 1, num_of_vars))
+        xi = tf.constant(value=1, dtype=tf.float32, shape=(
+            batch_size, max_size, 1, num_of_vars))
         for threshold in thresholds:
-            sb_dist = IGR_SB(mu=mu, xi=xi, temp=temp, sample_size=sample_size, threshold=threshold)
+            sb_dist = IGR_SB(mu=mu, xi=xi, temp=temp,
+                             sample_size=sample_size, threshold=threshold)
             kappa = np.array([1 / (2 ** (i + 1)) for i in range(max_size)])
             kappa = np.broadcast_to(kappa, shape=(batch_size, max_size))
             kappa = broadcast_sample_and_num(kappa, shape=(batch_size, max_size),
@@ -275,7 +293,8 @@ class TestDistributions(unittest.TestCase):
             eta_ans = eta_ans[:, :n_required, :, :]
             eta_all = [eta_matrix, eta_iter]
             for e in eta_all:
-                relative_diff = np.linalg.norm(e.numpy() - eta_ans) / np.linalg.norm(eta_ans)
+                relative_diff = np.linalg.norm(
+                    e.numpy() - eta_ans) / np.linalg.norm(eta_ans)
                 self.assertTrue(expr=relative_diff < test_tolerance)
 
 
@@ -345,13 +364,16 @@ def compute_softmaxpp(lam, delta=1.):
 
 
 def calculate_log_exp_concrete_for_tensor(log_psi, alpha, temp):
-    batch_n, sample_size, num_of_vars = log_psi.shape[0], log_psi.shape[2], log_psi.shape[3]
+    batch_n, sample_size = log_psi.shape[0], log_psi.shape[2]
+    num_of_vars = log_psi.shape[3]
     log_exp_concrete = np.zeros(shape=(batch_n, sample_size, num_of_vars))
     for b in range(batch_n):
         for s in range(sample_size):
             for v in range(num_of_vars):
-                log_exp_concrete[b, s, v] = calculate_log_exp_concrete(log_psi=log_psi[b, :, s, v],
-                                                                       alpha=alpha[b, :, s, v],
+                lp = log_psi[b, :, s, v]
+                al = alpha[b, :, s, v]
+                log_exp_concrete[b, s, v] = calculate_log_exp_concrete(log_psi=lp,
+                                                                       alpha=al,
                                                                        temp=temp)
     return log_exp_concrete
 
@@ -387,7 +409,8 @@ def broadcast_to_batch_and_sample_size(a, batch_n, sample_size):
     shape = a.shape
     a = np.reshape(a, newshape=(1,) + shape)
     a = np.broadcast_to(a, shape=(batch_n,) + shape)
-    a = broadcast_sample_and_num(a=a, shape=a.shape, sample_size=sample_size, num_of_vars=1)
+    a = broadcast_sample_and_num(
+        a=a, shape=a.shape, sample_size=sample_size, num_of_vars=1)
     return a
 
 
