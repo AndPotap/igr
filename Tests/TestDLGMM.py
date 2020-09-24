@@ -40,6 +40,41 @@ class TestDLGMM(unittest.TestCase):
         print(f'Diff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
 
+    def test_log_pz(self):
+        test_tolerance = 1.e-6
+        batch_n, n_required, sample_size, dim = 2, 4, 1, 3
+        pi = tf.constant([[0.1, 0.2, 0.3, 0.4]])
+        pi = tf.expand_dims(tf.expand_dims(pi, axis=-1), axis=-1)
+        n_required = pi.shape[1]
+        z = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
+        self.hyper['n_required'] = n_required
+        nets, optimizer = [], []
+        optvae = OptDLGMM(nets, optimizer, self.hyper)
+        optvae.mu_prior = tf.zeros(shape=(batch_n, 1, sample_size, dim))
+        mult = 1. / tf.sqrt(tf.constant(dim, dtype=pi.dtype))
+        for k in range(n_required - 1):
+            mu_prior = tf.ones(shape=(batch_n, 1, sample_size, dim))
+            u = tf.random.uniform(shape=mu_prior.shape)
+            mu_prior = tf.where(u < 0.5, -1.0, 1.0)
+            mu_prior = mult * mu_prior
+            optvae.mu_prior = tf.concat([optvae.mu_prior, mu_prior],
+                                        axis=1)
+        optvae.log_var_prior = tf.zeros_like(z)
+        approx = optvae.compute_log_pz(z, pi)
+
+        ans = 0
+        for k in range(n_required):
+            loc = optvae.mu_prior[:, k, 0, :]
+            scale = tf.math.exp(0.5 * optvae.log_var_prior[:, k, 0, :])
+            dist = tfpd.Normal(loc=loc, scale=scale)
+            aux = tf.reduce_sum(dist.log_prob(z[:, k, 0, :]), axis=1)
+            ans += pi[0, k, 0, 0] * aux
+        ans = tf.reduce_mean(ans)
+        diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
+        print('\nTEST: Normal Prior')
+        print(f'Diff {diff:1.3e}')
+        self.assertTrue(expr=diff < test_tolerance)
+
     def test_kld(self):
         test_tolerance = 1.e-6
         log_a = tf.constant([[0., -1., 1., 2.0, -2.0]])

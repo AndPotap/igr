@@ -209,7 +209,7 @@ class OptDLGMM(OptVAE):
         return log_px_z
 
     def compute_log_pz(self, z, pi):
-        sample_axis = 3
+        sample_axis = 2
         pi_bar_k = tf.reduce_mean(pi, axis=sample_axis, keepdims=True)
         pi_const = tf.constant(3.141592653589793, dtype=self.mu_prior.dtype)
         log2pi = -0.5 * tf.math.log(2 * pi_const)
@@ -217,11 +217,13 @@ class OptDLGMM(OptVAE):
                        tf.math.exp(-self.log_var_prior))
         log_pz = tf.reduce_mean(log2pi + -0.5 * self.log_var_prior + log_exp_sum,
                                 axis=sample_axis, keepdims=True)
-        log_pz = tf.reduce_sum(pi_bar_k * log_pz)
+        log_pz = tf.reduce_sum(log_pz, axis=3, keepdims=True)
+        log_pz = tf.reduce_sum(pi_bar_k * log_pz, axis=(1, 2, 3))
+        log_pz = tf.reduce_mean(log_pz)
         return log_pz
 
     def compute_kld(self, log_a, log_b):
-        sample_axis = 3
+        sample_axis = 2
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
         euler_mascheroni = tf.constant(0.577215664901532860606512090082,
                                        dtype=log_a.dtype)
@@ -232,7 +234,7 @@ class OptDLGMM(OptVAE):
         return log_qpi_x
 
     def compute_log_qz_x(self, z, pi, mean, log_var):
-        cat_axis, sample_axis = 2, 3
+        cat_axis, sample_axis = 1, 2
         log_pi = tf.math.log(pi)
         pi_const = tf.constant(3.141592653589793, dtype=mean.dtype)
         log2pi = -0.5 * tf.math.log(2 * pi_const)
