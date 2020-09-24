@@ -180,14 +180,6 @@ class OptDLGMM(OptVAE):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
 
-    # def reparameterize(self, params_broad):
-    #     z = []
-    #     for k in range(len(params_broad)):
-    #         _, mean, log_var = params_broad[k]
-    #         z_k = sample_normal(mean=mean, log_var=log_var)
-    #         z.append(z_k)
-    #     return z
-
     def reparameterize(self, params_broad):
         log_a, log_b, mean, log_var = params_broad
         kumar = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
@@ -210,10 +202,6 @@ class OptDLGMM(OptVAE):
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qpi_x + log_qz_x - log_px_z - log_pz
         return loss
-
-    def compute_stick_break(z_kumar):
-        sb = z_kumar
-        return sb
 
     def compute_log_px_z(self, x, x_logit, pi):
         sample_axis = 3
