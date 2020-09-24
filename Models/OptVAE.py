@@ -234,15 +234,19 @@ class OptDLGMM(OptVAE):
         return log_qpi_x
 
     def compute_log_qz_x(self, z, pi, mean, log_var):
-        cat_axis, sample_axis = 1, 2
+        cat_axis, sample_axis, dim_axis = 1, 2, 3
         log_pi = tf.math.log(pi)
         pi_const = tf.constant(3.141592653589793, dtype=mean.dtype)
         log2pi = -0.5 * tf.math.log(2 * pi_const)
         log_exp_sum = (-0.5 * (z - mean) ** 2 * tf.math.exp(-log_var))
-        lse = (log_pi + log2pi + -0.5 * log_var + log_exp_sum)
-        log_qz_x = tf.math.reduce_logsumexp(lse, axis=cat_axis, keepdims=True)
+        lse = tf.reduce_sum(log2pi + -0.5 * log_var + log_exp_sum, axis=dim_axis,
+                            keepdims=True)
+        lse += log_pi
+        log_qz_x = tf.math.reduce_logsumexp(lse, axis=(cat_axis, dim_axis),
+                                            keepdims=True)
         log_qz_x = tf.reduce_mean(log_qz_x, axis=sample_axis)
-        log_qz_x = tf.reduce_sum(log_qz_x)
+        log_qz_x = tf.reduce_sum(log_qz_x, axis=cat_axis)
+        log_qz_x = tf.reduce_mean(log_qz_x)
         return log_qz_x
 
 

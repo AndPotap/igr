@@ -97,6 +97,33 @@ class TestDLGMM(unittest.TestCase):
         print(f'Diff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
 
+    def test_log_qz_x(self):
+        test_tolerance = 1.e-6
+        batch_n, n_required, sample_size, dim = 2, 4, 1, 3
+        pi = tf.constant([[0.1, 0.2, 0.3, 0.4]])
+        pi = tf.expand_dims(tf.expand_dims(pi, axis=-1), axis=-1)
+        n_required = pi.shape[1]
+        z = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
+        self.hyper['n_required'] = n_required
+        nets, optimizer = [], []
+        optvae = OptDLGMM(nets, optimizer, self.hyper)
+        mean = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
+        log_var = tf.zeros_like(z)
+        approx = optvae.compute_log_qz_x(z, pi, mean, log_var)
+
+        ans = 0
+        for k in range(n_required):
+            loc = mean[:, k, 0, :]
+            scale = tf.math.exp(0.5 * log_var[:, k, 0, :])
+            dist = tfpd.Normal(loc=loc, scale=scale)
+            aux = tf.reduce_prod(tf.math.exp(dist.log_prob(z[:, k, 0, :])), axis=1)
+            ans += pi[0, k, 0, 0] * aux
+        ans = tf.reduce_mean(tf.math.log(ans))
+        diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
+        print('\nTEST: Normal A Posterior')
+        print(f'Diff {diff:1.3e}')
+        self.assertTrue(expr=diff < test_tolerance)
+
 
 if __name__ == '__main__':
     unittest.main()
