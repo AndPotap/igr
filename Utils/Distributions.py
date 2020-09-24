@@ -311,23 +311,16 @@ def broadcast_matrices_to_shape(lower, upper, batch_size, categories_n,
     return lower, upper
 
 
-@tf.function
+# @tf.function
 def iterative_sb(kappa):
     batch_size, max_size, sample_size, num_of_vars = kappa.shape
-    eta = tf.TensorArray(dtype=tf.float32, size=max_size, clear_after_read=True,
+    eta = tf.TensorArray(dtype=kappa.dtype, size=max_size, clear_after_read=True,
                          element_shape=(batch_size, sample_size, num_of_vars))
     eta = eta.write(index=0, value=kappa[:, 0, :, :])
-    cumsum = tf.identity(kappa[:, 0, :, :])
-    next_cumsum = tf.identity(
-        kappa[:, 1, :, :] * (1 - kappa[:, 0, :, :]) + kappa[:, 0, :, :])
-    max_iter = tf.constant(value=max_size - 1, dtype=tf.int32)
-    for i in tf.range(1, max_iter):
+    cumsum = tf.identity(kappa[:, 0, :, :])  # copy contents
+    for i in range(1, max_size):
         eta = eta.write(index=i, value=kappa[:, i, :, :] * (1. - cumsum))
         cumsum += kappa[:, i, :, :] * (1. - cumsum)
-        next_cumsum += kappa[:, i + 1, :, :] * (1. - next_cumsum)
-
-    eta = eta.write(index=max_size - 1,
-                    value=kappa[:, max_size - 1, :, :] * (1. - cumsum))
     return tf.transpose(eta.stack(), perm=[1, 0, 2, 3])
 
 
