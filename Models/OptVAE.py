@@ -1,5 +1,6 @@
 import pickle
 import tensorflow as tf
+from tensorflow_probability import distributions as tfpd
 from os import environ as os_env
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
 from Utils.Distributions import GS, compute_log_exp_gs_dist
@@ -7,6 +8,7 @@ from Utils.Distributions import project_to_vertices_via_softmax_pp
 from Utils.Distributions import project_to_vertices
 from Utils.Distributions import compute_igr_log_probs
 from Utils.Distributions import compute_igr_probs
+from Utils.Distributions import iterative_sb
 from Models.VAENet import RelaxCovNet
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -187,14 +189,31 @@ class OptDLGMM(OptVAE):
     #     return z
 
     def reparameterize(self, params_broad):
-        _, mean, log_var = params_broad
-        z = sample_normal(mean=mean, log_var=log_var)
+        log_a, log_b, mean, log_var = params_broad
+        kumar = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
+                                 concentration1=tf.math.exp(log_b))
+        z_kumar = kumar.sample()
+        z_norm = sample_normal(mean=mean, log_var=log_var)
+        z = [z_kumar, z_norm]
         return z
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
-        pass
+        log_a, log_b, mean, log_var = params_broad
+        z_kumar, z_norm = z
+        pi = iterative_sb(z_kumar)
+
+        log_px_z = self.compute_log_px_z(x, x_logit, pi)
+        log_pz = self.compute_log_pz(z_norm, pi)
+        log_qpi_x = self.compute_kld(log_a, log_b)
+        log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
+        loss = log_qpi_x + log_qz_x - log_px_z - log_pz
+        return loss
+
+    def compute_stick_break(z_kumar):
+        sb = z_kumar
+        return sb
 
     def compute_log_px_z(self, x, x_logit, pi):
         sample_axis = 3
