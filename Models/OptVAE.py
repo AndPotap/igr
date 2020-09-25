@@ -141,7 +141,7 @@ class OptVAE:
                                  run_iwae=self.run_iwae)
         return loss
 
-    # @tf.function()
+    @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x,
@@ -210,15 +210,16 @@ class OptDLGMM(OptVAE):
         batch_n, n_required = z[-1].shape[0], z[-1].shape[1]
         x_logit = tf.TensorArray(dtype=self.dtype,
                                  size=self.sample_size,
-                                 element_shape=(batch_n,) + self.nets.image_shape[:2] +
+                                 element_shape=(batch_n,) + self.nets.image_shape +
                                  (n_required,))
         for i in range(self.sample_size):
-            value = self.nets.decode(z[-1][:, 0, i, :])[0]
+            value = tf.expand_dims(self.nets.decode(z[-1][:, 0, i, :])[0], axis=-1)
             for j in range(1, self.n_required):
-                value = tf.concat((value, self.nets.decode(z[-1][:, j, i, :])[0]),
-                                  axis=3)
+                logits = tf.expand_dims(self.nets.decode(z[-1][:, j, i, :])[0],
+                                        axis=-1)
+                value = tf.concat((value, logits), axis=4)
             x_logit = x_logit.write(index=i, value=value)
-        x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 0, 4])
+        x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0, 5])
         return x_logit
 
     def compute_loss(self, x, x_logit, z, params_broad,
@@ -237,15 +238,17 @@ class OptDLGMM(OptVAE):
         return loss
 
     def compute_log_px_z(self, x, x_logit, pi):
-        sample_axis = 3
-        pi_bar_k = tf.reduce_mean(pi, axis=sample_axis)
-        pi_bar_k = tf.reduce_sum(pi_bar_k, axis=-1)
-        x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=self.n_required)
+        pi_bar_k = tf.reduce_mean(pi, axis=(2, 3))
+        x_broad = tf.repeat(tf.expand_dims(x, -1), axis=-1,
+                            repeats=self.sample_size)
+        x_broad = tf.repeat(tf.expand_dims(x_broad, -1), axis=-1,
+                            repeats=self.n_required)
         cross_ent = - tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad,
                                                               logits=x_logit)
         log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
-        log_px_z = tf.reduce_sum(pi_bar_k * log_px_z, axis=1)
-        log_px_z = tf.reduce_mean(log_px_z, axis=0)
+        log_px_z = tf.reduce_mean(log_px_z, axis=1)
+        log_px_z = tf.reduce_sum(pi_bar_k * log_px_z, axis=-1)
+        log_px_z = tf.reduce_mean(log_px_z)
         return log_px_z
 
     def compute_log_pz(self, z, pi):
