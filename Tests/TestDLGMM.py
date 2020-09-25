@@ -83,11 +83,12 @@ class TestDLGMM(unittest.TestCase):
 
     def test_log_px_z(self):
         test_tolerance = 1.e-6
+        batch_n, sample_size = 2, 1
         pi = tf.constant([[0.1, 0.2, 0.3, 0.4]])
         pi = tf.expand_dims(tf.expand_dims(pi, axis=-1), axis=-1)
         n_required = pi.shape[1]
-        x = tf.random.uniform(shape=(1, 4, 4, 1))
-        x_logit = tf.random.normal(shape=(1, 4, 4, 1, n_required))
+        x = tf.random.uniform(shape=(batch_n, 4, 4, 1))
+        x_logit = tf.random.normal(shape=(batch_n, 4, 4, 1, sample_size, n_required))
         self.hyper['n_required'] = n_required
 
         optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
@@ -161,13 +162,19 @@ class TestDLGMM(unittest.TestCase):
 
 
 def calculate_log_px_z(x, x_logit, pi):
-    x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=pi.shape[1])
-    x_broad = tf.reshape(x_broad, shape=(16, 4))
-    x_logit = tf.reshape(x_logit, shape=(16, 4))
+    sample_size = x_logit.shape[4]
+    n_required = x_logit.shape[5]
+    # x_broad = tf.repeat(tf.expand_dims(x, 4), axis=4, repeats=pi.shape[1])
+    # x_broad = tf.reshape(x_broad, shape=(16, 4))
+    # x_logit = tf.reshape(x_logit, shape=(16, 4))
+    x_broad = tf.repeat(tf.expand_dims(x, -1), axis=-1, repeats=sample_size)
+    x_broad = tf.repeat(tf.expand_dims(x_broad, -1), axis=-1, repeats=n_required)
     dist = tfpd.Bernoulli(logits=x_logit)
     log_px_z = dist.log_prob(x_broad)
-    log_px_z = tf.reduce_sum(dist.log_prob(x_broad), axis=0)
-    log_px_z = tf.reduce_sum(pi[0, :, 0, 0] * log_px_z)
+    log_px_z = tf.reduce_sum(log_px_z, axis=(1, 2, 3))
+    log_px_z = tf.reduce_mean(log_px_z, axis=1)
+    log_px_z = tf.reduce_sum(pi[:, :, 0, 0] * log_px_z, axis=1)
+    log_px_z = tf.reduce_mean(log_px_z, axis=0)
     return log_px_z
 
 
