@@ -152,13 +152,15 @@ class OptVAE:
                                      sample_from_disc_kl=self.sample_from_disc_kl,
                                      test_with_one_hot=False,
                                      run_iwae=False)
-            # scaled_loss = self.optimizer.get_scaled_loss(loss)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
+        # any_nan = 0.
+        # for grad in gradients:
+        #     any_nan_grads = tf.math.is_nan(grad)
+        #     any_nan += tf.reduce_sum(tf.cast(any_nan_grads, tf.float32))
+        # if any_nan > 0:
+        #     breakpoint()
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
 
-        # scaled_gradients = tape.gradient(scaled_loss, self.nets.trainable_variables)
-        # gradients = self.optimizer.get_unscaled_gradients(scaled_gradients)
-        # self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
         return loss
 
     # @tf.function()
@@ -225,6 +227,7 @@ class OptDLGMM(OptVAE):
         log_a, log_b, mean, log_var = params_broad
         z_kumar, z_norm = z
         pi = iterative_sb(z_kumar)
+        pi = tf.clip_by_value(pi, 1.e-20, 1 - 1.e-20)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
