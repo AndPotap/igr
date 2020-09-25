@@ -144,8 +144,8 @@ class OptVAE:
     @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
-            z, x_logit, params_broad = self.perform_fwd_pass(
-                x=x, test_with_one_hot=False)
+            z, x_logit, params_broad = self.perform_fwd_pass(x=x,
+                                                             test_with_one_hot=False)
             loss = self.compute_loss(x=x, x_logit=x_logit, z=z,
                                      params_broad=params_broad,
                                      sample_from_cont_kl=self.sample_from_cont_kl,
@@ -188,6 +188,18 @@ class OptDLGMM(OptVAE):
         z_norm = sample_normal(mean=mean, log_var=log_var)
         z = [z_kumar, z_norm]
         return z
+
+    def decode(self, z):
+        batch_n, n_required = z[-1].shape[0], z[-1].shape[1]
+        x_logit = tf.TensorArray(dtype=self.dtype,
+                                 size=self.sample_size,
+                                 element_shape=(batch_n,) + self.nets.image_shape +
+                                 (n_required,))
+        # TODO: check the correct evolution of the net
+        for i in range(self.sample_size):
+            x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i, :])[0])
+        x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0])
+        return x_logit
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
