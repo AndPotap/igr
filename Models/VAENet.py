@@ -49,8 +49,8 @@ class VAENet(tf.keras.Model):
                 self.generate_planar_flow()
             self.generate_dense_nonlinear_generative_net()
         elif self.architecture_type == 'dlgmm':
-            self.generate_convolutional_inference_net()
-            self.generate_convolutional_generative_net()
+            self.generate_dlgmm_inference_net()
+            self.generate_dlgmm_generative_net()
         elif self.architecture_type == 'dense_relax':
             self.generate_relax_inference_net()
             if self.model_type.find('Planar') >= 0:
@@ -296,20 +296,64 @@ class VAENet(tf.keras.Model):
                                             strides=(1, 1), padding="SAME"),
         ])
 
+    def generate_dlgmm_inference_net(self):
+        input_layer = tf.keras.layers.Input(shape=self.image_shape)
+        conv = tf.keras.layers.Conv2D(filters=32, kernel_size=(4, 4), strides=(2, 2),
+                                      activation='relu', padding='same')(input_layer)
+        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2),
+                                      activation='relu', padding='same')(conv)
+        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2),
+                                      activation='relu', padding='same')(conv)
+        flat_layer = tf.keras.layers.Flatten()(conv)
+        self.split_sizes_list = [5 * 1, 5 * 1, 5 * 20, 5 * 20]
+        self.latent_dim_in = 5 + 5 + 100 + 100
+        dense_layer = tf.keras.layers.Dense(units=self.latent_dim_in,
+                                            activation='relu')(flat_layer)
+        # TODO: fix the previous hack
+        self.inference_net = tf.keras.Model(inputs=[input_layer],
+                                            outputs=[dense_layer])
+
+    def generate_dlgmm_generative_net(self):
+        output_layer = tf.keras.layers.Input(shape=(self.latent_dim_out,))
+        layer = tf.keras.layers.Dense(units=256, activation='relu')(output_layer)
+        layer = tf.keras.layers.Dense(units=4 * 4 * 64, activation='relu')(layer)
+        layer = tf.keras.layers.Reshape(target_shape=(4, 4, 64))(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4),
+                                                strides=(2, 2),
+                                                activation='relu',
+                                                padding='same')(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4),
+                                                strides=(2, 2),
+                                                activation='relu',
+                                                padding='same')(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=self.image_shape[2] *
+                                                self.log_px_z_params_num,
+                                                kernel_size=(4, 4), strides=(2, 2),
+                                                padding='same',
+                                                activation='linear')(layer)
+        self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[layer])
+
     def encode(self, x, batch_size):
         params = self.split_and_reshape_network_parameters(x, batch_size)
         return params
 
     def split_and_reshape_network_parameters(self, x, batch_size):
-        params = tf.split(self.inference_net(
-            x), num_or_size_splits=self.split_sizes_list, axis=1)
+        # TODO: make this function more expressive
+        params = tf.split(self.inference_net(x),
+                          num_or_size_splits=self.split_sizes_list, axis=1)
         reshaped_params = []
         for idx, param in enumerate(params):
             batch_size = batch_size if x.shape[0] is None else param.shape[0]
             if self.disc_var_num > 1:
-                param = tf.reshape(param,
-                                   shape=(batch_size, self.disc_latent_in,
-                                          1, self.disc_var_num))
+                if self.model_type == 'DLGMM':
+                    last = self.disc_var_num if idx >= 2 else 1
+                    param = tf.reshape(param,
+                                       shape=(batch_size, self.disc_latent_in,
+                                              1, last))
+                else:
+                    param = tf.reshape(param,
+                                       shape=(batch_size, self.disc_latent_in,
+                                              1, self.disc_var_num))
             else:
                 param = tf.reshape(param,
                                    shape=(batch_size, self.split_sizes_list[idx],
