@@ -7,9 +7,9 @@ from Models.VAENet import construct_networks, determine_path_to_save_results
 from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBFinite
 from Models.OptVAE import OptIGRDis, OptExpGSDis, OptPlanarNFDis, OptPlanarNF
 from Models.OptVAE import OptRELAXGSDis, OptRELAXBerDis, OptRELAXIGR
+from Models.OptVAE import OptDLGMM
 from Utils.viz_vae import plot_originals
 from Utils.general import setup_logger, append_timestamp_to_file
-# from Utils.viz_vae import plot_reconstructions_samples_and_traversals
 
 
 def run_vae(hyper, run_with_sample):
@@ -22,18 +22,18 @@ def run_vae(hyper, run_with_sample):
     vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=hyper['model_type'])
 
     train_vae(vae_opt=vae_opt, hyper=hyper, train_dataset=train_dataset,
-              test_dataset=test_dataset, test_images=test_images, check_every=hyper['check_every'])
+              test_dataset=test_dataset, test_images=test_images,
+              check_every=hyper['check_every'])
 
 
 def construct_nets_and_optimizer(hyper, model_type):
     nets = construct_networks(hyper=hyper)
     optimizer = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
-    # optimizer = tf.keras.mixed_precision.experimental.LossScaleOptimizer(optimizer,
-    #                                                                      loss_scale='dynamic')
     if model_type == 'VAE':
         vae_opt = OptVAE(nets=nets, optimizer=optimizer, hyper=hyper)
+    elif model_type == 'DLGMM':
+        vae_opt = OptDLGMM(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS':
-        # vae_opt = OptExpGS(nets=nets, optimizer=optimizer, hyper=hyper)
         vae_opt = OptExpGSDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS_Dis':
         vae_opt = OptExpGSDis(nets=nets, optimizer=optimizer, hyper=hyper)
@@ -44,21 +44,23 @@ def construct_nets_and_optimizer(hyper, model_type):
     elif model_type == 'IGR_SB':
         vae_opt = OptSB(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=True)
     elif model_type == 'IGR_SB_Finite':
-        vae_opt = OptSBFinite(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=True)
+        vae_opt = OptSBFinite(nets=nets, optimizer=optimizer, hyper=hyper,
+                              use_continuous=True)
     elif model_type == 'IGR_SB_Dis':
-        vae_opt = OptSB(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=False)
+        vae_opt = OptSB(nets=nets, optimizer=optimizer,
+                        hyper=hyper, use_continuous=False)
     elif model_type == 'IGR_SB_Finite_Dis':
-        vae_opt = OptSBFinite(nets=nets, optimizer=optimizer, hyper=hyper, use_continuous=False)
+        vae_opt = OptSBFinite(nets=nets, optimizer=optimizer,
+                              hyper=hyper, use_continuous=False)
     elif model_type == 'IGR_Planar_Dis':
         vae_opt = OptPlanarNFDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'IGR_Planar':
         vae_opt = OptPlanarNF(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type.find('Relax') >= 0:
         optimizer_decoder = optimizer
-        optimizer_encoder = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
-        # optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1,
-        #                                          decay=0.001)
-        optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'] * 1)
+        optimizer_encoder = tf.keras.optimizers.Adam(
+            learning_rate=hyper['learning_rate'])
+        optimizer_var = tf.keras.optimizers.Adam(learning_rate=hyper['learning_rate'])
         optimizers = (optimizer_encoder, optimizer_decoder, optimizer_var)
         if model_type == 'Relax_GS_Dis':
             vae_opt = OptRELAXGSDis(nets=nets, optimizers=optimizers, hyper=hyper)
@@ -72,24 +74,26 @@ def construct_nets_and_optimizer(hyper, model_type):
 
 
 def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_every):
-    logger, results_path = start_all_logging_instruments(hyper=hyper, test_images=test_images)
+    logger, results_path = start_all_logging_instruments(
+        hyper=hyper, test_images=test_images)
     hyper_file, results_file, = run_initialization_procedure(hyper, results_path)
 
     initial_time = time.time()
-    # tf.profiler.experimental.start(results_path + '/')
     for epoch in range(1, hyper['epochs'] + 1):
         t0 = time.time()
         vae_opt.train_on_epoch(train_dataset, hyper['iter_per_epoch'])
         t1 = time.time()
         log_train_progress(logger, epoch, t1 - t0, vae_opt.iter_count,
                            vae_opt.train_loss_mean, vae_opt.temp.numpy())
-        evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset, vae_opt=vae_opt,
+        evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset,
+                                      vae_opt=vae_opt,
                                       hyper=hyper, logger=logger, time_taken=t1 - t0,
                                       check_every=check_every)
-        save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path)
+        save_intermediate_results(epoch, vae_opt, test_images,
+                                  hyper, results_file, results_path)
 
-    save_final_results(vae_opt.nets, logger, results_file, initial_time, temp=vae_opt.temp.numpy())
-    # tf.profiler.experimental.stop()
+    save_final_results(vae_opt.nets, logger, results_file,
+                       initial_time, temp=vae_opt.temp.numpy())
 
 
 def start_all_logging_instruments(hyper, test_images):
@@ -143,7 +147,6 @@ def print_gradient_analysis(relax, g2, iteration_counter, loss, other=None):
     else:
         mu = g2[0]
         xi = tf.math.exp(g2)[0]
-    # if iteration_counter >= 0:
     if iteration_counter % 100 == 0:
         print('\n')
         tf.print((iteration_counter, loss))
@@ -214,19 +217,22 @@ def log_test_progress(logger, test_progress, epoch, time_taken,
                   f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ')
     logger.info(print_msg)
     var_name = list(test_progress['vars_to_track'].keys())[0]
-    tf.summary.scalar(name='Test ELBO', data=-test_progress[var_name].result(), step=epoch)
+    tf.summary.scalar(name='Test ELBO', data=-
+                      test_progress[var_name].result(), step=epoch)
     tf.summary.scalar(name='N Required', data=test_progress['N'].result(), step=epoch)
     tf.summary.scalar(name='Temp', data=temp, step=epoch)
 
 
-def log_train_progress(logger, epoch, time_taken, iteration_counter, train_loss_mean, temp):
+def log_train_progress(logger, epoch, time_taken, iteration_counter,
+                       train_loss_mean, temp):
     print_msg = f'Epoch {epoch:4d} || '
     print_msg += (f'TrL {train_loss_mean.result().numpy():2.5e} || ' +
                   f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ')
     logger.info(print_msg)
 
 
-def save_intermediate_results(epoch, vae_opt, test_images, hyper, results_file, results_path):
+def save_intermediate_results(epoch, vae_opt, test_images, hyper,
+                              results_file, results_path):
     if epoch % hyper['save_every'] == 0:
         vae_opt.nets.save_weights(filepath=append_timestamp_to_file(results_file, '.h5'))
 
@@ -262,7 +268,9 @@ def fill_in_dict(hyper, cases):
 
 def fill_model_depending_settings(hyper_copy):
     hyper_copy['latent_discrete_n'] = hyper_copy['n_required']
-    if hyper_copy['model_type'].find('GS') >= 0 or hyper_copy['model_type'].find('Ber') >= 0:
+    cond = (hyper_copy['model_type'].find('GS') >= 0 or
+            hyper_copy['model_type'].find('Ber') >= 0)
+    if cond:
         hyper_copy['num_of_discrete_param'] = 1
     else:
         hyper_copy['latent_discrete_n'] += 1
