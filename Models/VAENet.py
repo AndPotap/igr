@@ -305,8 +305,12 @@ class VAENet(tf.keras.Model):
         conv = tf.keras.layers.Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2),
                                       activation='relu', padding='same')(conv)
         flat_layer = tf.keras.layers.Flatten()(conv)
-        self.split_sizes_list = [5 * 1, 5 * 1, 5 * 20, 5 * 20]
-        self.latent_dim_in = 5 + 5 + 100 + 100
+        self.split_sizes_list = [self.disc_latent_in, self.disc_latent_in,
+                                 self.disc_latent_in * self.disc_var_num,
+                                 self.disc_latent_in * self.disc_var_num]
+        self.latent_dim_in = (self.disc_latent_in + self.disc_latent_in +
+                              self.disc_latent_in * self.disc_var_num +
+                              self.disc_latent_in * self.disc_var_num)
         dense_layer = tf.keras.layers.Dense(units=self.latent_dim_in,
                                             activation='relu')(flat_layer)
         # TODO: fix the previous hack
@@ -314,21 +318,20 @@ class VAENet(tf.keras.Model):
                                             outputs=[dense_layer])
 
     def generate_dlgmm_generative_net(self):
-        output_layer = tf.keras.layers.Input(shape=(self.latent_dim_out,))
-        layer = tf.keras.layers.Dense(units=256, activation='relu')(output_layer)
-        layer = tf.keras.layers.Dense(units=4 * 4 * 64, activation='relu')(layer)
-        layer = tf.keras.layers.Reshape(target_shape=(4, 4, 64))(layer)
-        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4),
+        output_layer = tf.keras.layers.Input(shape=(self.disc_var_num,))
+        layer = tf.keras.layers.Dense(units=7 * 7 * 32, activation='relu')(output_layer)
+        layer = tf.keras.layers.Reshape(target_shape=(7, 7, 32))(layer)
+        layer = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=(3, 3),
                                                 strides=(2, 2),
                                                 activation='relu',
                                                 padding='same')(layer)
-        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(4, 4),
+        layer = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(3, 3),
                                                 strides=(2, 2),
                                                 activation='relu',
                                                 padding='same')(layer)
         layer = tf.keras.layers.Conv2DTranspose(filters=self.image_shape[2] *
                                                 self.log_px_z_params_num,
-                                                kernel_size=(4, 4), strides=(2, 2),
+                                                kernel_size=(3, 3), strides=(1, 1),
                                                 padding='same',
                                                 activation='linear')(layer)
         self.generative_net = tf.keras.Model(inputs=[output_layer], outputs=[layer])
@@ -362,8 +365,9 @@ class VAENet(tf.keras.Model):
         return reshaped_params
 
     def decode(self, z):
-        logits = tf.split(self.generative_net(
-            z), num_or_size_splits=self.log_px_z_params_num, axis=3)
+        logits = tf.split(self.generative_net(z),
+                          num_or_size_splits=self.log_px_z_params_num,
+                          axis=3)
         return logits
 
 
