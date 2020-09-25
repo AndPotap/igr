@@ -46,7 +46,7 @@ class TestDLGMM(unittest.TestCase):
                       'sample_from_cont_kl': True}
 
     def test_loss(self):
-        test_tolerance = 1.e-2
+        test_tolerance = 1.e-3
         tf.random.set_seed(seed=21)
         batch_n, n_required, sample_size, dim = 2, 4, 1, 3
         shape = (batch_n, n_required, sample_size, dim)
@@ -59,8 +59,8 @@ class TestDLGMM(unittest.TestCase):
         mean = tf.random.normal(shape=shape)
         log_var = tf.zeros_like(z_norm)
         pi = iterative_sb(z_kumar)
-        x = tf.random.uniform(shape=(1, 4, 4, 1))
-        x_logit = tf.random.normal(shape=(1, 4, 4, 1, n_required))
+        x = tf.random.uniform(shape=(batch_n, 4, 4, 1))
+        x_logit = tf.random.normal(shape=(batch_n, 4, 4, 1, sample_size, n_required))
         self.hyper['n_required'] = n_required
         optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
         z = [z_kumar, z_norm]
@@ -159,6 +159,12 @@ class TestDLGMM(unittest.TestCase):
         print('\nTEST: Normal A Posterior')
         print(f'Diff {diff:1.3e}')
         self.assertTrue(expr=diff < test_tolerance)
+
+
+def get_case01():
+    # TODO: finish the case
+    output = 0
+    return output
 
 
 def calculate_log_px_z(x, x_logit, pi):
