@@ -179,6 +179,21 @@ class OptDLGMM(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.mu_prior = self.create_separated_prior_means()
+        self.log_var_prior = tf.zeros_like(self.mu_prior)
+
+    def create_separated_prior_means(self):
+        mu_prior = tf.zeros(shape=(self.batch_size, 1,
+                                   self.sample_size, self.num_of_vars))
+        mult = 1. / tf.sqrt(tf.constant(self.num_of_vars, dtype=self.dtype))
+        for _ in range(self.n_required - 1):
+            mu = tf.ones(shape=(self.batch_size, 1,
+                                self.sample_size, self.num_of_vars))
+            u = tf.random.uniform(shape=mu.shape)
+            mu = tf.where(u < 0.5, -1.0, 1.0)
+            mu = mult * mu
+            mu_prior = tf.concat([mu_prior, mu], axis=1)
+        return mu
 
     def reparameterize(self, params_broad):
         log_a, log_b, mean, log_var = params_broad
@@ -193,13 +208,15 @@ class OptDLGMM(OptVAE):
         batch_n, n_required = z[-1].shape[0], z[-1].shape[1]
         x_logit = tf.TensorArray(dtype=self.dtype,
                                  size=self.sample_size,
-                                 element_shape=(batch_n,) + self.nets.image_shape +
+                                 element_shape=(batch_n,) + self.nets.image_shape[:2] +
                                  (n_required,))
-        # TODO: check the correct evolution of the net
         for i in range(self.sample_size):
-            value = self.nets.decode(z[-1][:, :, i, :])
-            x_logit = x_logit.write(index=i, value=value[0])
-        x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0])
+            value = self.nets.decode(z[-1][:, 0, i, :])[0]
+            for j in range(1, self.n_required):
+                value = tf.concat((value, self.nets.decode(z[-1][:, j, i, :])[0]),
+                                  axis=3)
+            x_logit = x_logit.write(index=i, value=value)
+        x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 0, 4])
         return x_logit
 
     def compute_loss(self, x, x_logit, z, params_broad,
