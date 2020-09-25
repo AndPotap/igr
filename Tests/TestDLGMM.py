@@ -27,6 +27,8 @@ class TestDLGMM(unittest.TestCase):
         z_kumar = tf.expand_dims(tf.expand_dims(z_kumar, axis=-1), axis=-1)
         approx = iterative_sb(z_kumar)
         ans = tf.constant(calculate_eta_from_kappa(z_kumar.numpy()), dtype=z_kumar.dtype)
+        remainder = 1. - tf.reduce_sum(ans, axis=1, keepdims=True)
+        ans = tf.concat((ans, remainder), axis=1)
         diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
         print('\nTEST: Stick-Break Kumar')
         print(f'Diff {diff:1.3e}')
@@ -48,7 +50,7 @@ class TestDLGMM(unittest.TestCase):
         tf.random.set_seed(seed=21)
         batch_n, n_required, sample_size, dim = 2, 4, 1, 3
         shape = (batch_n, n_required, sample_size, dim)
-        log_a = tf.random.normal(shape=(batch_n, n_required, 1, 1))
+        log_a = tf.random.normal(shape=(batch_n, n_required - 1, 1, 1))
         log_b = tf.random.normal(shape=log_a.shape)
         kumar = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
                                  concentration1=tf.math.exp(log_b))

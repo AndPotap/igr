@@ -305,10 +305,10 @@ class VAENet(tf.keras.Model):
         conv = tf.keras.layers.Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2),
                                       activation='relu', padding='same')(conv)
         flat_layer = tf.keras.layers.Flatten()(conv)
-        self.split_sizes_list = [self.disc_latent_in, self.disc_latent_in,
+        self.split_sizes_list = [self.disc_latent_in - 1, self.disc_latent_in - 1,
                                  self.disc_latent_in * self.disc_var_num,
                                  self.disc_latent_in * self.disc_var_num]
-        self.latent_dim_in = (self.disc_latent_in + self.disc_latent_in +
+        self.latent_dim_in = (self.disc_latent_in + self.disc_latent_in - 2 +
                               self.disc_latent_in * self.disc_var_num +
                               self.disc_latent_in * self.disc_var_num)
         dense_layer = tf.keras.layers.Dense(units=self.latent_dim_in,
