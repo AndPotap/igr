@@ -141,7 +141,7 @@ class OptVAE:
                                  run_iwae=self.run_iwae)
         return loss
 
-    @tf.function()
+    # @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x,
@@ -197,7 +197,8 @@ class OptDLGMM(OptVAE):
                                  (n_required,))
         # TODO: check the correct evolution of the net
         for i in range(self.sample_size):
-            x_logit = x_logit.write(index=i, value=self.nets.decode(z[:, :, i, :])[0])
+            value = self.nets.decode(z[-1][:, :, i, :])
+            x_logit = x_logit.write(index=i, value=value[0])
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0])
         return x_logit
 
