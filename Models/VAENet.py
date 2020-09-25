@@ -286,14 +286,14 @@ class VAENet(tf.keras.Model):
             tf.keras.layers.InputLayer(input_shape=(self.latent_dim_out,)),
             tf.keras.layers.Dense(units=7 * 7 * 32, activation='relu'),
             tf.keras.layers.Reshape(target_shape=(7, 7, 32)),
-            tf.keras.layers.Conv2DTranspose(
-                filters=64, kernel_size=3, strides=(2, 2), padding="SAME",
-                activation='relu'),
-            tf.keras.layers.Conv2DTranspose(
-                filters=32, kernel_size=3, strides=(2, 2), padding="SAME",
-                activation='relu'),
-            tf.keras.layers.Conv2DTranspose(
-                filters=1, kernel_size=3, strides=(1, 1), padding="SAME"),
+            tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=3,
+                                            strides=(2, 2), padding="SAME",
+                                            activation='relu'),
+            tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=3,
+                                            strides=(2, 2), padding="SAME",
+                                            activation='relu'),
+            tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=3,
+                                            strides=(1, 1), padding="SAME"),
         ])
 
     def encode(self, x, batch_size):
