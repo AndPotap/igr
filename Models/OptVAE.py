@@ -141,7 +141,7 @@ class OptVAE:
                                  run_iwae=self.run_iwae)
         return loss
 
-    # @tf.function()
+    @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x,
@@ -232,12 +232,21 @@ class OptDLGMM(OptVAE):
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
-        log_qpi_x = self.compute_kld(log_a, log_b)
+        # log_qpi_x = self.compute_kld(log_a, log_b)
+        # log_qpi_x = self.compute_kld(z_kumar, log_a, log_b)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
-        loss = log_qpi_x + log_qz_x - log_px_z - log_pz
+        # loss = log_qpi_x + log_qz_x - log_px_z - log_pz
+        loss = log_qz_x - log_px_z - log_pz
+        # tf.print()
+        # tf.print()
+        # tf.print(log_px_z)
+        # tf.print(log_pz)
+        # tf.print(log_qpi_x)
+        # tf.print(log_qz_x)
+        # tf.print(loss)
         # if self.iter_count > 110:
-        if loss < 50.0:
-            breakpoint()
+        # if loss < 50.0:
+        #     breakpoint()
         return loss
 
     def compute_log_px_z(self, x, x_logit, pi):
@@ -274,9 +283,9 @@ class OptDLGMM(OptVAE):
         dist = tfpd.Kumaraswamy(concentration0=a,
                                 concentration1=b)
         # log_qpi_x = dist.entropy()
-        dist_u = tfpd.Uniform(low=tf.zeros_like(a), high=tf.ones_like(b)
-        log_p_u = dist_u.log_probs(z_kumar)
-        log_qpi_x = dist.log_probs(z_kumar)
+        dist_u = tfpd.Uniform(low=tf.zeros_like(a), high=tf.ones_like(b))
+        log_p_u = dist_u.log_prob(z_kumar)
+        log_qpi_x = dist.log_prob(z_kumar)
         log_qpi_x = log_qpi_x - log_p_u
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
         log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
