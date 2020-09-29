@@ -235,13 +235,13 @@ class OptDLGMM(OptVAE):
         log_qpi_x = self.compute_kld(log_a, log_b)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qz_x + log_qpi_x - log_px_z - log_pz
-        tf.print()
-        tf.print()
-        tf.print(log_px_z)
-        tf.print(log_pz)
-        tf.print(log_qpi_x)
-        tf.print(log_qz_x)
-        tf.print(loss)
+        # tf.print()
+        # tf.print()
+        # tf.print(log_px_z)
+        # tf.print(log_pz)
+        # tf.print(log_qpi_x)
+        # tf.print(log_qz_x)
+        # tf.print(loss)
         # if self.iter_count > 110:
         # if loss < 50.0:
         #     breakpoint()
@@ -297,7 +297,6 @@ class OptDLGMM(OptVAE):
         return output
 
     def compute_kld(self, log_a, log_b):
-        # precompute some terms
         alpha = tf.ones_like(log_a)
         beta = tf.ones_like(log_b)
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
@@ -317,7 +316,6 @@ class OptDLGMM(OptVAE):
         # add normalization constants
         kl += tf.math.log(ab) + tf.math.log(self.beta_fn(alpha, beta))
 
-        # final term
         kl += tf.math.truediv(-(b - 1), b)
         kl = tf.reduce_mean(kl, axis=2, keepdims=True)
         kl = tf.reduce_sum(kl, axis=(1, 2, 3))
