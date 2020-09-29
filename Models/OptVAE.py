@@ -235,7 +235,8 @@ class OptDLGMM(OptVAE):
         log_qpi_x = self.compute_kld(log_a, log_b)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qpi_x + log_qz_x - log_px_z - log_pz
-        if self.iter_count > 10:
+        tf.print(loss)
+        if self.iter_count > 110:
             breakpoint()
         return loss
 
