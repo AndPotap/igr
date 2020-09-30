@@ -275,7 +275,6 @@ class OptDLGMM(OptVAE):
         log_pz = tf.reduce_mean(log_pz)
         return log_pz
 
-    # def compute_kld(self, z_kumar, log_a, log_b):
     def compute_kld(self, log_a, log_b):
         sample_axis = 2
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
@@ -283,10 +282,6 @@ class OptDLGMM(OptVAE):
         dist = tfpd.Kumaraswamy(concentration0=a,
                                 concentration1=b)
         log_qpi_x = - dist.entropy()
-        # dist_u = tfpd.Uniform(low=tf.zeros_like(a), high=tf.ones_like(b))
-        # log_p_u = dist_u.log_prob(z_kumar)
-        # log_qpi_x = dist.log_prob(z_kumar)
-        # log_qpi_x = log_qpi_x - log_p_u
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
         log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=0)
