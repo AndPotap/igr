@@ -302,9 +302,9 @@ class VAENet(tf.keras.Model):
     def generate_dlgmm_inference_net(self):
         input_layer = tf.keras.layers.Input(shape=self.image_shape)
         flat_layer = tf.keras.layers.Flatten()(input_layer)
-        dense1 = tf.keras.layers.Dense(units=500, activation='relu')(flat_layer)
-        dense2 = tf.keras.layers.Dense(units=500, activation='relu')(dense1)
-        dense3 = tf.keras.layers.Dense(units=500, activation='relu')(dense2)
+        dense1 = tf.keras.layers.Dense(units=200, activation='relu')(flat_layer)
+        dense2 = tf.keras.layers.Dense(units=200, activation='relu')(dense1)
+        dense3 = tf.keras.layers.Dense(units=200, activation='relu')(dense2)
         self.split_sizes_list = [self.disc_latent_in - 1, self.disc_latent_in - 1,
                                  self.disc_latent_in * self.disc_var_num,
                                  self.disc_latent_in * self.disc_var_num]
@@ -318,8 +318,8 @@ class VAENet(tf.keras.Model):
 
     def generate_dlgmm_generative_net(self):
         input_layer = tf.keras.layers.Input(shape=(self.disc_var_num,))
-        dense1 = tf.keras.layers.Dense(units=500, activation='relu')(input_layer)
-        dense2 = tf.keras.layers.Dense(units=500, activation='relu')(dense1)
+        dense1 = tf.keras.layers.Dense(units=200, activation='relu')(input_layer)
+        dense2 = tf.keras.layers.Dense(units=200, activation='relu')(dense1)
         dense3 = tf.keras.layers.Dense(units=28 * 28 * 1,
                                        activation='linear')(dense2)
         layer_out = tf.keras.layers.Reshape(target_shape=(28, 28, 1))(dense3)
