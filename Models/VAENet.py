@@ -48,9 +48,12 @@ class VAENet(tf.keras.Model):
             if self.model_type.find('Planar') >= 0:
                 self.generate_planar_flow()
             self.generate_dense_nonlinear_generative_net()
-        elif self.architecture_type == 'dlgmm':
+        elif self.architecture_type == 'dlgmm_dense':
             self.generate_dlgmm_inference_net()
             self.generate_dlgmm_generative_net()
+        elif self.architecture_type == 'dlgmm_conv':
+            self.generate_dlgmm_conv_inference_net()
+            self.generate_dlgmm_conv_generative_net()
         elif self.architecture_type == 'dense_relax':
             self.generate_relax_inference_net()
             if self.model_type.find('Planar') >= 0:
@@ -298,6 +301,32 @@ class VAENet(tf.keras.Model):
 
     def generate_dlgmm_inference_net(self):
         input_layer = tf.keras.layers.Input(shape=self.image_shape)
+        flat_layer = tf.keras.layers.Flatten()(input_layer)
+        dense1 = tf.keras.layers.Dense(units=500, activation='relu')(flat_layer)
+        dense2 = tf.keras.layers.Dense(units=500, activation='relu')(dense1)
+        dense3 = tf.keras.layers.Dense(units=500, activation='relu')(dense2)
+        self.split_sizes_list = [self.disc_latent_in - 1, self.disc_latent_in - 1,
+                                 self.disc_latent_in * self.disc_var_num,
+                                 self.disc_latent_in * self.disc_var_num]
+        self.latent_dim_in = (self.disc_latent_in + self.disc_latent_in - 2 +
+                              self.disc_latent_in * self.disc_var_num +
+                              self.disc_latent_in * self.disc_var_num)
+        dense_out = tf.keras.layers.Dense(units=self.latent_dim_in,
+                                          activation='linear')(dense3)
+        self.inference_net = tf.keras.Model(inputs=[input_layer],
+                                            outputs=[dense_out])
+
+    def generate_dlgmm_generative_net(self):
+        input_layer = tf.keras.layers.Input(shape=(self.disc_var_num,))
+        dense1 = tf.keras.layers.Dense(units=500, activation='relu')(input_layer)
+        dense2 = tf.keras.layers.Dense(units=500, activation='relu')(dense1)
+        dense3 = tf.keras.layers.Dense(units=28 * 28 * 1,
+                                       activation='linear')(dense2)
+        layer_out = tf.keras.layers.Reshape(target_shape=(28, 28, 1))(dense3)
+        self.generative_net = tf.keras.Model(inputs=[input_layer], outputs=[layer_out])
+
+    def generate_dlgmm_conv_inference_net(self):
+        input_layer = tf.keras.layers.Input(shape=self.image_shape)
         conv = tf.keras.layers.Conv2D(filters=32, kernel_size=(4, 4), strides=(2, 2),
                                       activation='relu', padding='same')(input_layer)
         conv = tf.keras.layers.Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2),
@@ -316,7 +345,7 @@ class VAENet(tf.keras.Model):
         self.inference_net = tf.keras.Model(inputs=[input_layer],
                                             outputs=[dense_layer])
 
-    def generate_dlgmm_generative_net(self):
+    def generate_dlgmm_conv_generative_net(self):
         output_layer = tf.keras.layers.Input(shape=(self.disc_var_num,))
         layer = tf.keras.layers.Dense(units=7 * 7 * 32, activation='relu')(output_layer)
         layer = tf.keras.layers.Reshape(target_shape=(7, 7, 32))(layer)

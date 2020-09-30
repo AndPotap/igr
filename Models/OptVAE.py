@@ -280,7 +280,7 @@ class OptDLGMM(OptVAE):
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
         a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
         dist = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
-        log_qpi_x = - dist.entropy()
+        log_qpi_x = -dist.entropy()
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
         log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=0)
