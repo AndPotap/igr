@@ -219,5 +219,38 @@ def calculate_log_qz_x(z, pi, mean, log_var):
     return log_qz_x
 
 
+def beta_fn(a, b):
+    output = (tf.math.exp(tf.math.lgamma(a) + tf.math.lgamma(b) -
+                          tf.math.lgamma(a + b)))
+    return output
+
+
+def compute_kld(log_a, log_b):
+    alpha = tf.ones_like(log_a)
+    beta = tf.ones_like(log_b)
+    a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
+    ab = tf.math.multiply(a, b)
+    a_inv = tf.pow(a, -1)
+    b_inv = tf.pow(b, -1)
+
+    # compute taylor expansion for E[log (1-v)] term
+    kl = tf.math.multiply(tf.pow(1 + ab, -1), beta_fn(a_inv, b))
+    for idx in range(10):
+        kl += tf.math.multiply(tf.pow(idx + 2 + ab, -1),
+                               beta_fn(tf.math.multiply(idx + 2., a_inv), b))
+    kl = tf.math.multiply(tf.math.multiply(beta - 1, b), kl)
+
+    kl += tf.math.multiply(tf.math.truediv(a - alpha, a), -0.57721 -
+                           tf.math.digamma(b) - b_inv)
+    # add normalization constants
+    kl += tf.math.log(ab) + tf.math.log(beta_fn(alpha, beta))
+
+    kl += tf.math.truediv(-(b - 1), b)
+    kl = tf.reduce_mean(kl, axis=2, keepdims=True)
+    kl = tf.reduce_sum(kl, axis=(1, 2, 3))
+    kl = tf.reduce_mean(kl, axis=0)
+    return kl
+
+
 if __name__ == '__main__':
     unittest.main()
