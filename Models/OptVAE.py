@@ -276,52 +276,53 @@ class OptDLGMM(OptVAE):
         return log_pz
 
     # def compute_kld(self, z_kumar, log_a, log_b):
-    # def compute_kld(self, log_a, log_b):
-    #     sample_axis = 2
-    #     a, b = tf.math.exp(log_a), tf.math.exp(log_b)
-    #     a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
-    #     dist = tfpd.Kumaraswamy(concentration0=a,
-    #                             concentration1=b)
-    #     log_qpi_x = dist.entropy()
-    #     # dist_u = tfpd.Uniform(low=tf.zeros_like(a), high=tf.ones_like(b))
-    #     # log_p_u = dist_u.log_prob(z_kumar)
-    #     # log_qpi_x = dist.log_prob(z_kumar)
-    #     # log_qpi_x = log_qpi_x - log_p_u
-    #     log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
-    #     log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
-    #     log_qpi_x = tf.reduce_mean(log_qpi_x, axis=0)
-    #     return log_qpi_x
-    @staticmethod
-    def beta_fn(a, b):
-        output = (tf.math.exp(tf.math.lgamma(a) + tf.math.lgamma(b) -
-                              tf.math.lgamma(a + b)))
-        return output
-
     def compute_kld(self, log_a, log_b):
-        alpha = tf.ones_like(log_a)
-        beta = tf.ones_like(log_b)
+        sample_axis = 2
+        a, b = tf.math.exp(log_a), tf.math.exp(log_b)
         a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
-        ab = tf.math.multiply(a, b)
-        a_inv = tf.pow(a, -1)
-        b_inv = tf.pow(b, -1)
+        dist = tfpd.Kumaraswamy(concentration0=a,
+                                concentration1=b)
+        log_qpi_x = - dist.entropy()
+        # dist_u = tfpd.Uniform(low=tf.zeros_like(a), high=tf.ones_like(b))
+        # log_p_u = dist_u.log_prob(z_kumar)
+        # log_qpi_x = dist.log_prob(z_kumar)
+        # log_qpi_x = log_qpi_x - log_p_u
+        log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
+        log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
+        log_qpi_x = tf.reduce_mean(log_qpi_x, axis=0)
+        return log_qpi_x
 
-        # compute taylor expansion for E[log (1-v)] term
-        kl = tf.math.multiply(tf.pow(1 + ab, -1), self.beta_fn(a_inv, b))
-        for idx in range(10):
-            kl += tf.math.multiply(tf.pow(idx + 2 + ab, -1),
-                                   self.beta_fn(tf.math.multiply(idx + 2., a_inv), b))
-        kl = tf.math.multiply(tf.math.multiply(beta - 1, b), kl)
+    # @staticmethod
+    # def beta_fn(a, b):
+    #     output = (tf.math.exp(tf.math.lgamma(a) + tf.math.lgamma(b) -
+    #                           tf.math.lgamma(a + b)))
+    #     return output
 
-        kl += tf.math.multiply(tf.math.truediv(a - alpha, a), -0.57721 -
-                               tf.math.digamma(b) - b_inv)
-        # add normalization constants
-        kl += tf.math.log(ab) + tf.math.log(self.beta_fn(alpha, beta))
+    # def compute_kld(self, log_a, log_b):
+    #     alpha = tf.ones_like(log_a)
+    #     beta = tf.ones_like(log_b)
+    #     a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
+    #     ab = tf.math.multiply(a, b)
+    #     a_inv = tf.pow(a, -1)
+    #     b_inv = tf.pow(b, -1)
 
-        kl += tf.math.truediv(-(b - 1), b)
-        kl = tf.reduce_mean(kl, axis=2, keepdims=True)
-        kl = tf.reduce_sum(kl, axis=(1, 2, 3))
-        kl = tf.reduce_mean(kl, axis=0)
-        return kl
+    #     # compute taylor expansion for E[log (1-v)] term
+    #     kl = tf.math.multiply(tf.pow(1 + ab, -1), self.beta_fn(a_inv, b))
+    #     for idx in range(10):
+    #         kl += tf.math.multiply(tf.pow(idx + 2 + ab, -1),
+    #                                self.beta_fn(tf.math.multiply(idx + 2., a_inv), b))
+    #     kl = tf.math.multiply(tf.math.multiply(beta - 1, b), kl)
+
+    #     kl += tf.math.multiply(tf.math.truediv(a - alpha, a), -0.57721 -
+    #                            tf.math.digamma(b) - b_inv)
+    #     # add normalization constants
+    #     kl += tf.math.log(ab) + tf.math.log(self.beta_fn(alpha, beta))
+
+    #     kl += tf.math.truediv(-(b - 1), b)
+    #     kl = tf.reduce_mean(kl, axis=2, keepdims=True)
+    #     kl = tf.reduce_sum(kl, axis=(1, 2, 3))
+    #     kl = tf.reduce_mean(kl, axis=0)
+    #     return kl
 
     def compute_log_qz_x(self, z, pi, mean, log_var):
         cat_axis, sample_axis, dim_axis = 1, 2, 3

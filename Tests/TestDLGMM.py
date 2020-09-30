@@ -72,7 +72,7 @@ class TestDLGMM(unittest.TestCase):
 
         approx = optvae.compute_loss(x, x_logit, z, params_broad,
                                      True, True, True, True)
-        ans = calculate_kumar_entropy(log_a, log_b)
+        ans = -calculate_kumar_entropy(log_a, log_b)
         ans += calculate_log_qz_x(z_norm, pi, mean, log_var)
         ans -= calculate_log_px_z(x, x_logit, pi)
         ans -= calculate_log_pz(z_norm, pi, optvae.mu_prior, optvae.log_var_prior)
@@ -135,7 +135,7 @@ class TestDLGMM(unittest.TestCase):
         optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
 
         approx = optvae.compute_kld(log_a, log_b)
-        ans = calculate_kumar_entropy(log_a, log_b)
+        ans = -calculate_kumar_entropy(log_a, log_b)
         diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
         print('\nTEST: Kumaraswamy KL')
         print(f'Diff {diff:1.3e}')
@@ -194,7 +194,8 @@ def calculate_log_pz(z, pi, mu_prior, log_var_prior):
 
 
 def calculate_kumar_entropy(log_a, log_b):
-    a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+    # a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+    a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
     n_required = log_a.shape[1]
     ans = 0.
     for k in range(n_required):
