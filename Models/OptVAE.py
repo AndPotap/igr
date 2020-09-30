@@ -199,8 +199,8 @@ class OptDLGMM(OptVAE):
 
     def reparameterize(self, params_broad):
         log_a, log_b, mean, log_var = params_broad
-        kumar = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
-                                 concentration1=tf.math.exp(log_b))
+        kumar = tfpd.Kumaraswamy(concentration0=tf.math.softplus(log_a),
+                                 concentration1=tf.math.softplus(log_b))
         z_kumar = kumar.sample()
         z_norm = sample_normal(mean=mean, log_var=log_var)
         z = [z_kumar, z_norm]
@@ -279,6 +279,7 @@ class OptDLGMM(OptVAE):
     # def compute_kld(self, log_a, log_b):
     #     sample_axis = 2
     #     a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+    #     a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
     #     dist = tfpd.Kumaraswamy(concentration0=a,
     #                             concentration1=b)
     #     log_qpi_x = dist.entropy()
@@ -299,7 +300,7 @@ class OptDLGMM(OptVAE):
     def compute_kld(self, log_a, log_b):
         alpha = tf.ones_like(log_a)
         beta = tf.ones_like(log_b)
-        a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+        a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
         ab = tf.math.multiply(a, b)
         a_inv = tf.pow(a, -1)
         b_inv = tf.pow(b, -1)
