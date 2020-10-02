@@ -72,7 +72,8 @@ class TestDLGMM(unittest.TestCase):
 
         approx = optvae.compute_loss(x, x_logit, z, params_broad,
                                      True, True, True, True)
-        ans = -calculate_kumar_entropy(log_a, log_b)
+        # ans = -calculate_kumar_entropy(log_a, log_b)
+        ans = compute_kld(log_a, log_b)
         ans += calculate_log_qz_x(z_norm, pi, mean, log_var)
         ans -= calculate_log_px_z(x, x_logit, pi)
         ans -= calculate_log_pz(z_norm, pi, optvae.mu_prior, optvae.log_var_prior)
@@ -122,7 +123,7 @@ class TestDLGMM(unittest.TestCase):
         self.assertTrue(expr=diff < test_tolerance)
 
     def test_kld(self):
-        test_tolerance = 1.e-6
+        test_tolerance = 1.e-5
         batch_n, n_required = 2, 4
         tf.random.set_seed(seed=21)
         # log_a = tf.constant([[0., -1., 1., 2.0, -2.0]])
@@ -135,7 +136,8 @@ class TestDLGMM(unittest.TestCase):
         optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
 
         approx = optvae.compute_kld(log_a, log_b)
-        ans = -calculate_kumar_entropy(log_a, log_b)
+        # ans = -calculate_kumar_entropy(log_a, log_b)
+        ans = compute_kld(log_a, log_b)
         diff = tf.linalg.norm(approx - ans) / tf.linalg.norm(ans)
         print('\nTEST: Kumaraswamy KL')
         print(f'Diff {diff:1.3e}')
@@ -194,8 +196,8 @@ def calculate_log_pz(z, pi, mu_prior, log_var_prior):
 
 
 def calculate_kumar_entropy(log_a, log_b):
-    # a, b = tf.math.exp(log_a), tf.math.exp(log_b)
-    a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
+    a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+    # a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
     n_required = log_a.shape[1]
     ans = 0.
     for k in range(n_required):
@@ -228,7 +230,8 @@ def beta_fn(a, b):
 def compute_kld(log_a, log_b):
     alpha = tf.ones_like(log_a)
     beta = tf.ones_like(log_b)
-    a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
+    # a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
+    a, b = tf.math.exp(log_a), tf.math.exp(log_b)
     ab = tf.math.multiply(a, b)
     a_inv = tf.pow(a, -1)
     b_inv = tf.pow(b, -1)
