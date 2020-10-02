@@ -201,9 +201,12 @@ class OptDLGMM(OptVAE):
         log_a, log_b, mean, log_var = params_broad
         # kumar = tfpd.Kumaraswamy(concentration0=tf.math.softplus(log_a),
         #                          concentration1=tf.math.softplus(log_b))
-        kumar = tfpd.Kumaraswamy(concentration0=tf.math.exp(log_a),
-                                 concentration1=tf.math.exp(log_b))
+        log_a = tf.clip_by_value(log_a, -0.05, 6.)
+        log_b = tf.clip_by_value(log_b, -0.05, 6.)
+        a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+        kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
         z_kumar = kumar.sample()
+        z_kumar = tf.clip_by_value(z_kumar, 1.e-10, 1. - 1.e-10)
         z_norm = sample_normal(mean=mean, log_var=log_var)
         z = [z_kumar, z_norm]
         return z
@@ -228,26 +231,46 @@ class OptDLGMM(OptVAE):
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
         log_a, log_b, mean, log_var = params_broad
+        log_a = tf.clip_by_value(log_a, -0.05, 6.)
+        log_b = tf.clip_by_value(log_b, -0.05, 6.)
         z_kumar, z_norm = z
         pi = iterative_sb(z_kumar)
-        pi = tf.clip_by_value(pi, 1.e-20, 1 - 1.e-20)
+        pi = tf.clip_by_value(pi, 1.e-10, 1. - 1.e-10)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
         log_qpi_x = self.compute_kld(log_a, log_b)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qz_x + log_qpi_x - log_px_z - log_pz
-        # tf.print()
-        # tf.print()
-        # tf.print(log_px_z)
-        # tf.print(log_pz)
-        # tf.print(log_qpi_x)
-        # tf.print(log_qz_x)
-        # tf.print(loss)
-        # if self.iter_count > 110:
-        # if loss < 50.0:
-        #     breakpoint()
+        tf.print("+++++++++++++++++++++++++++++")
+        tf.print()
+        tf.print()
+        tf.print("z_kumar----------------------")
+        self.print_stats(z_kumar)
+        tf.print("pi---------------------------")
+        self.print_stats(pi)
+        tf.print("log_a------------------------")
+        self.print_stats(log_a)
+        tf.print("log_b------------------------")
+        self.print_stats(log_b)
+        tf.print("mean-------------------------")
+        self.print_stats(mean)
+        tf.print("log_var----------------------")
+        self.print_stats(log_var)
+        tf.print("+++++++++++++++++++++++++++++")
+        tf.print("Loss")
+        tf.print("-----------------------------")
+        tf.print(log_px_z)
+        tf.print(log_pz)
+        tf.print(log_qpi_x)
+        tf.print(log_qz_x)
+        tf.print(loss)
         return loss
+
+    def print_stats(self, x):
+        tf.print(tf.reduce_max(x))
+        tf.print(tf.reduce_mean(x))
+        tf.print(tf.reduce_min(x))
 
     def compute_log_px_z(self, x, x_logit, pi):
         pi_bar_k = tf.reduce_mean(pi, axis=(2, 3))
