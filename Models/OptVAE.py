@@ -197,8 +197,8 @@ class OptDLGMM(OptVAE):
         #                          concentration1=tf.math.softplus(log_b))
         # log_a = tf.clip_by_value(log_a, -0.05, 6.)
         # log_b = tf.clip_by_value(log_b, -0.05, 6.)
-        log_a = tf.math.tanh(log_a) * 4.
-        log_b = tf.math.tanh(log_b) * 4.
+        # log_a = tf.math.tanh(log_a) * 4.
+        # log_b = tf.math.tanh(log_b) * 4.
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
         kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
         z_kumar = kumar.sample()
@@ -257,8 +257,8 @@ class OptDLGMM(OptVAE):
         log_a, log_b, mean, log_var = params_broad
         # log_a = tf.clip_by_value(log_a, -0.05, 6.)
         # log_b = tf.clip_by_value(log_b, -0.05, 6.)
-        log_a = tf.math.tanh(log_a) * 4.
-        log_b = tf.math.tanh(log_b) * 4.
+        # log_a = tf.math.tanh(log_a) * 4.
+        # log_b = tf.math.tanh(log_b) * 4.
         z_kumar, z_norm = z
         pi = iterative_sb(z_kumar)
         pi = tf.clip_by_value(pi, 1.e-6, 1. - 1.e-6)
