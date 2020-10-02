@@ -153,12 +153,6 @@ class OptVAE:
                                      test_with_one_hot=False,
                                      run_iwae=False)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
-        # any_nan = 0.
-        # for grad in gradients:
-        #     any_nan_grads = tf.math.is_nan(grad)
-        #     any_nan += tf.reduce_sum(tf.cast(any_nan_grads, tf.float32))
-        # if any_nan > 0:
-        #     breakpoint()
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
 
         return loss
@@ -228,6 +222,34 @@ class OptDLGMM(OptVAE):
             x_logit = x_logit.write(index=i, value=value)
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0, 5])
         return x_logit
+
+    @tf.function()
+    def compute_gradients(self, x):
+        with tf.GradientTape() as tape:
+            z, x_logit, params_broad = self.perform_fwd_pass(x=x,
+                                                             test_with_one_hot=False)
+            loss = self.compute_loss(x=x, x_logit=x_logit, z=z,
+                                     params_broad=params_broad,
+                                     sample_from_cont_kl=self.sample_from_cont_kl,
+                                     sample_from_disc_kl=self.sample_from_disc_kl,
+                                     test_with_one_hot=False,
+                                     run_iwae=False)
+        gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
+        # any_nan = tf.constant(0., dtype=tf.float32)
+        # for grad in gradients:
+        #     any_nan_grads = tf.math.is_nan(grad)
+        #     any_nan += tf.reduce_sum(tf.cast(any_nan_grads, tf.float32))
+        # tf.print(any_nan)
+        grads = []
+        for grad in gradients:
+            grad = tf.where(tf.math.is_nan(grad), 0., grad)
+            grads.append(grad)
+        gradients = grads
+        # if any_nan > 0:
+        #     breakpoint()
+        self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
+
+        return loss
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
