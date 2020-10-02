@@ -208,7 +208,7 @@ class OptDLGMM(OptVAE):
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
         kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
         z_kumar = kumar.sample()
-        # z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 1. - 1.e-6)
+        z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 1. - 1.e-6)
         z_norm = sample_normal(mean=mean, log_var=log_var)
         z = [z_kumar, z_norm]
         return z
