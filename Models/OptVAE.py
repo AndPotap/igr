@@ -320,10 +320,7 @@ class OptDLGMM(OptVAE):
 
     def compute_kld(self, log_a, log_b):
         sample_axis = 2
-        # a, b = tf.math.softplus(log_a), tf.math.softplus(log_b)
         a, b = tf.math.exp(log_a), tf.math.exp(log_b)
-        # dist = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
-        # log_qpi_x = -dist.entropy()
         harmonic_b = tf.math.digamma(b + 1.) - tf.math.digamma(tf.ones_like(b))
         log_qpi_x = (1. / b - 1.) + (1. / a - 1.) * harmonic_b + log_a + log_b
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=sample_axis, keepdims=True)
@@ -353,23 +350,33 @@ class OptDLGMMIGR(OptDLGMM):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
         self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
-        self.dist = IGR_I(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
+        self.dist = tfpd.LogitNormal(self.mu_0, tf.math.exp(self.xi_0))
 
     def reparameterize(self, params_broad):
         mu, xi, mean, log_var = params_broad
-        self.dist = IGR_I(mu, xi, temp=self.temp, sample_size=self.sample_size)
-        self.dist.generate_sample()
-        z_partition = self.dist.psi
+        self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
+        z_partition = self.dist.sample()
         z_norm = sample_normal(mean=mean, log_var=log_var)
         z = [z_partition, z_norm]
         return z
 
-    def compute_kld(self, mu, xi):
-        pi_const = tf.constant(3.141592653589793, dtype=mu.dtype)
-        sigma = tf.math.exp(xi)
+    def compute_loss(self, x, x_logit, z, params_broad,
+                     sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
+                     run_iwae):
+        _, _, mean, log_var = params_broad
+        z_partition, z_norm = z
+        pi = iterative_sb(z_partition)
+        pi = tf.clip_by_value(pi, 1.e-6, 1. - 1.e-6)
 
-        log_qpi_x = -0.5 * (1. + tf.math.log(2 * pi_const)) - tf.math.log(sigma)
+        log_px_z = self.compute_log_px_z(x, x_logit, pi)
+        log_pz = self.compute_log_pz(z_norm, pi)
+        log_qpi_x = self.compute_kld(z_partition)
+        log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
+        loss = log_qz_x + log_qpi_x - log_px_z - log_pz
+        return loss
 
+    def compute_kld(self, z_partition):
+        log_qpi_x = self.dist.log_prob(z_partition)
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=2, keepdims=True)
         log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=0)
