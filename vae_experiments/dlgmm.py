@@ -1,7 +1,7 @@
 import tensorflow as tf
 from Models.train_vae import run_vae
 
-run_with_sample = False
+run_with_sample = True
 # seeds = [5328, 5945, 8965, 49, 9337]
 hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'temp': 1.0, 'sample_from_disc_kl': True, 'stick_the_landing': True,
@@ -9,7 +9,7 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'sample_size_testing': 1 * int(1.e0),
          'dataset_name': 'mnist',
          'seed': 9335,
-         'model_type': 'DLGMM',
+         'model_type': 'DLGMM_IGR',
          'architecture': 'dlgmm_dense',
          'batch_n': 100,
          'n_required': 5,
