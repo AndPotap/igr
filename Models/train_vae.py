@@ -7,7 +7,7 @@ from Models.VAENet import construct_networks, determine_path_to_save_results
 from Models.OptVAE import OptVAE, OptIGR, OptSB, OptSBFinite
 from Models.OptVAE import OptIGRDis, OptExpGSDis, OptPlanarNFDis, OptPlanarNF
 from Models.OptVAE import OptRELAXGSDis, OptRELAXBerDis, OptRELAXIGR
-from Models.OptVAE import OptDLGMM
+from Models.OptVAE import OptDLGMM, OptDLGMMIGR
 from Utils.viz_vae import plot_originals
 from Utils.general import setup_logger, append_timestamp_to_file
 
@@ -33,6 +33,8 @@ def construct_nets_and_optimizer(hyper, model_type):
         vae_opt = OptVAE(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'DLGMM':
         vae_opt = OptDLGMM(nets=nets, optimizer=optimizer, hyper=hyper)
+    elif model_type == 'DLGMM_IGR':
+        vae_opt = OptDLGMMIGR(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS':
         vae_opt = OptExpGSDis(nets=nets, optimizer=optimizer, hyper=hyper)
     elif model_type == 'GS_Dis':
