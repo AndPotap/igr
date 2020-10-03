@@ -348,6 +348,34 @@ class OptDLGMM(OptVAE):
         return log_qz_x
 
 
+class OptDLGMMIGR(OptDLGMM):
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.mu_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
+        self.xi_0 = tf.constant(value=0., dtype=tf.float32, shape=(1, 1, 1, 1))
+        self.dist = IGR_I(mu=self.mu_0, xi=self.xi_0, temp=self.temp)
+
+    def reparameterize(self, params_broad):
+        mu, xi, mean, log_var = params_broad
+        self.dist = IGR_I(mu, xi, temp=self.temp, sample_size=self.sample_size)
+        self.dist.generate_sample()
+        z_partition = self.dist.psi
+        z_norm = sample_normal(mean=mean, log_var=log_var)
+        z = [z_partition, z_norm]
+        return z
+
+    def compute_kld(self, mu, xi):
+        pi_const = tf.constant(3.141592653589793, dtype=mu.dtype)
+        sigma = tf.math.exp(xi)
+
+        log_qpi_x = -0.5 * (1. + tf.math.log(2 * pi_const)) - tf.math.log(sigma)
+
+        log_qpi_x = tf.reduce_mean(log_qpi_x, axis=2, keepdims=True)
+        log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
+        log_qpi_x = tf.reduce_mean(log_qpi_x, axis=0)
+        return log_qpi_x
+
+
 class OptExpGSDis(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
