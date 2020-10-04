@@ -353,6 +353,51 @@ class OptDLGMMIGR(OptDLGMM):
         return log_qpi_x
 
 
+class OptDLGMMIGR_SB(OptDLGMMIGR):
+
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.max_categories = hyper['latent_discrete_n']
+        self.threshold = hyper['threshold']
+        self.truncation_option = hyper['truncation_option']
+        self.prior_file = hyper['prior_file']
+        self.quantile = 50
+
+    def reparameterize(self, params_broad):
+        mu, xi, mean, log_var = params_broad
+        self.aux = IGR_SB(mu, xi, self.temp, self.sample_size)
+        self.aux.generate_sample()
+        z_partition = tf.math.sigmoid(self.aux.kappa)
+        z_norm = sample_normal(mean=mean, log_var=log_var)
+        z = [z_partition, z_norm]
+        return z
+
+    def compute_loss(self, x, x_logit, z, params_broad,
+                     sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
+                     run_iwae):
+        pi = self.aux.transform()
+        self.n_required = pi.shape[1]
+        self.threshold_params(params_broad, z, pi)
+        mu, xi, mean, log_var = params_broad
+        z_partition, z_norm = z
+        self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
+
+        log_px_z = self.compute_log_px_z(x, x_logit, pi)
+        log_pz = self.compute_log_pz(z_norm, pi)
+        log_qpi_x = self.compute_kld(z_partition)
+        log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
+        loss = log_qz_x + log_qpi_x - log_px_z - log_pz
+        return loss
+
+    def threshold_params(self, params_broad, z, pi):
+        mu, xi, mean, log_var = params_broad
+        all_params = [params_broad, z, [pi]]
+        for param_list in all_params:
+            for param in param_list:
+                param = param[:, :self.n_required, :, :]
+        return params_broad, z, pi
+
+
 class OptExpGSDis(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
