@@ -379,6 +379,7 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
         pi = self.pi
+        pi = tf.clip_by_value(pi, 1.e-6, 1. - 1.e-6)
         output = self.threshold_params(params_broad, z, pi)
         mu, xi, mean, log_var, z_partition, z_norm, pi = output
         self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
