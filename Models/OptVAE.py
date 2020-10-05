@@ -202,11 +202,10 @@ class OptDLGMM(OptVAE):
         return z
 
     def decode(self, z):
-        batch_n, n_required = z[-1].shape[0], z[-1].shape[1]
-        x_logit = tf.TensorArray(dtype=self.dtype,
-                                 size=self.sample_size,
+        batch_n = z[-1].shape[0]
+        x_logit = tf.TensorArray(dtype=self.dtype, size=self.sample_size,
                                  element_shape=(batch_n,) + self.nets.image_shape +
-                                 (n_required,))
+                                 (self.n_required,))
         for i in range(self.sample_size):
             value = tf.expand_dims(self.nets.decode(z[-1][:, 0, i, :])[0], axis=-1)
             for j in range(1, self.n_required):
@@ -357,29 +356,32 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.max_categories = hyper['latent_discrete_n']
-        self.threshold = hyper['threshold']
-        self.truncation_option = hyper['truncation_option']
-        self.prior_file = hyper['prior_file']
+        # self.max_categories = hyper['latent_discrete_n']
+        # self.threshold = hyper['threshold']
+        # self.truncation_option = hyper['truncation_option']
+        self.max_categories = 50
+        self.threshold = 0.99
+        self.truncation_option = 'quantile'
         self.quantile = 50
 
     def reparameterize(self, params_broad):
         mu, xi, mean, log_var = params_broad
-        self.aux = IGR_SB(mu, xi, self.temp, self.sample_size)
+        self.aux = IGR_SB(mu, xi, self.temp, self.sample_size,
+                          threshold=self.threshold)
         self.aux.generate_sample()
         z_partition = tf.math.sigmoid(self.aux.kappa)
         z_norm = sample_normal(mean=mean, log_var=log_var)
         z = [z_partition, z_norm]
+        self.pi = self.aux.transform()
+        self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
         return z
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
-        pi = self.aux.transform()
-        self.n_required = pi.shape[1]
-        self.threshold_params(params_broad, z, pi)
-        mu, xi, mean, log_var = params_broad
-        z_partition, z_norm = z
+        pi = self.pi
+        output = self.threshold_params(params_broad, z, pi)
+        mu, xi, mean, log_var, z_partition, z_norm, pi = output
         self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
@@ -390,12 +392,13 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         return loss
 
     def threshold_params(self, params_broad, z, pi):
-        mu, xi, mean, log_var = params_broad
+        new_params_broad = []
         all_params = [params_broad, z, [pi]]
         for param_list in all_params:
             for param in param_list:
                 param = param[:, :self.n_required, :, :]
-        return params_broad, z, pi
+                new_params_broad.append(param)
+        return new_params_broad
 
 
 class OptExpGSDis(OptVAE):
