@@ -356,13 +356,12 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        # self.max_categories = hyper['latent_discrete_n']
+        self.max_categories = hyper['latent_discrete_n']
         # self.threshold = hyper['threshold']
         # self.truncation_option = hyper['truncation_option']
-        self.max_categories = 50
         self.threshold = 0.99
         self.truncation_option = 'quantile'
-        self.quantile = 50
+        self.quantile = 75
 
     def reparameterize(self, params_broad):
         mu, xi, mean, log_var = params_broad
