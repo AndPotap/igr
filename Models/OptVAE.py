@@ -216,7 +216,7 @@ class OptDLGMM(OptVAE):
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0, 5])
         return x_logit
 
-    @tf.function()
+    # @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x,
@@ -357,11 +357,13 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.max_categories = hyper['latent_discrete_n']
-        # self.threshold = hyper['threshold']
         # self.truncation_option = hyper['truncation_option']
-        self.threshold = 0.99
+        # self.threshold = hyper['threshold']
         self.truncation_option = 'quantile'
-        self.quantile = 75
+        # self.threshold = 0.99
+        # self.quantile = 75
+        self.threshold = 0.95
+        self.quantile = 50
 
     def reparameterize(self, params_broad):
         mu, xi, mean, log_var = params_broad
