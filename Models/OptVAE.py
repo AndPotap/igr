@@ -373,9 +373,10 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         z_partition = tf.math.sigmoid(self.aux.kappa)
         z_norm = sample_normal(mean=mean, log_var=log_var)
         z = [z_partition, z_norm]
-        self.pi = iterative_sb(z_partition)
         # self.pi = self.aux.transform()
-        self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
+        # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
+        self.pi = iterative_sb(z_partition)
+        self.n_required = 10
         return z
 
     def compute_loss(self, x, x_logit, z, params_broad,
