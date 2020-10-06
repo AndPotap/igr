@@ -360,10 +360,8 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         # self.truncation_option = hyper['truncation_option']
         # self.threshold = hyper['threshold']
         self.truncation_option = 'quantile'
-        # self.threshold = 0.99
-        # self.quantile = 75
-        self.threshold = 0.95
-        self.quantile = 50
+        self.threshold = 0.99
+        self.quantile = 75
 
     def reparameterize(self, params_broad):
         mu, xi, mean, log_var = params_broad
@@ -375,8 +373,12 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         z = [z_partition, z_norm]
         # self.pi = self.aux.transform()
         # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
+        # self.pi = iterative_sb(z_partition)
+        # self.n_required = 10
         self.pi = iterative_sb(z_partition)
-        self.n_required = 10
+        self.aux.perform_truncation_via_threshold(self.pi)
+        self.pi = self.pi[:, :self.aux.n_required, :, :]
+        self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
         return z
 
     def compute_loss(self, x, x_logit, z, params_broad,
