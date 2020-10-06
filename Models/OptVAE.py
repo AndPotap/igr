@@ -216,7 +216,7 @@ class OptDLGMM(OptVAE):
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0, 5])
         return x_logit
 
-    # @tf.function()
+    @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x,
@@ -373,7 +373,8 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         z_partition = tf.math.sigmoid(self.aux.kappa)
         z_norm = sample_normal(mean=mean, log_var=log_var)
         z = [z_partition, z_norm]
-        self.pi = self.aux.transform()
+        self.pi = iterative_sb(z_partition)
+        # self.pi = self.aux.transform()
         self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
         return z
 
