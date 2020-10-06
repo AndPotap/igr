@@ -123,8 +123,9 @@ class IGR_SB(IGR_I):
     def perform_truncation_via_threshold(self, vector):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
         res = get_arrays_that_make_it(vector_cumsum, tf.constant(self.threshold))
-        # self.n_required = int(np.percentile(res, q=self.quantile)) + 1
-        self.n_required = int(tfp.stats.percentile(res, q=self.quantile)) + 1
+        res += 1
+        # self.n_required = int(tfp.stats.percentile(res, q=self.quantile)) + 1
+        self.n_required = int(tfp.stats.percentile(res, q=self.quantile))
 
 
 class IGR_SB_Finite(IGR_SB):
