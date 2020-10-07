@@ -175,8 +175,20 @@ class OptDLGMM(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        self.mu_prior = self.create_separated_prior_means()
+        # self.mu_prior = self.create_separated_prior_means()
+        self.mu_prior = self.get_enalisnick_prior_means()
         self.log_var_prior = tf.zeros_like(self.mu_prior)
+
+    def get_enalisnick_prior_means(self):
+        mu_prior = tf.zeros(shape=(self.batch_size, 1,
+                                   self.sample_size, self.num_of_vars))
+        mult = [-0.5, -0.25, 0.25, 0.5]
+        for k in range(self.n_required - 1):
+            mu = tf.ones(shape=(self.batch_size, 1,
+                                self.sample_size, self.num_of_vars))
+            mu = mult[k] * mu
+            mu_prior = tf.concat([mu_prior, mu], axis=1)
+        return mu_prior
 
     def create_separated_prior_means(self):
         mu_prior = tf.zeros(shape=(self.batch_size, 1,
@@ -189,7 +201,7 @@ class OptDLGMM(OptVAE):
             mu = tf.where(u < 0.5, -1.0, 1.0)
             mu = mult * mu
             mu_prior = tf.concat([mu_prior, mu], axis=1)
-        return mu
+        return mu_prior
 
     def reparameterize(self, params_broad):
         log_a, log_b, mean, log_var = params_broad
