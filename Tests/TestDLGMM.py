@@ -84,13 +84,14 @@ class TestDLGMM(unittest.TestCase):
 
     def test_log_px_z(self):
         test_tolerance = 1.e-6
-        batch_n, sample_size = 2, 1
+        batch_n, sample_size = 2, 10
         pi = tf.constant([[0.1, 0.2, 0.3, 0.4]])
         pi = tf.expand_dims(tf.expand_dims(pi, axis=-1), axis=-1)
         n_required = pi.shape[1]
         x = tf.random.uniform(shape=(batch_n, 4, 4, 1))
         x_logit = tf.random.normal(shape=(batch_n, 4, 4, 1, sample_size, n_required))
         self.hyper['n_required'] = n_required
+        self.hyper['sample_size'] = sample_size
 
         optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
         approx = optvae.compute_log_px_z(x, x_logit, pi)
