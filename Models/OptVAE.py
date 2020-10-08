@@ -175,8 +175,9 @@ class OptDLGMM(OptVAE):
 
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
-        # self.mu_prior = self.create_separated_prior_means()
-        self.mu_prior = self.get_enalisnick_prior_means()
+        self.mu_prior = self.create_separated_prior_means()
+        # TODO: remove Enalisnick
+        # self.mu_prior = self.get_enalisnick_prior_means()
         self.log_var_prior = tf.zeros_like(self.mu_prior)
 
     def get_enalisnick_prior_means(self):
@@ -287,12 +288,13 @@ class OptDLGMM(OptVAE):
 
     def compute_log_pz(self, z, pi):
         sample_axis = 2
+        mu_prior = self.mu_prior[:, :self.n_required, :, :]
+        log_var_prior = self.log_var_prior[:, :self.n_required, :, :]
         pi_bar_k = tf.reduce_mean(pi, axis=sample_axis, keepdims=True)
         pi_const = tf.constant(3.141592653589793, dtype=self.mu_prior.dtype)
         log2pi = -0.5 * tf.math.log(2 * pi_const)
-        log_exp_sum = (-0.5 * (z - self.mu_prior) ** 2 *
-                       tf.math.exp(-self.log_var_prior))
-        log_pz = tf.reduce_mean(log2pi + -0.5 * self.log_var_prior + log_exp_sum,
+        log_exp_sum = (-0.5 * (z - mu_prior) ** 2 * tf.math.exp(-log_var_prior))
+        log_pz = tf.reduce_mean(log2pi + -0.5 * log_var_prior + log_exp_sum,
                                 axis=sample_axis, keepdims=True)
         log_pz = tf.reduce_sum(log_pz, axis=3, keepdims=True)
         log_pz = tf.reduce_sum(pi_bar_k * log_pz, axis=(1, 2, 3))
@@ -385,12 +387,13 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         z = [z_partition, z_norm]
         # self.pi = self.aux.transform()
         # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
-        # self.pi = iterative_sb(z_partition)
-        # self.n_required = 10
         self.pi = iterative_sb(z_partition)
-        self.aux.perform_truncation_via_threshold(self.pi)
-        self.pi = self.pi[:, :self.aux.n_required, :, :]
-        self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
+        self.n_required = 10
+        self.pi = self.pi[:, :self.n_required, :, :]
+        # self.pi = iterative_sb(z_partition)
+        # self.aux.perform_truncation_via_threshold(self.pi)
+        # self.pi = self.pi[:, :self.aux.n_required, :, :]
+        # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
         return z
 
     def compute_loss(self, x, x_logit, z, params_broad,
