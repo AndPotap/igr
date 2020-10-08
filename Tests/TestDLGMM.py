@@ -104,12 +104,13 @@ class TestDLGMM(unittest.TestCase):
 
     def test_log_pz(self):
         test_tolerance = 1.e-6
-        batch_n, n_required, sample_size, dim = 2, 4, 1, 3
+        batch_n, n_required, sample_size, dim = 2, 4, 10, 3
         pi = tf.constant([[0.1, 0.2, 0.3, 0.4]])
         pi = tf.expand_dims(tf.expand_dims(pi, axis=-1), axis=-1)
         n_required = pi.shape[1]
         z = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
         self.hyper['n_required'] = n_required
+        self.hyper['sample_size'] = sample_size
         optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
         optvae.batch_size, optvae.n_required = batch_n, n_required
         optvae.sample_size, optvae.num_of_vars = sample_size, dim
@@ -192,6 +193,7 @@ def calculate_log_pz(z, pi, mu_prior, log_var_prior):
     scale = tf.math.exp(0.5 * log_var_prior)
     dist = tfpd.Normal(loc, scale)
     log_pz = pi * tf.reduce_sum(dist.log_prob(z), axis=3, keepdims=True)
+    log_pz = tf.reduce_mean(log_pz, axis=2, keepdims=True)
     log_pz = tf.reduce_mean(tf.reduce_sum(log_pz, axis=(1, 2, 3)))
     return log_pz
 
