@@ -53,25 +53,22 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper,
         image_shape = (64, 64, 3)
         pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
                          image_shape=image_shape)
-        output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs,
-                                                       test_size=19962)
-        split_data, batch_size, epochs, np_test_images = output
+        output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs)
+        split_data, batch_n, epochs, np_test_images = output
         train_dataset, test_dataset = split_data
     elif dataset_name == 'omniglot':
         image_shape = (28, 28, 1)
         pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
                          image_shape=image_shape)
         output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs)
-        split_data, batch_size, epochs, np_test_images = output
+        split_data, batch_n, epochs, np_test_images = output
         train_dataset, test_dataset = split_data
-        if run_with_sample:
-            batch_n, epochs = 5, 10
     elif dataset_name == 'cifar':
         image_shape = (32, 32, 1)
         pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
                          image_shape=image_shape)
         output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs)
-        split_data, batch_size, epochs, np_test_images = output
+        split_data, batch_n, epochs, np_test_images = output
         train_dataset, test_dataset = split_data
     else:
         raise RuntimeError
@@ -100,7 +97,7 @@ def load_mnist_data(dtype, batch_n, epochs, use_fashion=False,
         train_buffer, test_buffer, batch_n, epochs = 60, 10, 5, 10
         train_images, test_images = train_images[:60, :, :, :], test_images[:10, :, :, :]
     else:
-        train_buffer, test_buffer, batch_n, epochs = 60_000, 10_000, batch_n, epochs
+        train_buffer, test_buffer, = 60000, 10000
 
     if resize:
         train_images = tf.image.resize(train_images, size=(32, 32))
@@ -113,7 +110,7 @@ def load_mnist_data(dtype, batch_n, epochs, use_fashion=False,
 
 
 def load_mnist_sop_data(batch_n, run_with_sample=False):
-    train_images, test_images = fetch_and_binarize_mnist_data()
+    train_images, test_images = fetch_and_binarize_mnist_data(tf.float32)
     if run_with_sample:
         train_buffer, test_buffer = 60, 10
         train_images = train_images[:train_buffer, :, :, :]
@@ -166,13 +163,13 @@ class ProcessData:
         buffer_size, batch_size, epochs = determine_buffer_re_assign_batch_and_epochs(
             self.run_with_sample, batch_size=batch_size, epochs=epochs)
         split_names, split_data, test_position = ['train', 'test'], [], 1
-        for idx, split in enumerate(split_names):
+        for idx, _ in enumerate(split_names):
             processed_data = self.preprocess(data_split=data[idx],
                                              buffer_size=buffer_size,
                                              batch_size=batch_size)
             split_data.append(processed_data)
-        np_test_images = self.fetch_test_numpy_images_batch(
-            test_ds=split_data[test_position], run_with_sample=self.run_with_sample)
+        np_test_images = self.fetch_test_numpy_images_batch(split_data[test_position],
+                                                            self.run_with_sample)
         return split_data, batch_size, epochs, np_test_images
 
     def preprocess(self, data_split, buffer_size, batch_size):
@@ -191,9 +188,9 @@ class ProcessData:
         data_split = data_split.prefetch(tf.data.experimental.AUTOTUNE)
         return data_split
 
-    def fetch_test_numpy_images_batch(self, test_ds, run_with_sample):
-        test_images = iterate_over_dataset_container(data_iterable=test_ds,
-                                                     image_shape=self.image_shape)
+    @staticmethod
+    def fetch_test_numpy_images_batch(test_ds, run_with_sample):
+        test_images = iterate_over_dataset_container(data_iterable=test_ds)
         if not run_with_sample:
             images_to_display = [10, 25, 5, 29, 1, 35, 18, 30,
                                  6, 19, 15, 23, 11, 21, 17, 26, 34, 57, 9, 20]
@@ -258,13 +255,13 @@ def crop_tensor(tensor, limit: int):
     return tensor
 
 
-def iterate_over_dataset_container(data_iterable, image_shape):
+def iterate_over_dataset_container(data_iterable):
     for image in data_iterable:
         return image.numpy()
 
 
 def determine_iter_per_epoch(dataset_name, run_with_sample, batch_n):
-    if dataset_name == 'fmnist' or dataset_name == 'mnist':
+    if dataset_name in ['mnist', 'fmnist']:
         num_of_data_points = 60000
         iter_per_epoch = num_of_data_points // batch_n
     elif dataset_name == 'omniglot':
