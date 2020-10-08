@@ -124,9 +124,10 @@ class IGR_SB(IGR_I):
         vector_cumsum = tf.math.cumsum(x=vector, axis=1)
         res = get_arrays_that_make_it(vector_cumsum, tf.constant(self.threshold))
         res += 1
-        lower_bound = tf.constant(3, dtype=tf.int32)
-        batch_ind = int(tfp.stats.percentile(res, q=self.quantile))
-        self.n_required = tf.maximum(lower_bound, batch_ind)
+        # lower_bound = tf.constant(3, dtype=tf.int32)
+        # batch_ind = int(tfp.stats.percentile(res, q=self.quantile))
+        # self.n_required = tf.maximum(lower_bound, batch_ind)
+        self.n_required = int(tfp.stats.percentile(res, q=self.quantile))
 
 
 class IGR_SB_Finite(IGR_SB):
