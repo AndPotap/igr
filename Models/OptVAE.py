@@ -317,8 +317,8 @@ class OptDLGMM(OptVAE):
         pi_const = tf.constant(3.141592653589793, dtype=mean.dtype)
         log2pi = -0.5 * tf.math.log(2 * pi_const)
         log_exp_sum = (-0.5 * (z - mean) ** 2 * tf.math.exp(-log_var))
-        lse = tf.reduce_sum(log2pi + -0.5 * log_var + log_exp_sum, axis=dim_axis,
-                            keepdims=True)
+        lse = tf.reduce_sum(log2pi + -0.5 * log_var + log_exp_sum,
+                            axis=dim_axis, keepdims=True)
         lse += log_pi
         log_qz_x = tf.math.reduce_logsumexp(lse, axis=(cat_axis, dim_axis),
                                             keepdims=True)

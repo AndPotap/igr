@@ -147,12 +147,13 @@ class TestDLGMM(unittest.TestCase):
 
     def test_log_qz_x(self):
         test_tolerance = 1.e-6
-        batch_n, n_required, sample_size, dim = 2, 4, 1, 3
+        batch_n, n_required, sample_size, dim = 2, 4, 10, 3
         pi = tf.constant([[0.1, 0.2, 0.3, 0.4]])
         pi = tf.expand_dims(tf.expand_dims(pi, axis=-1), axis=-1)
         n_required = pi.shape[1]
         z = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
         self.hyper['n_required'] = n_required
+        self.hyper['sample_size'] = sample_size
         optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
         mean = tf.random.normal(shape=(batch_n, n_required, sample_size, dim))
         log_var = tf.zeros_like(z)
@@ -212,15 +213,12 @@ def calculate_kumar_entropy(log_a, log_b):
 
 
 def calculate_log_qz_x(z, pi, mean, log_var):
-    n_required = pi.shape[1]
-    qz_x = 0
-    for k in range(n_required):
-        loc = mean[:, k, 0, :]
-        scale = tf.math.exp(0.5 * log_var[:, k, 0, :])
-        dist = tfpd.Normal(loc=loc, scale=scale)
-        aux = tf.reduce_prod(tf.math.exp(dist.log_prob(z[:, k, 0, :])), axis=1)
-        qz_x += pi[0, k, 0, 0] * aux
-        log_qz_x = tf.reduce_mean(tf.math.log(qz_x))
+    dist = tfpd.Normal(loc=mean, scale=tf.math.exp(0.5 * log_var))
+    aux = tf.reduce_prod(tf.math.exp(dist.log_prob(z)), axis=3, keepdims=True)
+    qz_x = tf.reduce_sum(pi * aux, axis=1, keepdims=True)
+    log_qz_x = tf.reduce_mean(tf.math.log(qz_x), axis=2, keepdims=True)
+    log_qz_x = tf.reduce_mean(tf.math.reduce_sum(log_qz_x, axis=(1, 2, 3)))
+
     return log_qz_x
 
 
