@@ -4,7 +4,8 @@ import tensorflow_datasets as tfds
 from tensorflow.data.experimental import AUTOTUNE as autotune
 
 
-def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True, architecture='dense'):
+def load_vae_dataset(dataset_name, batch_n, epochs, hyper,
+                     run_with_sample=True, architecture='dense'):
     images_to_display = [10, 25, 5, 29, 1, 35, 18, 30,
                          6, 19, 15, 23, 11, 21, 17, 26, 344, 3567, 9, 20]
     dtype = 'float32'
@@ -14,15 +15,20 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True,
         dtype = 'float16'
     if dataset_name == 'fmnist':
         if architecture == 'conv_jointvae':
-            _, np_test_images = fetch_and_binarize_mnist_data(dtype=dtype, use_fashion=True)
+            _, np_test_images = fetch_and_binarize_mnist_data(dtype=dtype,
+                                                              use_fashion=True)
             image_shape = (32, 32, 1)
-            data = load_mnist_data(batch_n=batch_n, epochs=epochs, run_with_sample=run_with_sample,
+            data = load_mnist_data(batch_n=batch_n, epochs=epochs,
+                                   run_with_sample=run_with_sample,
                                    resize=True, use_fashion=True, dtype=dtype)
-            np_test_images = tf.image.resize(np_test_images, size=image_shape[0:2]).numpy()
+            np_test_images = tf.image.resize(np_test_images,
+                                             size=image_shape[0:2]).numpy()
         else:
-            _, np_test_images = fetch_and_binarize_mnist_data(dtype=dtype, use_fashion=True)
+            _, np_test_images = fetch_and_binarize_mnist_data(dtype=dtype,
+                                                              use_fashion=True)
             image_shape = (28, 28, 1)
-            data = load_mnist_data(batch_n=batch_n, epochs=epochs, run_with_sample=run_with_sample,
+            data = load_mnist_data(batch_n=batch_n, epochs=epochs,
+                                   run_with_sample=run_with_sample,
                                    resize=False, use_fashion=True, dtype=dtype)
         np_test_images = np_test_images[images_to_display, :, :, :]
         train_dataset, test_dataset, batch_n, epochs = data
@@ -30,13 +36,16 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True,
         if architecture == 'conv_jointvae':
             _, np_test_images = fetch_and_binarize_mnist_data(dtype)
             image_shape = (32, 32, 1)
-            data = load_mnist_data(batch_n=batch_n, epochs=epochs, run_with_sample=run_with_sample,
+            data = load_mnist_data(batch_n=batch_n, epochs=epochs,
+                                   run_with_sample=run_with_sample,
                                    resize=True, dtype=dtype)
-            np_test_images = tf.image.resize(np_test_images, size=image_shape[0:2]).numpy()
+            np_test_images = tf.image.resize(
+                np_test_images, size=image_shape[0:2]).numpy()
         else:
             _, np_test_images = fetch_and_binarize_mnist_data(dtype=dtype)
             image_shape = (28, 28, 1)
-            data = load_mnist_data(batch_n=batch_n, epochs=epochs, run_with_sample=run_with_sample,
+            data = load_mnist_data(batch_n=batch_n, epochs=epochs,
+                                   run_with_sample=run_with_sample,
                                    resize=False, dtype=dtype)
         np_test_images = np_test_images[images_to_display, :, :, :]
         train_dataset, test_dataset, batch_n, epochs = data
@@ -65,7 +74,8 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper, run_with_sample=True,
     else:
         raise RuntimeError
 
-    hyper = refresh_hyper(hyper, batch_n, epochs, image_shape, dataset_name, run_with_sample)
+    hyper = refresh_hyper(hyper, batch_n, epochs, image_shape,
+                          dataset_name, run_with_sample)
     return train_dataset, test_dataset, np_test_images, hyper
 
 
@@ -80,8 +90,10 @@ def refresh_hyper(hyper, batch_n, epochs, image_shape, dataset_name, run_with_sa
     return hyper
 
 
-def load_mnist_data(dtype, batch_n, epochs, use_fashion=False, run_with_sample=False, resize=False):
-    train_images, test_images = fetch_and_binarize_mnist_data(dtype, use_fashion=use_fashion)
+def load_mnist_data(dtype, batch_n, epochs, use_fashion=False,
+                    run_with_sample=False, resize=False):
+    train_images, test_images = fetch_and_binarize_mnist_data(
+        dtype, use_fashion=use_fashion)
     if run_with_sample:
         train_buffer, test_buffer, batch_n, epochs = 60, 10, 5, 10
         train_images, test_images = train_images[:60, :, :, :], test_images[:10, :, :, :]
@@ -120,14 +132,17 @@ def load_mnist_sop_data(batch_n, run_with_sample=False):
 
 def fetch_and_binarize_mnist_data(dtype, use_fashion=False, output_labels=False):
     if use_fashion:
-        (train_images, train_labels), (test_images,
-                                       test_labels) = tf.keras.datasets.fashion_mnist.load_data()
-        train_images, test_images = reshape_binarize_and_scale_images((train_images, test_images),
+        im = tf.keras.datasets.fashion_mnist.load_data()
+        (train_images, train_labels), (test_images, test_labels) = im
+        train_images, test_images = reshape_binarize_and_scale_images((train_images,
+                                                                       test_images),
                                                                       round_images=False,
                                                                       dtype=dtype)
     else:
-        (train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.mnist.load_data()
-        train_images, test_images = reshape_binarize_and_scale_images((train_images, test_images),
+        (train_images, train_labels), (test_images,
+                                       test_labels) = tf.keras.datasets.mnist.load_data()
+        train_images, test_images = reshape_binarize_and_scale_images((train_images,
+                                                                       test_images),
                                                                       dtype=dtype)
 
     if output_labels:
@@ -138,7 +153,8 @@ def fetch_and_binarize_mnist_data(dtype, use_fashion=False, output_labels=False)
 
 class ProcessData:
 
-    def __init__(self, dataset_name, image_shape: tuple = (28, 28, 1), run_with_sample=False):
+    def __init__(self, dataset_name, image_shape: tuple = (28, 28, 1),
+                 run_with_sample=False):
         self.dataset_name = dataset_name
         self.run_with_sample = run_with_sample
         self.image_shape = image_shape
@@ -149,7 +165,8 @@ class ProcessData:
             self.run_with_sample, batch_size=batch_size, epochs=epochs)
         split_names, split_data, test_position = ['train', 'test'], [], 1
         for idx, split in enumerate(split_names):
-            processed_data = self.preprocess(data_split=data[idx], buffer_size=buffer_size,
+            processed_data = self.preprocess(data_split=data[idx],
+                                             buffer_size=buffer_size,
                                              batch_size=batch_size)
             split_data.append(processed_data)
         np_test_images = self.fetch_test_numpy_images_batch(
