@@ -46,7 +46,7 @@ class TestDLGMM(unittest.TestCase):
                       'sample_from_cont_kl': True}
 
     def test_loss(self):
-        test_tolerance = 1.e-3
+        test_tolerance = 1.e-2
         tf.random.set_seed(seed=21)
         batch_n, n_required, sample_size, dim = 2, 4, 1, 3
         shape = (batch_n, n_required, sample_size, dim)
