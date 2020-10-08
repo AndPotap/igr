@@ -183,7 +183,7 @@ class ProcessData:
         else:
             raise RuntimeError
         data_split = data_split.shuffle(buffer_size)
-        data_split = data_split.batch(batch_size)
+        data_split = data_split.batch(batch_size, drop_remainder=True)
         data_split = data_split.cache()
         data_split = data_split.prefetch(tf.data.experimental.AUTOTUNE)
         return data_split
