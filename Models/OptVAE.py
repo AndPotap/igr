@@ -206,11 +206,13 @@ class OptDLGMM(OptVAE):
 
     def reparameterize(self, params_broad):
         log_a, log_b, mean, log_var = params_broad
-        a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+        a, b = tf.math.exp(log_a)[:, :, 0, :], tf.math.exp(log_b)[:, :, 0, :]
         kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
-        z_kumar = kumar.sample()
+        z_kumar = kumar.sample(sample_shape=self.sample_size)
+        z_kumar = tf.transpose(z_kumar, perm=[1, 2, 0, 3])
         z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 1. - 1.e-6)
-        z_norm = sample_normal(mean=mean, log_var=log_var)
+        z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
+                               log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_kumar, z_norm]
         return z
 
@@ -388,7 +390,7 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         # self.pi = self.aux.transform()
         # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
         self.pi = iterative_sb(z_partition)
-        self.n_required = 10
+        self.n_required = 15
         self.pi = self.pi[:, :self.n_required, :, :]
         # self.pi = iterative_sb(z_partition)
         # self.aux.perform_truncation_via_threshold(self.pi)
