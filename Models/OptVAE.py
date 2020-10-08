@@ -339,28 +339,33 @@ class OptDLGMMIGR(OptDLGMM):
 
     def reparameterize(self, params_broad):
         mu, xi, mean, log_var = params_broad
-        self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
-        z_partition = self.dist.sample()
-        z_norm = sample_normal(mean=mean, log_var=log_var)
+        self.dist = tfpd.LogitNormal(loc=mu[:, :, 0, :],
+                                     scale=tf.math.exp(xi)[:, :, 0, :])
+        z_partition = self.dist.sample(sample_shape=self.sample_size)
+        z_partition = tf.transpose(z_partition, perm=[1, 2, 0, 3])
+        # z_norm = sample_normal(mean=mean, log_var=log_var)
+        z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
+                               log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_partition, z_norm]
         return z
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
-        _, _, mean, log_var = params_broad
+        mu, xi, mean, log_var = params_broad
         z_partition, z_norm = z
         pi = iterative_sb(z_partition)
         pi = tf.clip_by_value(pi, 1.e-6, 1. - 1.e-6)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
-        log_qpi_x = self.compute_kld(z_partition)
+        log_qpi_x = self.compute_kld(z_partition, mu, xi)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qz_x + log_qpi_x - log_px_z - log_pz
         return loss
 
-    def compute_kld(self, z_partition):
+    def compute_kld(self, z_partition, mu, xi):
+        self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
         log_qpi_x = self.dist.log_prob(z_partition)
         log_qpi_x = tf.reduce_mean(log_qpi_x, axis=2, keepdims=True)
         log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
