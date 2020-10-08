@@ -390,7 +390,9 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
                           threshold=self.threshold)
         self.aux.generate_sample()
         z_partition = tf.math.sigmoid(self.aux.kappa)
-        z_norm = sample_normal(mean=mean, log_var=log_var)
+        # z_norm = sample_normal(mean=mean, log_var=log_var)
+        z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
+                               log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_partition, z_norm]
         # self.pi = self.aux.transform()
         # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
@@ -414,7 +416,7 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
-        log_qpi_x = self.compute_kld(z_partition)
+        log_qpi_x = self.compute_kld(z_partition, mu, xi)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qz_x + log_qpi_x - log_px_z - log_pz
         return loss
