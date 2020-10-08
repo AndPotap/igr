@@ -64,6 +64,8 @@ def load_vae_dataset(dataset_name, batch_n, epochs, hyper,
         output = pd.generate_train_and_test_partitions(batch_size=batch_n, epochs=epochs)
         split_data, batch_size, epochs, np_test_images = output
         train_dataset, test_dataset = split_data
+        if run_with_sample:
+            batch_n, epochs = 5, 10
     elif dataset_name == 'cifar':
         image_shape = (32, 32, 1)
         pd = ProcessData(dataset_name=dataset_name, run_with_sample=run_with_sample,
