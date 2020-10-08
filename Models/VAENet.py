@@ -20,7 +20,7 @@ class VAENet(tf.keras.Model):
         self.model_type = hyper['model_type']
         self.image_shape = hyper['image_shape']
 
-        self.log_px_z_params_num = 1 if self.dataset_name == 'mnist' else 2
+        self.log_px_z_params_num = 1 if self.dataset_name in ['mnist', 'omniglot'] else 2
         self.latent_dim_in = (self.cont_param_num * self.cont_latent_n *
                               self.cont_var_num +
                               self.disc_param_num * self.disc_latent_in *
