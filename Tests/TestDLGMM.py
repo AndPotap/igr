@@ -48,7 +48,7 @@ class TestDLGMM(unittest.TestCase):
     def test_loss(self):
         test_tolerance = 1.e-2
         tf.random.set_seed(seed=21)
-        batch_n, n_required, sample_size, dim = 2, 4, 1, 3
+        batch_n, n_required, sample_size, dim = 2, 4, 10, 3
         shape = (batch_n, n_required, sample_size, dim)
         log_a = tf.random.normal(shape=(batch_n, n_required - 1, 1, 1))
         log_b = tf.random.normal(shape=log_a.shape)
@@ -62,6 +62,7 @@ class TestDLGMM(unittest.TestCase):
         x = tf.random.uniform(shape=(batch_n, 4, 4, 1))
         x_logit = tf.random.normal(shape=(batch_n, 4, 4, 1, sample_size, n_required))
         self.hyper['n_required'] = n_required
+        self.hyper['sample_size'] = sample_size
         optvae = OptDLGMM(nets=[], optimizer=[], hyper=self.hyper)
         z = [z_kumar, z_norm]
         params_broad = [log_a, log_b, mean, log_var]
