@@ -265,7 +265,7 @@ class OptDLGMM(OptVAE):
         log_a, log_b, mean, log_var = params_broad
         z_kumar, z_norm = z
         pi = iterative_sb(z_kumar)
-        pi = tf.clip_by_value(pi, 1.e-6, 1. - 1.e-6)
+        pi = tf.clip_by_value(pi, 1.e-6, 0.9999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
@@ -355,7 +355,8 @@ class OptDLGMMIGR(OptDLGMM):
         mu, xi, mean, log_var = params_broad
         z_partition, z_norm = z
         pi = iterative_sb(z_partition)
-        pi = tf.clip_by_value(pi, 1.e-6, 1. - 1.e-6)
+        pi = tf.clip_by_value(pi, 1.e-6, 0.9999)
+        z_partition = tf.clip_by_value(z_partition, 1.e-8, 0.9999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
@@ -409,10 +410,11 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
         pi = self.pi
-        pi = tf.clip_by_value(pi, 1.e-6, 1. - 1.e-6)
+        pi = tf.clip_by_value(pi, 1.e-6, 0.9999)
         output = self.threshold_params(params_broad, z, pi)
         mu, xi, mean, log_var, z_partition, z_norm, pi = output
         self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
+        z_partition = tf.clip_by_value(z_partition, 1.e-8, 0.9999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
