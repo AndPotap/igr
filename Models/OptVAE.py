@@ -218,12 +218,13 @@ class OptDLGMM(OptVAE):
 
     def decode(self, z):
         batch_n = z[-1].shape[0]
+        n_required = self.n_required if self.n_required is not None else 1
         x_logit = tf.TensorArray(dtype=self.dtype, size=self.sample_size,
                                  element_shape=(batch_n,) + self.nets.image_shape +
-                                 (self.n_required,))
+                                 (n_required,))
         for i in range(self.sample_size):
             value = tf.expand_dims(self.nets.decode(z[-1][:, 0, i, :])[0], axis=-1)
-            for j in range(1, self.n_required):
+            for j in range(1, n_required):
                 logits = tf.expand_dims(self.nets.decode(z[-1][:, j, i, :])[0],
                                         axis=-1)
                 value = tf.concat((value, logits), axis=4)
@@ -259,6 +260,17 @@ class OptDLGMM(OptVAE):
 
         return loss
 
+    # @tf.function()
+    def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl,
+                                           sample_from_disc_kl):
+        z, x_logit, params_broad = self.perform_fwd_pass(x, self.test_with_one_hot)
+        loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
+                                 sample_from_cont_kl=sample_from_cont_kl,
+                                 sample_from_disc_kl=sample_from_disc_kl,
+                                 test_with_one_hot=self.test_with_one_hot,
+                                 run_iwae=self.run_iwae)
+        return loss
+
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
@@ -283,11 +295,12 @@ class OptDLGMM(OptVAE):
         return loss
 
     def compute_log_px_z(self, x, x_logit, pi):
+        n_required = self.n_required if self.n_required is not None else 1
         pi_bar_k = tf.reduce_mean(pi, axis=(2, 3))
         x_broad = tf.repeat(tf.expand_dims(x, -1), axis=-1,
                             repeats=self.sample_size)
         x_broad = tf.repeat(tf.expand_dims(x_broad, -1), axis=-1,
-                            repeats=self.n_required)
+                            repeats=n_required)
         cross_ent = - tf.nn.sigmoid_cross_entropy_with_logits(labels=x_broad,
                                                               logits=x_logit)
         log_px_z = tf.reduce_sum(cross_ent, axis=(1, 2, 3))
@@ -409,7 +422,7 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         # self.threshold = 0.99
         # self.quantile = 75
         self.threshold = 0.9999
-        self.quantile = 50
+        self.quantile = 75
 
     def reparameterize(self, params_broad):
         mu, xi, mean, log_var = params_broad
@@ -417,22 +430,15 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
                           threshold=self.threshold)
         self.aux.generate_sample()
         z_partition = tf.math.sigmoid(self.aux.kappa)
-        # z_norm = sample_normal(mean=mean, log_var=log_var)
         z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
                                log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_partition, z_norm]
         self.pi = self.aux.transform()
-        # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
         self.n_required = self.pi.shape[1]
 
         # self.pi = iterative_sb(z_partition)
         # self.n_required = 15
         # self.pi = self.pi[:, :self.n_required, :, :]
-
-        # self.pi = iterative_sb(z_partition)
-        # self.aux.perform_truncation_via_threshold(self.pi)
-        # self.pi = self.pi[:, :self.aux.n_required, :, :]
-        # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
         return z
 
     def compute_loss(self, x, x_logit, z, params_broad,
