@@ -210,7 +210,7 @@ class OptDLGMM(OptVAE):
         kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
         z_kumar = kumar.sample(sample_shape=self.sample_size)
         z_kumar = tf.transpose(z_kumar, perm=[1, 2, 0, 3])
-        z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 1. - 1.e-6)
+        z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 0.9999)
         z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
                                log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_kumar, z_norm]
@@ -269,7 +269,8 @@ class OptDLGMM(OptVAE):
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
-        log_qpi_x = self.compute_kld(log_a, log_b)
+        # log_qpi_x = self.compute_kld(log_a, log_b)
+        log_qpi_x = self.compute_log_qpi_x(z_kumar, log_a, log_b)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qz_x + log_qpi_x - log_px_z - log_pz
         return loss
@@ -302,6 +303,15 @@ class OptDLGMM(OptVAE):
         log_pz = tf.reduce_sum(pi_bar_k * log_pz, axis=(1, 2, 3))
         log_pz = tf.reduce_mean(log_pz)
         return log_pz
+
+    def compute_log_qpi_x(self, z_kumar, log_a, log_b):
+        a, b = tf.math.exp(log_a), tf.math.exp(log_b)
+        kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
+        log_qpi_x = kumar.log_prob(z_kumar)
+        log_qpi_x = tf.reduce_mean(log_qpi_x, axis=2, keepdims=True)
+        log_qpi_x = tf.reduce_sum(log_qpi_x, axis=(1, 2, 3))
+        log_qpi_x = tf.reduce_mean(log_qpi_x, axis=0)
+        return log_qpi_x
 
     def compute_kld(self, log_a, log_b):
         sample_axis = 2
