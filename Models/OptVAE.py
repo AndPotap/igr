@@ -231,7 +231,7 @@ class OptDLGMM(OptVAE):
         x_logit = tf.transpose(x_logit.stack(), perm=[1, 2, 3, 4, 0, 5])
         return x_logit
 
-    @tf.function()
+    # @tf.function()
     def compute_gradients(self, x):
         with tf.GradientTape() as tape:
             z, x_logit, params_broad = self.perform_fwd_pass(x=x,
@@ -406,8 +406,10 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         # self.truncation_option = hyper['truncation_option']
         # self.threshold = hyper['threshold']
         self.truncation_option = 'quantile'
-        self.threshold = 0.99
-        self.quantile = 75
+        # self.threshold = 0.99
+        # self.quantile = 75
+        self.threshold = 0.9999
+        self.quantile = 50
 
     def reparameterize(self, params_broad):
         mu, xi, mean, log_var = params_broad
@@ -420,7 +422,8 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
                                log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_partition, z_norm]
         self.pi = self.aux.transform()
-        self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
+        # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
+        self.n_required = self.pi.shape[1]
 
         # self.pi = iterative_sb(z_partition)
         # self.n_required = 15
@@ -441,6 +444,7 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         mu, xi, mean, log_var, z_partition, z_norm, pi = output
         self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
         z_partition = tf.clip_by_value(z_partition, 1.e-6, 0.999999)
+        tf.print(self.n_required)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
