@@ -270,6 +270,13 @@ class OptDLGMM(OptVAE):
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
         # log_qpi_x = self.compute_kld(log_a, log_b)
+        # log_qpi_x = self.compute_log_qpi_x(z_kumar, log_a, log_b)
+        # log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
+        # TODO: add option to run Sticking the Landing
+        log_a = tf.stop_gradient(log_a)
+        log_b = tf.stop_gradient(log_b)
+        mean = tf.stop_gradient(mean)
+        log_var = tf.stop_gradient(log_var)
         log_qpi_x = self.compute_log_qpi_x(z_kumar, log_a, log_b)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qz_x + log_qpi_x - log_px_z - log_pz
@@ -370,6 +377,13 @@ class OptDLGMMIGR(OptDLGMM):
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
+        # log_qpi_x = self.compute_kld(z_partition, mu, xi)
+        # log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
+        # TODO: add option to run Sticking the Landing
+        mu = tf.stop_gradient(mu)
+        xi = tf.stop_gradient(xi)
+        mean = tf.stop_gradient(mean)
+        log_var = tf.stop_gradient(log_var)
         log_qpi_x = self.compute_kld(z_partition, mu, xi)
         log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
         loss = log_qz_x + log_qpi_x - log_px_z - log_pz
