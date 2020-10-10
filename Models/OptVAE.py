@@ -249,11 +249,11 @@ class OptDLGMM(OptVAE):
         #     any_nan_grads = tf.math.is_nan(grad)
         #     any_nan += tf.reduce_sum(tf.cast(any_nan_grads, tf.float32))
         # tf.print(any_nan)
-        grads = []
-        for grad in gradients:
-            grad = tf.where(tf.math.is_nan(grad), 0., grad)
-            grads.append(grad)
-        gradients = grads
+        # grads = []
+        # for grad in gradients:
+        #     grad = tf.where(tf.math.is_nan(grad), 0., grad)
+        #     grads.append(grad)
+        # gradients = grads
         # if any_nan > 0:
         #     breakpoint()
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
@@ -450,7 +450,6 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         mu, xi, mean, log_var, z_partition, z_norm, pi = output
         self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
         z_partition = tf.clip_by_value(z_partition, 1.e-6, 0.999999)
-        tf.print(self.n_required)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)

@@ -88,7 +88,7 @@ def train_vae(vae_opt, hyper, train_dataset, test_dataset, test_images, check_ev
         vae_opt.train_on_epoch(train_dataset, hyper['iter_per_epoch'])
         t1 = time.time()
         log_train_progress(logger, epoch, t1 - t0, vae_opt.iter_count,
-                           vae_opt.train_loss_mean, vae_opt.temp.numpy())
+                           vae_opt.train_loss_mean, vae_opt.n_required)
         evaluate_progress_in_test_set(epoch=epoch, test_dataset=test_dataset,
                                       vae_opt=vae_opt,
                                       hyper=hyper, logger=logger, time_taken=t1 - t0,
@@ -228,10 +228,11 @@ def log_test_progress(logger, test_progress, epoch, time_taken,
 
 
 def log_train_progress(logger, epoch, time_taken, iteration_counter,
-                       train_loss_mean, temp):
+                       train_loss_mean, n_required):
     print_msg = f'Epoch {epoch:4d} || '
     print_msg += (f'TrL {train_loss_mean.result().numpy():2.5e} || ' +
-                  f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ')
+                  f'{time_taken:4.1f} sec || i: {iteration_counter:6,d} || ' +
+                  f'N: {n_required: 3d}')
     logger.info(print_msg)
 
 
