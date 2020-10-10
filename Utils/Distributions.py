@@ -252,7 +252,6 @@ def project_to_vertices_via_softmax_pp(lam):
     return psi
 
 
-@tf.function
 def get_arrays_that_make_it(vector_cumsum, threshold):
     batch_n, categories_n, sample_size, _ = vector_cumsum.shape
     result = tf.TensorArray(tf.int64, size=batch_n * sample_size)
@@ -315,7 +314,6 @@ def broadcast_matrices_to_shape(lower, upper, batch_size, categories_n,
     return lower, upper
 
 
-# @tf.function
 def iterative_sb(kappa):
     batch_size, max_size, sample_size, num_of_vars = kappa.shape
     eta = tf.TensorArray(dtype=kappa.dtype, size=max_size + 1,
