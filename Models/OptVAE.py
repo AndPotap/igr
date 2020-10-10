@@ -210,7 +210,7 @@ class OptDLGMM(OptVAE):
         kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
         z_kumar = kumar.sample(sample_shape=self.sample_size)
         z_kumar = tf.transpose(z_kumar, perm=[1, 2, 0, 3])
-        z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 0.9999)
+        z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 0.999999)
         z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
                                log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_kumar, z_norm]
@@ -265,7 +265,7 @@ class OptDLGMM(OptVAE):
         log_a, log_b, mean, log_var = params_broad
         z_kumar, z_norm = z
         pi = iterative_sb(z_kumar)
-        pi = tf.clip_by_value(pi, 1.e-6, 0.9999)
+        pi = tf.clip_by_value(z_kumar, 1.e-6, 0.999999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
@@ -372,8 +372,8 @@ class OptDLGMMIGR(OptDLGMM):
         mu, xi, mean, log_var = params_broad
         z_partition, z_norm = z
         pi = iterative_sb(z_partition)
-        pi = tf.clip_by_value(pi, 1.e-6, 0.9999)
-        z_partition = tf.clip_by_value(z_partition, 1.e-8, 0.9999)
+        pi = tf.clip_by_value(pi, 1.e-6, 0.999999)
+        z_partition = tf.clip_by_value(z_partition, 1.e-6, 0.999999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
@@ -419,11 +419,13 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
                                log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_partition, z_norm]
-        # self.pi = self.aux.transform()
-        # self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
-        self.pi = iterative_sb(z_partition)
-        self.n_required = 15
-        self.pi = self.pi[:, :self.n_required, :, :]
+        self.pi = self.aux.transform()
+        self.n_required = self.pi.shape[1] if self.pi.shape[1] is not None else 1
+
+        # self.pi = iterative_sb(z_partition)
+        # self.n_required = 15
+        # self.pi = self.pi[:, :self.n_required, :, :]
+
         # self.pi = iterative_sb(z_partition)
         # self.aux.perform_truncation_via_threshold(self.pi)
         # self.pi = self.pi[:, :self.aux.n_required, :, :]
@@ -434,11 +436,11 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
         pi = self.pi
-        pi = tf.clip_by_value(pi, 1.e-6, 0.9999)
+        pi = tf.clip_by_value(pi, 1.e-6, 0.999999)
         output = self.threshold_params(params_broad, z, pi)
         mu, xi, mean, log_var, z_partition, z_norm, pi = output
         self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
-        z_partition = tf.clip_by_value(z_partition, 1.e-8, 0.9999)
+        z_partition = tf.clip_by_value(z_partition, 1.e-6, 0.999999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
