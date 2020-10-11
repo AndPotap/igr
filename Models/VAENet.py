@@ -376,7 +376,7 @@ class VAENet(tf.keras.Model):
         for idx, param in enumerate(params):
             batch_size = batch_size if x.shape[0] is None else param.shape[0]
             if self.disc_var_num > 1:
-                if self.model_type in ['DLGMM', 'DLGMM_IGR', 'DLGMM_IGR_SB']:
+                if self.model_type in ['DLGMM', 'DLGMM_Var', 'DLGMM_IGR', 'DLGMM_IGR_SB']:
                     last = self.disc_var_num if idx >= 2 else 1
                     cat = self.disc_latent_in if idx >= 2 else self.disc_latent_in - 1
                     param = tf.reshape(param, shape=(batch_size, cat, 1, last))
