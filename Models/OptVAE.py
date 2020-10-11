@@ -1,5 +1,6 @@
 import pickle
 import tensorflow as tf
+import tensorflow_probability as tfp
 from os import environ as os_env
 from tensorflow_probability import distributions as tfpd
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
@@ -9,6 +10,7 @@ from Utils.Distributions import project_to_vertices
 from Utils.Distributions import compute_igr_log_probs
 from Utils.Distributions import compute_igr_probs
 from Utils.Distributions import iterative_sb
+from Utils.Distributions import get_arrays_that_make_it
 from Models.VAENet import RelaxCovNet
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -358,6 +360,69 @@ class OptDLGMM(OptVAE):
         log_qz_x = tf.reduce_sum(log_qz_x, axis=cat_axis)
         log_qz_x = tf.reduce_mean(log_qz_x)
         return log_qz_x
+
+
+class OptDLGMM_Var(OptDLGMM):
+
+    def __init__(self, nets, optimizer, hyper):
+        super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
+        self.mu_prior = self.create_separated_prior_means()
+        self.log_var_prior = tf.zeros_like(self.mu_prior)
+        self.threshold = 0.9999
+        self.quantile = 75
+
+    def reparameterize(self, params_broad):
+        log_a, log_b, mean, log_var = params_broad
+        a, b = tf.math.exp(log_a)[:, :, 0, :], tf.math.exp(log_b)[:, :, 0, :]
+        kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
+        z_kumar = kumar.sample(sample_shape=self.sample_size)
+        z_kumar = tf.transpose(z_kumar, perm=[1, 2, 0, 3])
+        z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 0.999999)
+        z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
+                               log_var=tf.repeat(log_var, self.sample_size, axis=2))
+        z = [z_kumar, z_norm]
+        self.aux = IGR_SB(log_a, log_b, self.temp, self.sample_size,
+                          threshold=self.threshold)
+        self.aux.kappa = z_kumar
+        self.pi = self.aux.transform()
+        self.n_required = self.pi.shape[1]
+        # self.pi = iterative_sb(z_kumar)
+        # vector_cumsum = tf.math.cumsum(x=self.pi, axis=1)
+        # res = get_arrays_that_make_it(vector_cumsum, tf.constant(0.9999))
+        # res += 1
+        # self.n_required = int(tfp.stats.percentile(res, q=0.75))
+        # self.pi = tf.clip_by_value(self.pi, 1.e-6, 0.999999)
+        # self.pi = self.pi[:, :self.n_required, :, :]
+        return z
+
+    def compute_loss(self, x, x_logit, z, params_broad,
+                     sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
+                     run_iwae):
+        log_a, log_b, mean, log_var = params_broad
+        z_kumar, z_norm = z
+        pi = self.pi
+        output = self.threshold_params(params_broad, z, pi)
+        log_a, log_b, mean, log_var, z_kumar, z_norm, pi = output
+
+        log_px_z = self.compute_log_px_z(x, x_logit, pi)
+        log_pz = self.compute_log_pz(z_norm, pi)
+        log_a = tf.stop_gradient(log_a)
+        log_b = tf.stop_gradient(log_b)
+        mean = tf.stop_gradient(mean)
+        log_var = tf.stop_gradient(log_var)
+        log_qpi_x = self.compute_log_qpi_x(z_kumar, log_a, log_b)
+        log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
+        loss = log_qz_x + log_qpi_x - log_px_z - log_pz
+        return loss
+
+    def threshold_params(self, params_broad, z, pi):
+        new_params_broad = []
+        all_params = [params_broad, z, [pi]]
+        for param_list in all_params:
+            for param in param_list:
+                param = param[:, :self.n_required, :, :]
+                new_params_broad.append(param)
+        return new_params_broad
 
 
 class OptDLGMMIGR(OptDLGMM):
