@@ -1,6 +1,5 @@
 import pickle
 import tensorflow as tf
-import tensorflow_probability as tfp
 from os import environ as os_env
 from tensorflow_probability import distributions as tfpd
 from Utils.Distributions import IGR_I, IGR_Planar, IGR_SB, IGR_SB_Finite
@@ -10,7 +9,6 @@ from Utils.Distributions import project_to_vertices
 from Utils.Distributions import compute_igr_log_probs
 from Utils.Distributions import compute_igr_probs
 from Utils.Distributions import iterative_sb
-from Utils.Distributions import get_arrays_that_make_it
 from Models.VAENet import RelaxCovNet
 os_env['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -246,6 +244,11 @@ class OptDLGMM(OptVAE):
                                      test_with_one_hot=False,
                                      run_iwae=False)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
+        grads = []
+        for grad in gradients:
+            grad = tf.where(tf.math.is_nan(grad), 0., grad)
+            grads.append(grad)
+        gradients = grads
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
         return loss
 
@@ -373,13 +376,6 @@ class OptDLGMM_Var(OptDLGMM):
         self.aux.kappa = z_kumar
         self.pi = self.aux.transform()
         self.n_required = self.pi.shape[1]
-        # self.pi = iterative_sb(z_kumar)
-        # vector_cumsum = tf.math.cumsum(x=self.pi, axis=1)
-        # res = get_arrays_that_make_it(vector_cumsum, tf.constant(0.9999))
-        # res += 1
-        # self.n_required = int(tfp.stats.percentile(res, q=0.75))
-        # self.pi = tf.clip_by_value(self.pi, 1.e-4, 0.9999)
-        # self.pi = self.pi[:, :self.n_required, :, :]
         return z
 
     def compute_gradients(self, x):
@@ -450,11 +446,25 @@ class OptDLGMMIGR(OptDLGMM):
                                      scale=tf.math.exp(xi)[:, :, 0, :])
         z_partition = self.dist.sample(sample_shape=self.sample_size)
         z_partition = tf.transpose(z_partition, perm=[1, 2, 0, 3])
-        # z_norm = sample_normal(mean=mean, log_var=log_var)
         z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
                                log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_partition, z_norm]
         return z
+
+    @tf.function()
+    def compute_gradients(self, x):
+        with tf.GradientTape() as tape:
+            z, x_logit, params_broad = self.perform_fwd_pass(x=x,
+                                                             test_with_one_hot=False)
+            loss = self.compute_loss(x=x, x_logit=x_logit, z=z,
+                                     params_broad=params_broad,
+                                     sample_from_cont_kl=self.sample_from_cont_kl,
+                                     sample_from_disc_kl=self.sample_from_disc_kl,
+                                     test_with_one_hot=False,
+                                     run_iwae=False)
+        gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
+        return loss
 
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
