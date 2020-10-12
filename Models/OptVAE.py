@@ -212,7 +212,7 @@ class OptDLGMM(OptVAE):
         kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
         z_kumar = kumar.sample(sample_shape=self.sample_size)
         z_kumar = tf.transpose(z_kumar, perm=[1, 2, 0, 3])
-        z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 0.999999)
+        z_kumar = tf.clip_by_value(z_kumar, 1.e-4, 0.9999)
         z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
                                log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_kumar, z_norm]
@@ -246,20 +246,7 @@ class OptDLGMM(OptVAE):
                                      test_with_one_hot=False,
                                      run_iwae=False)
         gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
-        # any_nan = tf.constant(0., dtype=tf.float32)
-        # for grad in gradients:
-        #     any_nan_grads = tf.math.is_nan(grad)
-        #     any_nan += tf.reduce_sum(tf.cast(any_nan_grads, tf.float32))
-        # tf.print(any_nan)
-        # grads = []
-        # for grad in gradients:
-        #     grad = tf.where(tf.math.is_nan(grad), 0., grad)
-        #     grads.append(grad)
-        # gradients = grads
-        # if any_nan > 0:
-        #     breakpoint()
         self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
-
         return loss
 
     @tf.function()
@@ -279,7 +266,7 @@ class OptDLGMM(OptVAE):
         log_a, log_b, mean, log_var = params_broad
         z_kumar, z_norm = z
         pi = iterative_sb(z_kumar)
-        pi = tf.clip_by_value(pi, 1.e-6, 0.999999)
+        pi = tf.clip_by_value(pi, 1.e-4, 0.9999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
@@ -377,7 +364,7 @@ class OptDLGMM_Var(OptDLGMM):
         kumar = tfpd.Kumaraswamy(concentration0=a, concentration1=b)
         z_kumar = kumar.sample(sample_shape=self.sample_size)
         z_kumar = tf.transpose(z_kumar, perm=[1, 2, 0, 3])
-        z_kumar = tf.clip_by_value(z_kumar, 1.e-6, 0.999999)
+        z_kumar = tf.clip_by_value(z_kumar, 1.e-4, 0.9999)
         z_norm = sample_normal(mean=tf.repeat(mean, self.sample_size, axis=2),
                                log_var=tf.repeat(log_var, self.sample_size, axis=2))
         z = [z_kumar, z_norm]
@@ -391,7 +378,7 @@ class OptDLGMM_Var(OptDLGMM):
         # res = get_arrays_that_make_it(vector_cumsum, tf.constant(0.9999))
         # res += 1
         # self.n_required = int(tfp.stats.percentile(res, q=0.75))
-        # self.pi = tf.clip_by_value(self.pi, 1.e-6, 0.999999)
+        # self.pi = tf.clip_by_value(self.pi, 1.e-4, 0.9999)
         # self.pi = self.pi[:, :self.n_required, :, :]
         return z
 
@@ -475,8 +462,8 @@ class OptDLGMMIGR(OptDLGMM):
         mu, xi, mean, log_var = params_broad
         z_partition, z_norm = z
         pi = iterative_sb(z_partition)
-        pi = tf.clip_by_value(pi, 1.e-6, 0.999999)
-        z_partition = tf.clip_by_value(z_partition, 1.e-6, 0.999999)
+        pi = tf.clip_by_value(pi, 1.e-4, 0.9999)
+        z_partition = tf.clip_by_value(z_partition, 1.e-4, 0.9999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
@@ -531,15 +518,40 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         # self.pi = self.pi[:, :self.n_required, :, :]
         return z
 
+    def compute_gradients(self, x):
+        with tf.GradientTape() as tape:
+            z, x_logit, params_broad = self.perform_fwd_pass(x=x,
+                                                             test_with_one_hot=False)
+            loss = self.compute_loss(x=x, x_logit=x_logit, z=z,
+                                     params_broad=params_broad,
+                                     sample_from_cont_kl=self.sample_from_cont_kl,
+                                     sample_from_disc_kl=self.sample_from_disc_kl,
+                                     test_with_one_hot=False,
+                                     run_iwae=False)
+        gradients = tape.gradient(target=loss, sources=self.nets.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.nets.trainable_variables))
+
+        return loss
+
+    def compute_losses_from_x_wo_gradients(self, x, sample_from_cont_kl,
+                                           sample_from_disc_kl):
+        z, x_logit, params_broad = self.perform_fwd_pass(x, self.test_with_one_hot)
+        loss = self.compute_loss(x=x, x_logit=x_logit, z=z, params_broad=params_broad,
+                                 sample_from_cont_kl=sample_from_cont_kl,
+                                 sample_from_disc_kl=sample_from_disc_kl,
+                                 test_with_one_hot=self.test_with_one_hot,
+                                 run_iwae=self.run_iwae)
+        return loss
+
     def compute_loss(self, x, x_logit, z, params_broad,
                      sample_from_cont_kl, sample_from_disc_kl, test_with_one_hot,
                      run_iwae):
         pi = self.pi
-        pi = tf.clip_by_value(pi, 1.e-6, 0.999999)
+        pi = tf.clip_by_value(pi, 1.e-4, 0.9999)
         output = self.threshold_params(params_broad, z, pi)
         mu, xi, mean, log_var, z_partition, z_norm, pi = output
         self.dist = tfpd.LogitNormal(loc=mu, scale=tf.math.exp(xi))
-        z_partition = tf.clip_by_value(z_partition, 1.e-6, 0.999999)
+        z_partition = tf.clip_by_value(z_partition, 1.e-4, 0.9999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
