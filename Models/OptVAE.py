@@ -279,7 +279,7 @@ class OptDLGMM(OptVAE):
         log_a, log_b, mean, log_var = params_broad
         z_kumar, z_norm = z
         pi = iterative_sb(z_kumar)
-        pi = tf.clip_by_value(z_kumar, 1.e-6, 0.999999)
+        pi = tf.clip_by_value(pi, 1.e-6, 0.999999)
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
