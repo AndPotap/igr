@@ -19,20 +19,23 @@ def manage_files(path):
 
 
 def get_available_logs(path):
-    dirs_available = [d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]
+    dirs_available = [d for d in os.listdir(path)
+                      if os.path.isdir(os.path.join(path, d))]
     return dirs_available
 
 
 def estimate_log_likelihood(path_to_trained_models, dataset_name, weights_file, logger,
                             samples_n, model_type, run_with_sample):
     tic = time.time()
-    test_dataset, hyper, epoch = load_hyper_and_data(path_to_trained_models, dataset_name,
+    test_dataset, hyper, epoch = load_hyper_and_data(path_to_trained_models,
+                                                     dataset_name,
                                                      samples_n, run_with_sample)
     vae_opt = setup_optimizer(path_to_trained_models, hyper, model_type, weights_file)
     calculate_test_log_likelihood(logger, vae_opt, test_dataset, epoch, model_type, tic)
 
 
-def load_hyper_and_data(path_to_trained_models, dataset_name, samples_n, run_with_sample):
+def load_hyper_and_data(path_to_trained_models, dataset_name,
+                        samples_n, run_with_sample):
     hyper = load_hyper(path_to_trained_models, samples_n)
     tf.random.set_seed(seed=hyper['seed'])
     data = load_vae_dataset(dataset_name=dataset_name, batch_n=hyper['batch_n'],
@@ -57,9 +60,12 @@ def load_hyper(path_to_trained_models, samples_n, hyper_file='hyper.pkl'):
 
 def setup_optimizer(path_to_trained_models, hyper, model_type, weights_file='vae.h5'):
     vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=model_type)
-    vae_opt.nets.load_weights(filepath=path_to_trained_models + weights_file)
-    vae_opt.test_with_one_hot = True
-    vae_opt.run_iwae = True
+    try:
+        vae_opt.nets(hyper['image_shape'])
+    except Exception:
+        vae_opt.nets.load_weights(filepath=path_to_trained_models + weights_file)
+        vae_opt.test_with_one_hot = True
+        vae_opt.run_iwae = True
     return vae_opt
 
 
