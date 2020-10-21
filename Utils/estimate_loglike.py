@@ -1,8 +1,8 @@
-import tensorflow as tf
 import os
 import logging
 import time
 import pickle
+import tensorflow as tf
 from Models.train_vae import construct_nets_and_optimizer
 from Utils.load_data import load_vae_dataset
 
@@ -42,7 +42,8 @@ def load_hyper_and_data(path_to_trained_models, dataset_name,
                             epochs=hyper['epochs'],
                             run_with_sample=run_with_sample,
                             architecture=hyper['architecture'], hyper=hyper)
-    train_dataset, test_dataset, np_test_images, hyper = data
+    # train_dataset, test_dataset, _, hyper = data
+    _, test_dataset, _, hyper = data
     epoch = hyper['epochs']
     return test_dataset, hyper, epoch
     # return train_dataset, hyper, epoch
@@ -60,6 +61,7 @@ def load_hyper(path_to_trained_models, samples_n, hyper_file='hyper.pkl'):
 
 def setup_optimizer(path_to_trained_models, hyper, model_type, weights_file='vae.h5'):
     vae_opt = construct_nets_and_optimizer(hyper=hyper, model_type=model_type)
+    # TODO: check how to implement better the logic below
     try:
         vae_opt.nets(hyper['image_shape'])
     except Exception:
