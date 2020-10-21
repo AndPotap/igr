@@ -9,8 +9,8 @@ temps = [0.15]
 # import numpy as np
 # np.random.seed(21)
 # seeds = np.random.randint(low=1, high=int(1.e4), size=5)
-seeds = [5328, 5945, 8965, 49, 9337]
-# seeds = [9335]
+# seeds = [5328, 5945, 8965, 49, 9337]
+seeds = [9335]
 
 model_cases = {
     1: {'model_type': 'IGR_I_Dis', 'n_required': 9,
@@ -30,10 +30,10 @@ model_cases = {
 dataset_cases = {
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense'},
     # 1: {'dataset_name': 'mnist', 'architecture': 'dense_relax'},
-    # 1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
+    1: {'dataset_name': 'mnist', 'architecture': 'dense_nonlinear'},
     # 2: {'dataset_name': 'fmnist', 'architecture': 'dense'},
     # 2: {'dataset_name': 'fmnist', 'architecture': 'dense_relax'},
-    2: {'dataset_name': 'fmnist', 'architecture': 'dense_nonlinear'},
+    # 2: {'dataset_name': 'fmnist', 'architecture': 'dense_nonlinear'},
     # 3: {'dataset_name': 'omniglot', 'architecture': 'dense'},
     # 3: {'dataset_name': 'omniglot', 'architecture': 'dense_relax'},
     # 3: {'dataset_name': 'omniglot', 'architecture': 'dense_nonlinear'},
@@ -49,7 +49,7 @@ hyper = {'latent_norm_n': 0, 'num_of_norm_param': 0, 'num_of_norm_var': 0,
          'batch_n': 100,
          'num_of_discrete_var': 20,
          'sample_from_disc_kl': True,
-         'stick_the_landing': True,
+         'stick_the_landing': False,
          'test_with_one_hot': False,
          'sample_from_cont_kl': True}
 run_vae_for_all_cases(hyper, model_cases, dataset_cases, temps,
