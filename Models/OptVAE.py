@@ -744,11 +744,11 @@ class OptRELAXIGR(OptRELAX):
         return log_categorical_pmf
 
     def get_relax_variables_from_params(self, x, params):
-        z_un = self.mu + self.sigma * \
-            tf.random.normal(shape=self.mu.shape, dtype=self.dtype)
+        z_un = (self.mu +
+                self.sigma * tf.random.normal(shape=self.mu.shape, dtype=self.dtype))
         z = project_to_vertices_via_softmax_pp(z_un / tf.math.exp(self.log_temp))
-        z_un1 = self.mu + self.sigma * \
-            tf.random.normal(shape=self.mu.shape, dtype=self.dtype)
+        z_un1 = (self.mu +
+                 self.sigma * tf.random.normal(shape=self.mu.shape, dtype=self.dtype))
         z1 = project_to_vertices_via_softmax_pp(z_un1 / tf.math.exp(self.log_temp))
         one_hot = project_to_vertices(z, categories_n=self.n_required + 1)
         c_phi = self.compute_c_phi(z=z1, x=x, params=params)
@@ -864,8 +864,6 @@ class OptIGR(OptVAE):
                 kl_norm = calculate_simple_closed_gauss_kl(mean=mean, log_var=log_var)
         else:
             mu_disc, xi_disc = params_broad
-            # mu_disc = params_broad[0]
-            # xi_disc = tf.constant(0., dtype=mu_disc.dtype, shape=mu_disc.shape)
             kl_norm = 0.
         if not sample_from_disc_kl:
             if self.model_type == 'IGR_I_Dis':
@@ -947,8 +945,6 @@ class OptIGRDis(OptIGR):
 
     def reparameterize(self, params_broad):
         mu, xi = params_broad
-        # mu = params_broad[0]
-        # xi = tf.constant(0., dtype=mu.dtype, shape=mu.shape)
         self.select_distribution(mu, xi)
         self.dist.generate_sample()
         z_discrete = [self.dist.psi]
