@@ -157,7 +157,6 @@ class OptVAE:
 
         return loss
 
-    # @tf.function()
     def train_on_epoch(self, train_dataset, take):
         self.train_loss_mean.reset_states()
         for x_train in train_dataset.take(take):
@@ -166,11 +165,7 @@ class OptVAE:
     def perform_train_step(self, x_train):
         loss = self.compute_gradients(x=x_train)
         self.iter_count += 1
-        # TODO: change improvisation
-        if self.model_type.find('Relax') >= 0:
-            self.train_loss_mean(loss[1])
-        else:
-            self.train_loss_mean(loss)
+        self.train_loss_mean(loss)
 
 
 class OptDLGMM(OptVAE):
@@ -178,20 +173,7 @@ class OptDLGMM(OptVAE):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.mu_prior = self.create_separated_prior_means()
-        # TODO: remove Enalisnick
-        # self.mu_prior = self.get_enalisnick_prior_means()
         self.log_var_prior = tf.zeros_like(self.mu_prior)
-
-    def get_enalisnick_prior_means(self):
-        mu_prior = tf.zeros(shape=(self.batch_size, 1,
-                                   self.sample_size, self.num_of_vars))
-        mult = [-0.5, -0.25, 0.25, 0.5]
-        for k in range(self.n_required - 1):
-            mu = tf.ones(shape=(self.batch_size, 1,
-                                self.sample_size, self.num_of_vars))
-            mu = mult[k] * mu
-            mu_prior = tf.concat([mu_prior, mu], axis=1)
-        return mu_prior
 
     def create_separated_prior_means(self):
         mu_prior = tf.zeros(shape=(self.batch_size, 1,
@@ -275,10 +257,6 @@ class OptDLGMM(OptVAE):
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
-        # log_qpi_x = self.compute_kld(log_a, log_b)
-        # log_qpi_x = self.compute_log_qpi_x(z_kumar, log_a, log_b)
-        # log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
-        # TODO: add option to run Sticking the Landing
         log_a = tf.stop_gradient(log_a)
         log_b = tf.stop_gradient(log_b)
         mean = tf.stop_gradient(mean)
@@ -479,9 +457,6 @@ class OptDLGMMIGR(OptDLGMM):
 
         log_px_z = self.compute_log_px_z(x, x_logit, pi)
         log_pz = self.compute_log_pz(z_norm, pi)
-        # log_qpi_x = self.compute_kld(z_partition, mu, xi)
-        # log_qz_x = self.compute_log_qz_x(z_norm, pi, mean, log_var)
-        # TODO: add option to run Sticking the Landing
         mu = tf.stop_gradient(mu)
         xi = tf.stop_gradient(xi)
         mean = tf.stop_gradient(mean)
@@ -505,11 +480,7 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
     def __init__(self, nets, optimizer, hyper):
         super().__init__(nets=nets, optimizer=optimizer, hyper=hyper)
         self.max_categories = hyper['latent_discrete_n']
-        # self.truncation_option = hyper['truncation_option']
-        # self.threshold = hyper['threshold']
         self.truncation_option = 'quantile'
-        # self.threshold = 0.99
-        # self.quantile = 75
         self.threshold = 0.9999
         self.quantile = 75
 
@@ -524,10 +495,6 @@ class OptDLGMMIGR_SB(OptDLGMMIGR):
         z = [z_partition, z_norm]
         self.pi = self.aux.transform()
         self.n_required = self.pi.shape[1]
-
-        # self.pi = iterative_sb(z_partition)
-        # self.n_required = 15
-        # self.pi = self.pi[:, :self.n_required, :, :]
         return z
 
     def compute_gradients(self, x):
@@ -645,16 +612,14 @@ class OptRELAX(OptVAE):
         num_of_vars = tf.cast(z.shape[-1], dtype=tf.float32)
 
         x_logit = self.decode([z])
-        log_px_z = compute_log_bernoulli_pdf(
-            x=x, x_logit=x_logit, sample_size=self.sample_size)
+        log_px_z = compute_log_bernoulli_pdf(x=x, x_logit=x_logit,
+                                             sample_size=self.sample_size)
         log_p = - num_of_vars * tf.math.log(categories_n)
         log_qz_x = self.compute_log_pmf(z=z, params=params)
         kl = log_p - tf.reduce_mean(log_qz_x)
         recon = -tf.math.reduce_mean(log_px_z)
         loss = recon - kl
-        # breakpoint()
-        # tf.math.reduce_mean(log_px_z)
-        return loss, recon
+        return loss
 
     def offload_params(self, params):
         self.log_alpha = params[0]
@@ -677,7 +642,7 @@ class OptRELAX(OptVAE):
 
     def compute_c_phi(self, z, x, params):
         r = tf.math.reduce_mean(self.relax_cov.net(z))
-        c_phi = self.compute_loss(x=x, z=z, params=params)[0] + r
+        c_phi = self.compute_loss(x=x, z=z, params=params) + r
         return c_phi
 
     @tf.function()
@@ -689,7 +654,7 @@ class OptRELAX(OptVAE):
                 tape.watch(params)
                 c_phi, c_phi_tilde, one_hot = self.get_relax_variables_from_params(
                     x, params)
-                loss, recon = self.compute_loss(x=x, z=one_hot, params=params)
+                loss = self.compute_loss(x=x, z=one_hot, params=params)
                 c_diff = tf.reduce_mean(c_phi - c_phi_tilde)
                 log_qz_x_grad = tf.reduce_mean(self.compute_log_pmf_grad(z=one_hot),
                                                axis=2, keepdims=True)
@@ -709,7 +674,7 @@ class OptRELAX(OptVAE):
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
         self.apply_gradients(gradients)
-        return gradients, loss, relax_grad, params, recon
+        return loss
 
     def compute_relax_grad(self, loss, c_phi_tilde, log_qz_x_grad, c_phi_diff_grad):
         relax_grads = []
@@ -759,7 +724,7 @@ class OptRELAXIGR(OptRELAX):
         kl -= log_p
         recon = -tf.math.reduce_mean(log_px_z)
         loss = recon - kl
-        return loss, recon
+        return loss
 
     def offload_params(self, params):
         mu, xi = params
@@ -797,7 +762,7 @@ class OptRELAXIGR(OptRELAX):
                 self.offload_params(params)
                 tape.watch(params)
                 c_phi, z_un, one_hot = self.get_relax_variables_from_params(x, params)
-                loss, recon = self.compute_loss(x=x, params=params, z=one_hot)
+                loss = self.compute_loss(x=x, params=params, z=one_hot)
                 log_pmf = self.compute_log_pmf(z=one_hot, params=params)
 
             c_phi_g = tape.gradient(target=c_phi, sources=params)
@@ -815,7 +780,7 @@ class OptRELAXIGR(OptRELAX):
 
         gradients = (encoder_grads, decoder_grads, cov_net_grad)
         self.apply_gradients(gradients)
-        return gradients, loss, relax_grad, params, recon
+        return loss
 
 
 class OptRELAXGSDis(OptRELAX):
@@ -830,10 +795,8 @@ class OptRELAXGSDis(OptRELAX):
         z_tilde_un = sample_z_tilde_cat(one_hot, self.log_alpha)
 
         z = tf.math.softmax(z_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
-        z_tilde = tf.math.softmax(
-            z_tilde_un / tf.math.exp(self.log_temp) + self.log_alpha, axis=1)
-        # z = tf.math.softmax(z_un / tf.math.exp(self.log_temp), axis=1)
-        # z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp), axis=1)
+        z_tilde = tf.math.softmax(z_tilde_un / tf.math.exp(self.log_temp) +
+                                  self.log_alpha, axis=1)
 
         c_phi = self.compute_c_phi(z=z, x=x, params=params)
         c_phi_tilde = self.compute_c_phi(z=z_tilde, x=x, params=params)
@@ -1157,18 +1120,6 @@ def compute_log_gaussian_pdf(x, x_logit, sample_size):
 def safe_log_prob(x, eps=1.e-8):
     return tf.math.log(tf.clip_by_value(x, eps, 1.0))
 
-
-# def sample_z_tilde_ber(log_alpha, one_hot):
-#     # TODO: add testing for this function
-#     v = tf.random.uniform(shape=log_alpha.shape)
-#     theta = tf.math.sigmoid(log_alpha)
-#     v_0 = v * (1 - theta)
-#     v_1 = v * theta + (1 - theta)
-#     v_tilde = tf.where(one_hot == 1., v_1, v_0)
-#
-#     z_tilde_un = log_alpha + safe_log_prob(v_tilde) - safe_log_prob(1 - v_tilde)
-#     return z_tilde_un
-#
 
 def sample_z_tilde_ber(log_alpha, u, eps=1.e-8):
     u_prime = tf.math.sigmoid(-log_alpha)
