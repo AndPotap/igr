@@ -132,19 +132,6 @@ def run_initialization_procedure(hyper, results_path):
     return hyper_file, results_file
 
 
-# def perform_train_step(x_train, vae_opt, train_loss_mean):
-#     output = vae_opt.compute_gradients(x=x_train)
-#     if len(output) > 2:
-#         gradients, loss, relax, g2, other = output
-#         # print_gradient_analysis(relax, g2, iteration_counter, loss, other)
-#     else:
-#         gradients, loss = output
-#     # vae_opt.apply_gradients(gradients=gradients)
-#     vae_opt.iter_count += 1
-#     train_loss_mean(loss)
-#     return vae_opt
-#
-
 def print_gradient_analysis(relax, g2, iteration_counter, loss, other=None):
     relax = relax[0] if len(relax) > 0 else relax
     if len(g2) > 1:
@@ -282,7 +269,6 @@ def fill_model_depending_settings(hyper_copy):
     else:
         hyper_copy['latent_discrete_n'] += 1
         hyper_copy['num_of_discrete_param'] = 2
-        # hyper_copy['num_of_discrete_param'] = 1
     return hyper_copy
 
 
