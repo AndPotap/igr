@@ -166,9 +166,11 @@ class OptVAE:
     def perform_train_step(self, x_train):
         loss = self.compute_gradients(x=x_train)
         self.iter_count += 1
-        self.train_loss_mean(loss)
         # TODO: change improvisation
-        # self.train_loss_mean(loss[1])
+        if self.model_type.find('Relax') >= 0:
+            self.train_loss_mean(loss[1])
+        else:
+            self.train_loss_mean(loss)
 
 
 class OptDLGMM(OptVAE):
