@@ -729,8 +729,8 @@ class OptRELAXIGR(OptRELAX):
     def offload_params(self, params):
         mu, xi = params
         # Transformations to ensure numerical stability of the integral
-        self.mu = tf.constant(4., self.dtype) * tf.math.tanh(mu)
-        self.sigma = (tf.constant(2., self.dtype) * tf.math.sigmoid(xi) +
+        self.mu = tf.constant(1., self.dtype) * tf.math.tanh(mu)
+        self.sigma = (tf.constant(0.5, self.dtype) * tf.math.sigmoid(xi) +
                       tf.constant(0.5, self.dtype))
 
     def transform_params_into_log_probs(self, params):
